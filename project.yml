@@ -90,7 +90,7 @@ targets:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
         CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "109"
+        CFBundleVersion: "110"
         NSHighResolutionCapable: true
         NSHumanReadableCopyright: Copyright © 2026 QuilNode contributors. AGPL-3.0-only.
         SUFeedURL: https://raw.githubusercontent.com/quilnode/quilnode/release-feed/appcast.xml
