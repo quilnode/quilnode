@@ -93,7 +93,14 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// Archive RPC endpoints currently known by the node's local sync pool.
     /// `nil` means the installed node has not emitted enough evidence yet.
     public var archiveEndpointCount: Int?
+    /// Effective `joining` allocation records reported by
+    /// `qclient node prover status`. This is an allocation lifecycle count,
+    /// not a worker-runtime health count.
     public var pendingJoins: Int
+    /// Effective `active` allocation records reported by
+    /// `qclient node prover status`. The historic property name is retained
+    /// for persisted snapshot compatibility; operator-facing code should use
+    /// `activeAllocations` below.
     public var activeShards: Int
     public var totalAllocations: Int
     public var framesReceived: UInt64
@@ -246,6 +253,12 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     }
 
     public static let empty = NodeSnapshot()
+
+    /// Semantically precise aliases for the legacy persisted field names.
+    /// A running worker can own an allocation that is still joining, so these
+    /// values must never be presented as worker health.
+    public var activeAllocations: Int { activeShards }
+    public var joiningAllocations: Int { pendingJoins }
 
     public var health: NodeHealth {
         guard isRunning else { return .stopped }

@@ -12,15 +12,105 @@ struct ProtocolAllocationSummaryStat: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title.uppercased())
                 .protocolSectionLabel(color: theme.colors.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
             PrivacyProtectedText(value: value, field: privacyField)
                 .font(.system(size: 15, weight: .semibold, design: .monospaced).monospacedDigit())
                 .foregroundStyle(tint)
+                .lineLimit(1)
             Text(detail)
                 .font(.system(size: 9.5))
                 .foregroundStyle(theme.colors.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+struct ProtocolAllocationRelationshipSummary: View {
+    @Environment(\.quilTheme) private var theme
+
+    let presentation: AllocationLatticePresentation
+    let isLoading: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if isLoading {
+                HStack(spacing: 7) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(theme.colors.info)
+                    Text("Loading worker runtime, allocation state and shard coverage…")
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 7) {
+                        runningWorkersValue
+                        Text("·")
+                        activeAllocationsValue
+                        Text("·")
+                        joiningAllocationsValue
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        runningWorkersValue
+                        activeAllocationsValue
+                        joiningAllocationsValue
+                    }
+                }
+            }
+
+            HStack(spacing: 5) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(theme.colors.info)
+                Text("A running worker can still have a joining allocation.")
+                Text("“Healthy” describes shard coverage, not worker status.")
+                    .fontWeight(.semibold)
+            }
+        }
+        .font(.system(size: 9.5, design: .monospaced))
+        .foregroundStyle(theme.colors.secondaryText)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.colors.surface.opacity(0.32))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(theme.colors.border.opacity(0.42), lineWidth: max(theme.metrics.borderWidth, 0.5))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var runningWorkersValue: some View {
+        PrivacyProtectedPhrase(
+            value: presentation.runningWorkers.map(String.init) ?? "—",
+            suffix: " workers running",
+            field: .hardwareProfile
+        )
+        .foregroundStyle(theme.colors.info)
+    }
+
+    private var activeAllocationsValue: some View {
+        PrivacyProtectedPhrase(
+            value: String(presentation.activeAllocations),
+            suffix: " allocations active",
+            field: .activeShardCount
+        )
+        .foregroundStyle(theme.colors.success)
+    }
+
+    private var joiningAllocationsValue: some View {
+        PrivacyProtectedPhrase(
+            value: String(presentation.joiningAllocations),
+            suffix: " allocations joining",
+            field: .allocationCount
+        )
+        .foregroundStyle(
+            presentation.joiningAllocations > 0
+                ? theme.colors.warning : theme.colors.secondaryText
+        )
     }
 }
 

@@ -406,10 +406,10 @@ struct DashboardSidebar: View {
             Text("Reading managed service state")
         } else if observationPhase == .loadingTelemetry {
             Text(snapshot.isRunning ? "Loading live telemetry" : "Managed service is stopped")
-        } else if snapshot.activeShards > 0 {
+        } else if snapshot.activeAllocations > 0 {
             PrivacyProtectedPhrase(
-                value: String(snapshot.activeShards),
-                suffix: " shards active · \(rewardLabel)",
+                value: String(snapshot.activeAllocations),
+                suffix: " allocations active · \(rewardLabel)",
                 field: .activeShardCount
             )
         } else if snapshot.pendingJoins > 0 {
@@ -428,9 +428,9 @@ struct DashboardSidebar: View {
         if observationPhase == .loadingTelemetry {
             return snapshot.isRunning ? "Loading live telemetry" : "Managed service is stopped"
         }
-        if snapshot.activeShards > 0 {
-            let value = privacyMode.isEnabled ? "Hidden" : String(snapshot.activeShards)
-            return value + " shards active · " + rewardLabel
+        if snapshot.activeAllocations > 0 {
+            let value = privacyMode.isEnabled ? "Hidden" : String(snapshot.activeAllocations)
+            return value + " allocations active · " + rewardLabel
         }
         if snapshot.pendingJoins > 0 {
             let value = privacyMode.isEnabled ? "Hidden" : String(snapshot.pendingJoins)

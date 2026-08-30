@@ -88,15 +88,15 @@ struct ProtocolAllocationPlaceholderLayout: View {
     @ViewBuilder
     private var placeholderMetadata: some View {
         if mode == .loading {
-            Text("Ring — · — provers · Coverage —")
+            Text("Coverage — · — provers · Ring —")
         } else {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text("Ring ")
-                Text(PrivacyMaskStyle.compact.text)
+                Text("Coverage ")
+                Text(PrivacyMaskStyle.identifier.text)
                 Text(" · ")
                 Text(PrivacyMaskStyle.compact.text)
-                Text(" provers · Coverage ")
-                Text(PrivacyMaskStyle.identifier.text)
+                Text(" provers · Ring ")
+                Text(PrivacyMaskStyle.compact.text)
             }
         }
     }

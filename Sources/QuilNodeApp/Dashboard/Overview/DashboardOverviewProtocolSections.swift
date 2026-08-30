@@ -18,7 +18,7 @@ extension DashboardView {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text("Allocation lattice")
                     .font(.system(size: 13, weight: .semibold))
-                Text("Workers, assigned shards and coverage")
+                Text("Worker runtime, allocation state and shard coverage")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
@@ -36,33 +36,35 @@ extension DashboardView {
 
             HStack(spacing: 0) {
                 ProtocolAllocationSummaryStat(
-                    title: "Active",
-                    value: nodeObservation.value(String(monitor.snapshot.activeShards)),
-                    detail: "shard paths",
-                    tint: monitor.snapshot.activeShards > 0 ? theme.colors.success : theme.colors.secondaryText,
+                    title: "Allocations active",
+                    value: nodeObservation.value(String(allocationLattice.activeAllocations)),
+                    detail: "ready for work",
+                    tint: allocationLattice.activeAllocations > 0
+                        ? theme.colors.success : theme.colors.secondaryText,
                     privacyField: .activeShardCount
                 )
                 allocationSummaryDivider
                 ProtocolAllocationSummaryStat(
-                    title: "Joining",
-                    value: nodeObservation.value(String(monitor.snapshot.pendingJoins)),
-                    detail: "pending paths",
-                    tint: monitor.snapshot.pendingJoins > 0 ? theme.colors.warning : theme.colors.secondaryText,
+                    title: "Allocations joining",
+                    value: nodeObservation.value(String(allocationLattice.joiningAllocations)),
+                    detail: "not active yet",
+                    tint: allocationLattice.joiningAllocations > 0
+                        ? theme.colors.warning : theme.colors.secondaryText,
                     privacyField: .allocationCount
                 )
                 allocationSummaryDivider
                 ProtocolAllocationSummaryStat(
-                    title: "Capacity",
-                    value: nodeObservation.value(localWorkerCapacity.map(String.init) ?? "—"),
-                    detail: "local workers",
+                    title: "Workers running",
+                    value: nodeObservation.value(allocationLattice.runningWorkers.map(String.init) ?? "—"),
+                    detail: "local runtime",
                     tint: theme.colors.info,
                     privacyField: .hardwareProfile
                 )
                 allocationSummaryDivider
                 ProtocolAllocationSummaryStat(
-                    title: "Coverage",
+                    title: "Shard coverage",
                     value: nodeObservation.value(localCoverageLabel),
-                    detail: "assigned shards",
+                    detail: "network resilience",
                     tint: localCoverageTint,
                     privacyField: .shardAllocation
                 )
@@ -73,6 +75,11 @@ extension DashboardView {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(theme.colors.border.opacity(0.56), lineWidth: max(theme.metrics.borderWidth, 0.5))
             }
+
+            ProtocolAllocationRelationshipSummary(
+                presentation: allocationLattice,
+                isLoading: !nodeObservation.hasLiveTelemetry
+            )
 
             ZStack(alignment: .topLeading) {
                 protocolAllocationLayout
@@ -85,7 +92,7 @@ extension DashboardView {
                 HStack(spacing: 6) {
                     Image(systemName: "point.3.filled.connected.trianglepath.dotted")
                         .foregroundStyle(summary.atRiskShards > 0 ? theme.colors.warning : theme.colors.success)
-                    Text("Local shard view")
+                    Text("Network shard coverage")
                         .fontWeight(.semibold)
                     Text("·")
                     Text("\(summary.healthyShards) healthy")
@@ -131,7 +138,7 @@ extension DashboardView {
                                 ? monitor.snapshot.totalAllocations > 0
                                     ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
                                     : "No shard assignment is present in the local registry yet. Capacity remains visible above."
-                                : "Each worker lane and coverage value comes from the managed node's local read-only RPC."
+                                : "Each card separates the allocation lifecycle from the assigned shard's network coverage."
                 )
                 Spacer(minLength: 10)
                 Text("Local node only")
@@ -143,12 +150,6 @@ extension DashboardView {
         .padding(.vertical, 13)
         .background(theme.colors.canvas.opacity(0.76))
         .overlay(alignment: .bottom) { protocolSectionRule }
-    }
-
-    private var localWorkerCapacity: Int? {
-        if let workers = monitor.snapshot.localWorkerCount, workers > 0 { return workers }
-        if monitor.snapshot.allocatedWorkers > 0 { return monitor.snapshot.allocatedWorkers }
-        return nil
     }
 
     @ViewBuilder
@@ -166,7 +167,7 @@ extension DashboardView {
             )
         case .capacity:
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
-                if let capacity = localWorkerCapacity, capacity > 0 {
+                if let capacity = allocationLattice.runningWorkers, capacity > 0 {
                     let visibleWorkers = min(capacity, 7)
                     ForEach(0..<visibleWorkers, id: \.self) { index in
                         Button {
@@ -215,12 +216,7 @@ extension DashboardView {
     }
 
     private var localCoverageState: ShardCoverageState? {
-        let states = monitor.snapshot.shardAllocations.compactMap(\.coverageState)
-        if states.contains(.unassigned) { return .unassigned }
-        if states.contains(.atRisk) { return .atRisk }
-        if states.contains(.belowTarget) { return .belowTarget }
-        if states.contains(.healthy) { return .healthy }
-        return nil
+        allocationLattice.coverageState
     }
 
     private var localCoverageLabel: String {
@@ -288,9 +284,10 @@ extension DashboardView {
             protocolEvidenceDivider
             ProtocolEvidenceStat(
                 title: "Eligibility",
-                value: monitor.snapshot.activeShards > 0 ? "Active" : "Not active",
-                detail: monitor.snapshot.activeShards > 0 ? "Shard work assigned" : "Awaiting active shard work",
-                tint: monitor.snapshot.activeShards > 0 ? theme.colors.success : theme.colors.warning,
+                value: monitor.snapshot.activeAllocations > 0 ? "Active" : "Not active",
+                detail: monitor.snapshot.activeAllocations > 0
+                    ? "Active allocations assigned" : "Awaiting active allocations",
+                tint: monitor.snapshot.activeAllocations > 0 ? theme.colors.success : theme.colors.warning,
                 privacyField: nil
             )
             protocolEvidenceDivider

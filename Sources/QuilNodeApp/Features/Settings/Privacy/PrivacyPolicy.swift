@@ -48,7 +48,7 @@ enum PrivacyField: String, CaseIterable {
 
     var accessibilityName: String {
         switch self {
-        case .activeShardCount: "Active shard count"
+        case .activeShardCount: "Active allocation count"
         case .allocationCount: "Allocation count"
         case .shardAllocation: "Shard allocation"
         case .seniority: "Seniority"

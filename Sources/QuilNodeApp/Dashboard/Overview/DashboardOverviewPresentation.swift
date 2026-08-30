@@ -79,4 +79,8 @@ extension DashboardView {
     var participationEvidence: ParticipationEvidencePresentation {
         ParticipationEvidencePresentation.make(snapshot: monitor.snapshot)
     }
+
+    var allocationLattice: AllocationLatticePresentation {
+        AllocationLatticePresentation.make(snapshot: monitor.snapshot)
+    }
 }

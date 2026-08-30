@@ -279,11 +279,11 @@ extension DashboardView {
     private var overviewMetricDescriptors: [ProtocolMetricDescriptor] {
         [
             ProtocolMetricDescriptor(
-                id: "shards",
-                title: "Shards active",
-                value: nodeObservation.value(String(monitor.snapshot.activeShards)),
+                id: "allocations",
+                title: "Allocations active",
+                value: nodeObservation.value(String(monitor.snapshot.activeAllocations)),
                 detail: nodeObservation.detail("Local registry"),
-                tint: monitor.snapshot.activeShards > 0 ? theme.colors.success : protocolSignal,
+                tint: monitor.snapshot.activeAllocations > 0 ? theme.colors.success : protocolSignal,
                 privacyField: .activeShardCount
             ),
             ProtocolMetricDescriptor(

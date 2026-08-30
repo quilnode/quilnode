@@ -114,8 +114,8 @@ public enum NodeActivityAnalyzer {
                 at: current.timestamp,
                 category: .proving,
                 kind: .activeShardChanged,
-                title: "Active shard count changed",
-                noun: "active shards",
+                title: "Active allocation count changed",
+                noun: "active allocations",
                 to: &output
             )
 
