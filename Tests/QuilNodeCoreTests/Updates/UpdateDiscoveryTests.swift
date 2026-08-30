@@ -125,6 +125,24 @@ final class UpdateDiscoveryTests: XCTestCase {
             UpdateDiscoveryPolicy.nextSignalDelay(consecutiveFailures: 9, jitterUnit: 1) == 66 * 60,
             "signal backoff is capped before bounded jitter"
         )
+        expect(
+            UpdateDiscoveryPolicy.nextSignalDelay(
+                consecutiveFailures: 0,
+                jitterUnit: 0,
+                lastSuccessfulProbeAt: discoveryNow.addingTimeInterval(-120),
+                now: discoveryNow
+            ) == 3 * 60,
+            "relaunch preserves the remaining lightweight-signal cadence"
+        )
+        expect(
+            UpdateDiscoveryPolicy.nextSignalDelay(
+                consecutiveFailures: 0,
+                jitterUnit: 1,
+                lastSuccessfulProbeAt: discoveryNow.addingTimeInterval(-10 * 60),
+                now: discoveryNow
+            ) == 30,
+            "overdue relaunch probes promptly with bounded startup jitter"
+        )
         let protocolPlan = ProtocolSourcePlan.paths(
             previous: ["crates/quil-execution/src/known.rs", "../private.rs"],
             recentlyChanged: [

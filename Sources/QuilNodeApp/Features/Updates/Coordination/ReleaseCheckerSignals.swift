@@ -14,9 +14,14 @@ extension ReleaseChecker {
         nextSignalCheck = nil
         guard policy != .manual else { return }
 
+        let baseline = loadSignalBaseline(for: policy)
+        if lastSignalCheck == nil {
+            lastSignalCheck = baseline?.observedAt
+        }
         let delay = UpdateDiscoveryPolicy.nextSignalDelay(
             consecutiveFailures: signalFailureCount,
-            jitterUnit: Double.random(in: 0...1)
+            jitterUnit: Double.random(in: 0...1),
+            lastSuccessfulProbeAt: baseline?.observedAt
         )
         nextSignalCheck = Date().addingTimeInterval(delay)
         signalTask = Task { @MainActor [weak self] in

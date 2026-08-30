@@ -24,7 +24,9 @@ public enum UpdateDiscoveryPolicy {
     /// explicit to keep the policy deterministic in tests.
     public static func nextSignalDelay(
         consecutiveFailures: Int,
-        jitterUnit: Double
+        jitterUnit: Double,
+        lastSuccessfulProbeAt: Date? = nil,
+        now: Date = Date()
     ) -> TimeInterval {
         let exponent = min(max(consecutiveFailures, 0), 4)
         let base = min(
@@ -32,7 +34,16 @@ public enum UpdateDiscoveryPolicy {
             maximumSignalBackoff
         )
         let boundedJitter = min(max(jitterUnit, 0), 1)
-        return base + base * 0.1 * boundedJitter
+        let cadence = base + base * 0.1 * boundedJitter
+
+        // A successful signal timestamp is persisted with its ETag/fingerprint.
+        // Reopening QuilNode therefore preserves the existing cadence instead
+        // of blindly waiting another five minutes. An overdue probe receives a
+        // small launch jitter so many Macs waking together do not synchronize.
+        guard consecutiveFailures == 0, let lastSuccessfulProbeAt else { return cadence }
+        let remaining = lastSuccessfulProbeAt.addingTimeInterval(cadence).timeIntervalSince(now)
+        let launchJitter = 5 + 25 * boundedJitter
+        return max(remaining, launchJitter)
     }
 }
 
