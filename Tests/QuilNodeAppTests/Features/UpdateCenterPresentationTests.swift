@@ -25,7 +25,49 @@ final class UpdateCenterPresentationTests: XCTestCase {
 
         XCTAssertEqual(approved?.commit, approvedCommit)
         XCTAssertEqual(approved?.evidence, "subpatch 62 · v2.1.0.25")
+        XCTAssertEqual(approved?.state, .ready)
         XCTAssertEqual(approved?.action.state, .ready)
+        XCTAssertEqual(approved?.timestamp?.kind, .sourceCommitted)
+    }
+
+    func testApprovedAvailabilityNeverUsesBranchHeadDistanceAsInstallState() {
+        var snapshot = makeSnapshot()
+        snapshot.source.approvedDevelopment?.unapprovedCommitsAhead = 0
+        var approved = UpdateChannelPresentation.make(
+            snapshot: snapshot,
+            isInstalling: false,
+            hasStagedUpdate: false
+        ).first { $0.kind == .approved }
+
+        XCTAssertEqual(approved?.state, .ready)
+        XCTAssertFalse(approved?.state.title.contains("+0") ?? true)
+
+        snapshot.source.approvedDevelopment?.unapprovedCommitsAhead = 3
+        approved = UpdateChannelPresentation.make(
+            snapshot: snapshot,
+            isInstalling: false,
+            hasStagedUpdate: false
+        ).first { $0.kind == .approved }
+        XCTAssertEqual(approved?.state, .ready)
+        XCTAssertTrue(approved?.evidence.contains("3 newer unapproved commits excluded") ?? false)
+    }
+
+    func testRawDistanceIsOnlyShownWhenAncestryWasProven() {
+        var snapshot = makeSnapshot()
+        var raw = UpdateChannelPresentation.make(
+            snapshot: snapshot,
+            isInstalling: false,
+            hasStagedUpdate: false
+        ).first { $0.kind == .raw }
+        XCTAssertEqual(raw?.state, .commitsBehind(8))
+
+        snapshot.source.commitsBehind = nil
+        raw = UpdateChannelPresentation.make(
+            snapshot: snapshot,
+            isInstalling: false,
+            hasStagedUpdate: false
+        ).first { $0.kind == .raw }
+        XCTAssertEqual(raw?.state, .newerSource)
     }
 
     func testRunningOperationBlocksEveryInstallAction() {

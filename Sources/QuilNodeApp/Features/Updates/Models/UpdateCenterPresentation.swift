@@ -61,7 +61,8 @@ enum UpdateChannelAssurance: Equatable, Sendable {
 enum UpdateChannelState: Equatable, Sendable {
     case current
     case ready
-    case ahead(Int?)
+    case commitsBehind(Int)
+    case newerSource
     case installedAhead
     case unavailable
 
@@ -69,11 +70,29 @@ enum UpdateChannelState: Equatable, Sendable {
         switch self {
         case .current: "Current"
         case .ready: "Ready"
-        case let .ahead(count): count.map { "+\($0) commits" } ?? "Newer source"
+        case let .commitsBehind(count): "\(count) commit\(count == 1 ? "" : "s") behind"
+        case .newerSource: "Newer source"
         case .installedAhead: "Installed ahead"
         case .unavailable: "Unavailable"
         }
     }
+}
+
+struct UpdateChannelTimestamp: Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
+        case manifestModified
+        case sourceCommitted
+
+        var label: String {
+            switch self {
+            case .manifestModified: "Manifest updated"
+            case .sourceCommitted: "Committed"
+            }
+        }
+    }
+
+    var kind: Kind
+    var date: Date
 }
 
 struct UpdateChannelPresentation: Identifiable, Sendable {
@@ -83,7 +102,7 @@ struct UpdateChannelPresentation: Identifiable, Sendable {
     var version: String
     var commit: String?
     var evidence: String
-    var discoveredAt: Date?
+    var timestamp: UpdateChannelTimestamp?
     var state: UpdateChannelState
     var action: UpdateActionAvailability
     var actionTitle: String
@@ -118,7 +137,9 @@ struct UpdateChannelPresentation: Identifiable, Sendable {
             version: snapshot.signed.version,
             commit: nil,
             evidence: "\(snapshot.signed.signatureIndices.count)/17 signatures",
-            discoveredAt: snapshot.signed.manifestModifiedAt,
+            timestamp: snapshot.signed.manifestModifiedAt.map {
+                UpdateChannelTimestamp(kind: .manifestModified, date: $0)
+            },
             state: channelState,
             action: availability(
                 isCandidateNewer: versionRelation == .newer,
@@ -144,7 +165,7 @@ struct UpdateChannelPresentation: Identifiable, Sendable {
                 version: "Waiting for marker",
                 commit: nil,
                 evidence: snapshot.source.approvalIssue ?? "No valid subpatch marker",
-                discoveredAt: nil,
+                timestamp: nil,
                 state: .unavailable,
                 action: .blocked("Waiting for an official subpatch approval marker."),
                 actionTitle: "Build approved"
@@ -164,14 +185,28 @@ struct UpdateChannelPresentation: Identifiable, Sendable {
                 hasStagedUpdate: hasStagedUpdate
             )
         }
+        let evidence =
+            if release.unapprovedCommitsAhead > 0 {
+                "subpatch \(release.subpatch) · \(release.branch) · \(release.unapprovedCommitsAhead) newer unapproved commit\(release.unapprovedCommitsAhead == 1 ? "" : "s") excluded"
+            } else {
+                "subpatch \(release.subpatch) · \(release.branch)"
+            }
+        let state: UpdateChannelState =
+            if installedMatches {
+                .current
+            } else if newer {
+                .ready
+            } else {
+                .installedAhead
+            }
         return Self(
             kind: .approved,
             assurance: .approved,
             version: release.version,
             commit: release.commit,
-            evidence: "subpatch \(release.subpatch) · \(release.branch)",
-            discoveredAt: release.committedAt,
-            state: installedMatches ? .current : .ahead(release.unapprovedCommitsAhead),
+            evidence: evidence,
+            timestamp: UpdateChannelTimestamp(kind: .sourceCommitted, date: release.committedAt),
+            state: state,
             action: action,
             actionTitle: "Build & install approved"
         )
@@ -194,14 +229,22 @@ struct UpdateChannelPresentation: Identifiable, Sendable {
         } else {
             action = .ready("Build the newest official branch head without an approval guarantee.")
         }
+        let state: UpdateChannelState =
+            if installedMatches {
+                .current
+            } else if let commitsBehind = snapshot.source.commitsBehind, commitsBehind > 0 {
+                .commitsBehind(commitsBehind)
+            } else {
+                .newerSource
+            }
         return Self(
             kind: .raw,
             assurance: .experimental,
             version: head.name,
             commit: head.commit,
             evidence: head.subject,
-            discoveredAt: head.committedAt,
-            state: installedMatches ? .current : .ahead(snapshot.source.commitsBehind),
+            timestamp: UpdateChannelTimestamp(kind: .sourceCommitted, date: head.committedAt),
+            state: state,
             action: action,
             actionTitle: "Build & install raw"
         )

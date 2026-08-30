@@ -109,10 +109,14 @@ extension DashboardView {
                 Label(channel.state.title, systemImage: stateIcon(channel.state))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(stateTint(channel.state))
-                if let date = channel.discoveredAt {
-                    Text(date.formatted(.relative(presentation: .named)))
+                if let timestamp = channel.timestamp {
+                    Text("\(timestamp.kind.label) \(timestamp.date.formatted(.relative(presentation: .named)))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(
+                            "\(timestamp.kind.label) \(timestamp.date.formatted(date: .complete, time: .complete))"
+                        )
                 }
             }
             .frame(width: 112, alignment: .leading)
@@ -237,7 +241,7 @@ extension DashboardView {
     private func stateTint(_ state: UpdateChannelState) -> Color {
         switch state {
         case .current: theme.colors.success
-        case .ready, .ahead: theme.colors.info
+        case .ready, .commitsBehind, .newerSource: theme.colors.info
         case .installedAhead: theme.colors.success
         case .unavailable: theme.colors.warning
         }
@@ -247,7 +251,8 @@ extension DashboardView {
         switch state {
         case .current: "checkmark.circle.fill"
         case .ready: "arrow.down.circle.fill"
-        case .ahead: "arrow.up.circle.fill"
+        case .commitsBehind: "arrow.up.circle.fill"
+        case .newerSource: "arrow.triangle.branch"
         case .installedAhead: "arrow.up.right.circle.fill"
         case .unavailable: "clock.badge.exclamationmark"
         }
