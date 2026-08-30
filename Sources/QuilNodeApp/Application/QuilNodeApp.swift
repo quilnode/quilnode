@@ -42,23 +42,14 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         /// preview-only modes use an isolated hosting window and never start
         /// production coordinators.
         private func presentStandaloneDesignPreviewIfRequested() {
-            let value = ProcessInfo.processInfo.arguments.first { $0.hasPrefix("--design-preview=network-inbound-") }
+            let value = ProcessInfo.processInfo.arguments.first {
+                $0.hasPrefix("--design-preview=network-inbound-")
+                    || $0.hasPrefix("--design-preview=identity-transaction-")
+            }
             guard let value else { return }
 
             let mode = String(value.dropFirst("--design-preview=".count))
-            let initialStep: InboundSetupStep =
-                switch mode {
-                case "network-inbound-firewall": .firewall
-                case "network-inbound-router": .router
-                case "network-inbound-proof": .inboundProof
-                default: .listenerProfile
-                }
-            let content = InboundSetupDesignPreviewHost(
-                initialStep: initialStep,
-                privacyEnabled: mode == "network-inbound-private",
-                profileKind: mode == "network-inbound-custom" ? .custom : .recommendedResidential
-            )
-            .quilThemed(.quilNode)
+            let content = standaloneDesignPreview(mode: mode)
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 980, height: 730),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -74,6 +65,38 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             designPreviewWindow = window
             NSApp.activate(ignoringOtherApps: true)
+        }
+
+        @ViewBuilder
+        private func standaloneDesignPreview(mode: String) -> some View {
+            if mode.hasPrefix("identity-transaction-") {
+                let previewMode: IdentityTransactionPreviewMode =
+                    switch mode {
+                    case "identity-transaction-create": .create
+                    case "identity-transaction-activate": .activate
+                    case "identity-transaction-recovery": .importRecoveryOnly
+                    default: .importKeyset
+                    }
+                IdentityTransactionDesignPreviewHost(
+                    mode: previewMode,
+                    privacyEnabled: mode == "identity-transaction-private"
+                )
+                .quilThemed(.quilNode)
+            } else {
+                let initialStep: InboundSetupStep =
+                    switch mode {
+                    case "network-inbound-firewall": .firewall
+                    case "network-inbound-router": .router
+                    case "network-inbound-proof": .inboundProof
+                    default: .listenerProfile
+                    }
+                InboundSetupDesignPreviewHost(
+                    initialStep: initialStep,
+                    privacyEnabled: mode == "network-inbound-private",
+                    profileKind: mode == "network-inbound-custom" ? .custom : .recommendedResidential
+                )
+                .quilThemed(.quilNode)
+            }
         }
     #endif
 }
@@ -246,6 +269,16 @@ struct QuilNodeApp: App {
                 InboundSetupDesignPreviewHost(initialStep: .listenerProfile, privacyEnabled: true)
             } else if designPreviewMode == "network-inbound-custom" {
                 InboundSetupDesignPreviewHost(initialStep: .listenerProfile, profileKind: .custom)
+            } else if designPreviewMode == "identity-transaction-import" {
+                IdentityTransactionDesignPreviewHost(mode: .importKeyset)
+            } else if designPreviewMode == "identity-transaction-recovery" {
+                IdentityTransactionDesignPreviewHost(mode: .importRecoveryOnly)
+            } else if designPreviewMode == "identity-transaction-create" {
+                IdentityTransactionDesignPreviewHost(mode: .create)
+            } else if designPreviewMode == "identity-transaction-activate" {
+                IdentityTransactionDesignPreviewHost(mode: .activate)
+            } else if designPreviewMode == "identity-transaction-private" {
+                IdentityTransactionDesignPreviewHost(mode: .importKeyset, privacyEnabled: true)
             } else {
                 dashboardSceneContent
             }

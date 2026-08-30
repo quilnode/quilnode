@@ -12,11 +12,19 @@ import SwiftUI
 
 struct PendingKeysetImport: Identifiable {
     let id = UUID()
+    let keysetID = UUID()
     /// A capability chosen by the operator. The GUI retains the URL only; it
     /// never opens, parses, hashes, copies, or displays either key file.
     let selectedDirectory: URL
     let inspection: KeysetInspection
     var suggestedName: String
+}
+
+enum PendingKeysetImportResult: Equatable {
+    case failed
+    case imported
+    case importedAndActivated
+    case importedActivationFailed(keysetID: UUID)
 }
 
 @MainActor
@@ -166,9 +174,9 @@ final class WalletManager: ObservableObject {
         }
     }
 
-    func importPending(named name: String, activateAfterImport: Bool) async {
-        guard let pendingImport else { return }
-        let keysetID = UUID()
+    func importPending(named name: String, activateAfterImport: Bool) async -> PendingKeysetImportResult {
+        guard let pendingImport else { return .failed }
+        let keysetID = pendingImport.keysetID
         let success = await perform(
             title: "Importing identity",
             manifest: .init(
@@ -179,13 +187,14 @@ final class WalletManager: ObservableObject {
                 confirmedBackupResponsibility: true
             )
         )
-        if success {
-            self.pendingImport = nil
-            onboardingCompleted = true
-            if activateAfterImport {
-                _ = await activate(id: keysetID, name: name)
-            }
-        }
+        guard success else { return .failed }
+
+        self.pendingImport = nil
+        onboardingCompleted = true
+        guard activateAfterImport else { return .imported }
+        return await activate(id: keysetID, name: name)
+            ? .importedAndActivated
+            : .importedActivationFailed(keysetID: keysetID)
     }
 
     @discardableResult

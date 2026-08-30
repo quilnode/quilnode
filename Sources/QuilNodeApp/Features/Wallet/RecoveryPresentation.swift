@@ -209,8 +209,3 @@ extension KeysetHealth {
         }
     }
 }
-
-enum RecoveryOperationCopy {
-    static let activationConfirmation =
-        "QuilNode will verify the complete package, create a rollback snapshot, stop only the node, apply the identity pair, allow the official node to migrate it when required, and validate startup. The previous identity is restored automatically if validation fails. Stores are preserved."
-}

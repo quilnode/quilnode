@@ -11,6 +11,7 @@ struct WalletOnboardingView: View {
 
     @State private var selection: IdentityOnboardingChoice?
     @State private var createName = "My Quilibrium identity"
+    @State private var pendingTransaction: IdentityTransactionContext?
 
     private var activeIdentity: ManagedKeyset? {
         walletManager.inventory.activeKeyset
@@ -42,9 +43,20 @@ struct WalletOnboardingView: View {
             }
         }
         .sheet(item: $walletManager.pendingImport, onDismiss: walletManager.discardPendingImport) { pending in
-            ImportKeysetSheet(importItem: pending)
-                .environmentObject(walletManager)
-                .quilThemed(theme)
+            IdentityTransactionAssistantView(
+                context: .importKeyset(pending),
+                onCompleted: { dismiss() }
+            )
+            .environmentObject(walletManager)
+            .quilThemed(theme)
+        }
+        .sheet(item: $pendingTransaction) { transaction in
+            IdentityTransactionAssistantView(
+                context: transaction,
+                onCompleted: { dismiss() }
+            )
+            .environmentObject(walletManager)
+            .quilThemed(theme)
         }
         .onAppear(perform: chooseSafeDefaultIfNeeded)
         .onChange(of: activeIdentity?.id) { _, _ in chooseSafeDefaultIfNeeded() }
@@ -207,15 +219,12 @@ struct WalletOnboardingView: View {
     private func perform(_ choice: IdentityOnboardingChoice) {
         switch choice {
         case .keep:
-            Task {
-                if await walletManager.adoptActive() { dismiss() }
-            }
+            guard let activeIdentity else { return }
+            pendingTransaction = .adopt(activeIdentity)
         case .importKeyset:
             walletManager.chooseImportFolder()
         case .create:
-            Task {
-                if await walletManager.create(named: createName) { dismiss() }
-            }
+            pendingTransaction = .create(suggestedName: createName)
         }
     }
 }

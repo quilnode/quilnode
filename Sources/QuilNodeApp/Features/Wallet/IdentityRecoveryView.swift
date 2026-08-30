@@ -11,8 +11,7 @@ struct IdentityRecoveryView: View {
     @Environment(\.quilTheme) private var theme
     @EnvironmentObject private var walletManager: WalletManager
 
-    @State private var showingCreate = false
-    @State private var pendingActivation: ManagedKeyset?
+    @State private var pendingTransaction: IdentityTransactionContext?
     @State private var selectedKeysetID: UUID?
 
     private var presentation: RecoveryWorkspacePresentation {
@@ -39,7 +38,7 @@ struct IdentityRecoveryView: View {
                 recoveryWorkspace(active: active)
             } else {
                 RecoveryEmptyState(
-                    create: { showingCreate = true },
+                    create: { pendingTransaction = .create(suggestedName: "My Quilibrium identity") },
                     importPackage: walletManager.chooseImportFolder
                 )
             }
@@ -48,25 +47,15 @@ struct IdentityRecoveryView: View {
         .onChange(of: walletManager.inventory.keysets.map(\.id)) { _, _ in
             synchronizeSelection()
         }
-        .sheet(isPresented: $showingCreate) {
-            CreateIdentitySheet()
+        .sheet(item: $pendingTransaction) { transaction in
+            IdentityTransactionAssistantView(context: transaction)
                 .environmentObject(walletManager)
                 .quilThemed(theme)
         }
         .sheet(item: $walletManager.pendingImport, onDismiss: walletManager.discardPendingImport) { pending in
-            ImportKeysetSheet(importItem: pending)
+            IdentityTransactionAssistantView(context: .importKeyset(pending))
                 .environmentObject(walletManager)
                 .quilThemed(theme)
-        }
-        .alert(item: $pendingActivation) { keyset in
-            Alert(
-                title: Text("Switch to \(keyset.name)?"),
-                message: Text(RecoveryOperationCopy.activationConfirmation),
-                primaryButton: .default(Text("Switch & verify")) {
-                    Task { await walletManager.activate(id: keyset.id, name: keyset.name) }
-                },
-                secondaryButton: .cancel()
-            )
         }
     }
 
@@ -108,7 +97,9 @@ struct IdentityRecoveryView: View {
             .accessibilityLabel("Check identity recovery status")
 
             Menu {
-                Button("Create new identity", systemImage: "plus.circle") { showingCreate = true }
+                Button("Create new identity", systemImage: "plus.circle") {
+                    pendingTransaction = .create(suggestedName: "My Quilibrium identity")
+                }
                 Button("Import identity package", systemImage: "square.and.arrow.down") {
                     walletManager.chooseImportFolder()
                 }
@@ -158,7 +149,7 @@ struct IdentityRecoveryView: View {
                         get: { selectedKeyset?.id },
                         set: { selectedKeysetID = $0 }
                     ),
-                    create: { showingCreate = true },
+                    create: { pendingTransaction = .create(suggestedName: "My Quilibrium identity") },
                     importPackage: walletManager.chooseImportFolder
                 )
                 .frame(width: 232)
@@ -170,7 +161,7 @@ struct IdentityRecoveryView: View {
                         protect: {
                             Task { await walletManager.adoptActive(named: selectedKeyset.name) }
                         },
-                        activate: { pendingActivation = selectedKeyset }
+                        activate: { pendingTransaction = .activate(selectedKeyset) }
                     )
                     .frame(maxWidth: .infinity)
                 }
