@@ -7,6 +7,7 @@ cd "$PROJECT_DIR"
 scripts/architecture-audit.sh
 xcrun swift-format lint --recursive --strict --configuration .swift-format Sources Tests
 swift test --parallel
+scripts/check-helper-composition.sh
 scripts/security-audit.sh
 scripts/release/test-metadata-privacy.sh
 scripts/release/audit-metadata-privacy.sh repository .

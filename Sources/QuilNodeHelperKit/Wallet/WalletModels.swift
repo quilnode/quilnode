@@ -4,12 +4,13 @@ import Foundation
     import QuilNodeShared
 #endif
 
-typealias WalletTransactionKind = QuilNodeShared.WalletTransactionKind
-typealias WalletTransactionManifest = QuilNodeShared.WalletTransactionManifest
-typealias KeysetInspectionPayload = QuilNodeShared.KeysetInspection
-typealias WalletPublicIdentityPayload = QuilNodeShared.KeysetPublicIdentity
-typealias ManagedKeysetPayload = QuilNodeShared.ManagedKeyset
-typealias WalletInventoryPayload = QuilNodeShared.WalletInventory
+// The release helper compiles Shared and HelperKit into one sealed executable,
+// while SwiftPM imports Shared as a module. Unqualified aliases support both
+// composition modes without duplicating the privileged wire schema.
+typealias KeysetInspectionPayload = KeysetInspection
+typealias WalletPublicIdentityPayload = KeysetPublicIdentity
+typealias ManagedKeysetPayload = ManagedKeyset
+typealias WalletInventoryPayload = WalletInventory
 
 struct StoredWalletProfile: Codable {
     var id: UUID
