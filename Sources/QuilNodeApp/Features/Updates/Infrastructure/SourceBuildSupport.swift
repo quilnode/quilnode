@@ -161,8 +161,7 @@ extension ReleaseChecker {
             gmpDirectory: toolchain.gmpDirectory,
             mpfrDirectory: toolchain.mpfrDirectory,
             opensslDirectory: toolchain.opensslDirectory,
-            macOSSDK: toolchain.macOSSDK,
-            parallelJobs: toolchain.parallelJobs
+            macOSSDK: toolchain.macOSSDK
         )
         let fetchProfile = sandboxRoot.appendingPathComponent("dependency-fetch.sb")
         let compileProfile = sandboxRoot.appendingPathComponent("compile-no-network.sb")

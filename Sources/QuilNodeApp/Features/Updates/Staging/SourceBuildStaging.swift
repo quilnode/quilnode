@@ -173,8 +173,8 @@ extension ReleaseChecker {
                 step: .compileNode,
                 phase: "Compiling node",
                 detail: cachedUnits > 0
-                    ? "Reusing about \(cachedUnits) cached compile units with adaptive parallelism"
-                    : "Starting Cargo with adaptive parallelism while preserving capacity for the live node",
+                    ? "Reusing about \(cachedUnits) cached compile units; Cargo will rebuild only what changed"
+                    : "Starting the pinned upstream build; Cargo and macOS manage parallel work",
                 fraction: 0.16 + (Double(cachedUnits) / Double(packageCount)) * 0.72,
                 startedAt: startedAt,
                 completedUnits: cachedUnits,

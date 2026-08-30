@@ -20,8 +20,7 @@ final class SecurityBoundaryTests: XCTestCase {
             opensslDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/openssl@3"),
             macOSSDK: URL(
                 fileURLWithPath:
-                    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"),
-            parallelJobs: 8
+                    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")
         )
         if let compilePolicy = try? SourceBuildSandbox.profile(
             layout: sandboxLayout,
@@ -66,7 +65,10 @@ final class SecurityBoundaryTests: XCTestCase {
             expect(environment?["MPFR_DIR"] == "/opt/homebrew/opt/mpfr", "MPFR path is pre-resolved")
             expect(environment?["OPENSSL_DIR"] == "/opt/homebrew/opt/openssl@3", "OpenSSL path is pre-resolved")
             expect(environment?["SDKROOT"]?.contains("MacOSX.sdk") == true, "macOS SDK is pre-resolved")
-            expect(environment?["CARGO_BUILD_JOBS"] == "8", "adaptive parallelism reaches Cargo's jobserver")
+            expect(
+                environment?["CARGO_BUILD_JOBS"] == nil,
+                "source builds preserve Cargo's machine-derived parallelism default"
+            )
         } else {
             XCTFail("source sandbox policy generation")
         }
@@ -114,8 +116,7 @@ final class SecurityBoundaryTests: XCTestCase {
                 macOSSDK: URL(
                     fileURLWithPath:
                         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
-                ),
-                parallelJobs: 8
+                )
             )
             let policyURL = workspace.appendingPathComponent("policy.sb")
             let livePolicy = try SourceBuildSandbox.profile(layout: liveLayout, allowsNetwork: false)

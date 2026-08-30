@@ -10,7 +10,6 @@ struct SourceBuildToolchain: Sendable {
     let mpfrDirectory: URL
     let opensslDirectory: URL
     let macOSSDK: URL
-    let parallelJobs: Int
 
     static func discover(
         operatorHome: URL = FileManager.default.homeDirectoryForCurrentUser,
@@ -64,7 +63,6 @@ struct SourceBuildToolchain: Sendable {
             isDirectory(sdk, fileManager: fileManager)
         else { throw UpdateCenterError.sourceToolMissing("macOS SDK") }
 
-        let processInfo = ProcessInfo.processInfo
         return SourceBuildToolchain(
             cargoExecutable: cargo,
             cargoBin: cargoBin,
@@ -73,29 +71,8 @@ struct SourceBuildToolchain: Sendable {
             gmpDirectory: gmp,
             mpfrDirectory: mpfr,
             opensslDirectory: openssl,
-            macOSSDK: sdk,
-            parallelJobs: recommendedParallelJobs(
-                availableProcessors: processInfo.activeProcessorCount,
-                thermalState: processInfo.thermalState
-            )
+            macOSSDK: sdk
         )
-    }
-
-    /// Preserve two active processors for the live node and UI on capable Macs,
-    /// or one on smaller systems. At serious/critical thermal pressure, Apple's
-    /// guidance is to reduce CPU use, so source compilation falls back to one
-    /// job rather than applying an invented per-model performance table.
-    static func recommendedParallelJobs(
-        availableProcessors: Int,
-        thermalState: ProcessInfo.ThermalState = .nominal
-    ) -> Int {
-        let processors = max(availableProcessors, 1)
-        let balancedJobs = max(processors - min(processors > 4 ? 2 : 1, processors - 1), 1)
-        switch thermalState {
-        case .nominal, .fair: return balancedJobs
-        case .serious, .critical: return 1
-        @unknown default: return 1
-        }
     }
 
     static func dependencyRoot(

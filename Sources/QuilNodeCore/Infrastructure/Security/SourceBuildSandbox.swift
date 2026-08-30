@@ -19,7 +19,6 @@ public enum SourceBuildSandbox {
         public var mpfrDirectory: URL
         public var opensslDirectory: URL
         public var macOSSDK: URL
-        public var parallelJobs: Int
 
         public init(
             workspace: URL,
@@ -33,8 +32,7 @@ public enum SourceBuildSandbox {
             gmpDirectory: URL,
             mpfrDirectory: URL,
             opensslDirectory: URL,
-            macOSSDK: URL,
-            parallelJobs: Int
+            macOSSDK: URL
         ) {
             self.workspace = workspace
             self.repository = repository
@@ -48,7 +46,6 @@ public enum SourceBuildSandbox {
             self.mpfrDirectory = mpfrDirectory
             self.opensslDirectory = opensslDirectory
             self.macOSSDK = macOSSDK
-            self.parallelJobs = parallelJobs
         }
     }
 
@@ -121,9 +118,6 @@ public enum SourceBuildSandbox {
         let mpfr = try validatedPath(layout.mpfrDirectory)
         let openssl = try validatedPath(layout.opensslDirectory)
         let sdk = try validatedPath(layout.macOSSDK)
-        guard (1...64).contains(layout.parallelJobs) else {
-            throw SourceBuildSandboxError.invalidParallelism(layout.parallelJobs)
-        }
         return [
             "PATH": [
                 try validatedPath(layout.cargoBin),
@@ -139,7 +133,6 @@ public enum SourceBuildSandbox {
             "MPFR_DIR": mpfr,
             "OPENSSL_DIR": openssl,
             "SDKROOT": sdk,
-            "CARGO_BUILD_JOBS": String(layout.parallelJobs),
             "GIT_TERMINAL_PROMPT": "0",
             "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_CONFIG_NOSYSTEM": "1",
@@ -212,14 +205,11 @@ public enum SourceBuildSandbox {
 
 public enum SourceBuildSandboxError: LocalizedError, Equatable {
     case invalidPath(String)
-    case invalidParallelism(Int)
 
     public var errorDescription: String? {
         switch self {
         case .invalidPath:
             "The source-build sandbox received an unsafe filesystem path."
-        case .invalidParallelism:
-            "The source-build sandbox received an unsafe parallelism limit."
         }
     }
 }

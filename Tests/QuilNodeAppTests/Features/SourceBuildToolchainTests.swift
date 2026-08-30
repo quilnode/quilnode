@@ -4,20 +4,6 @@ import XCTest
 @testable import QuilNodeApp
 
 final class SourceBuildToolchainTests: XCTestCase {
-    func testRecommendedParallelismPreservesCapacityWithoutStarvingNativeBuilds() {
-        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 1), 1)
-        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 4), 3)
-        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 10), 8)
-        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 32), 30)
-        XCTAssertEqual(
-            SourceBuildToolchain.recommendedParallelJobs(
-                availableProcessors: 10,
-                thermalState: .serious
-            ),
-            1
-        )
-    }
-
     func testApprovedWorkspaceAdoptsMatchingLegacyCacheButRawStaysSeparated() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "quilnode-workspace-selection-\(UUID().uuidString)",
