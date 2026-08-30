@@ -8,8 +8,15 @@ import SwiftUI
 
 @MainActor
 private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
+    #if DEBUG
+        private var designPreviewWindow: NSWindow?
+    #endif
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         ApplicationIcon.installForCurrentProcess()
+        #if DEBUG
+            presentStandaloneDesignPreviewIfRequested()
+        #endif
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -28,6 +35,47 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Quit Anyway")
         return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
     }
+
+    #if DEBUG
+        /// SwiftUI intentionally restores a previously closed WindowGroup as
+        /// closed. Visual-regression launches need a deterministic window, so
+        /// preview-only modes use an isolated hosting window and never start
+        /// production coordinators.
+        private func presentStandaloneDesignPreviewIfRequested() {
+            let value = ProcessInfo.processInfo.arguments.first { $0.hasPrefix("--design-preview=network-inbound-") }
+            guard let value else { return }
+
+            let mode = String(value.dropFirst("--design-preview=".count))
+            let initialStep: InboundSetupStep =
+                switch mode {
+                case "network-inbound-firewall": .firewall
+                case "network-inbound-router": .router
+                case "network-inbound-proof": .inboundProof
+                default: .listenerProfile
+                }
+            let content = InboundSetupDesignPreviewHost(
+                initialStep: initialStep,
+                privacyEnabled: mode == "network-inbound-private",
+                profileKind: mode == "network-inbound-custom" ? .custom : .recommendedResidential
+            )
+            .quilThemed(.quilNode)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 980, height: 730),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "QuilNode Inbound Setup Preview"
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(rootView: content)
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            designPreviewWindow = window
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    #endif
 }
 
 @main
@@ -186,6 +234,18 @@ struct QuilNodeApp: App {
                 MenuBarDesignPreviewHost(privacyEnabled: false)
             } else if designPreviewMode == "menu-bar-private" {
                 MenuBarDesignPreviewHost(privacyEnabled: true)
+            } else if designPreviewMode == "network-inbound-setup" {
+                InboundSetupDesignPreviewHost(initialStep: .listenerProfile)
+            } else if designPreviewMode == "network-inbound-firewall" {
+                InboundSetupDesignPreviewHost(initialStep: .firewall)
+            } else if designPreviewMode == "network-inbound-router" {
+                InboundSetupDesignPreviewHost(initialStep: .router)
+            } else if designPreviewMode == "network-inbound-proof" {
+                InboundSetupDesignPreviewHost(initialStep: .inboundProof)
+            } else if designPreviewMode == "network-inbound-private" {
+                InboundSetupDesignPreviewHost(initialStep: .listenerProfile, privacyEnabled: true)
+            } else if designPreviewMode == "network-inbound-custom" {
+                InboundSetupDesignPreviewHost(initialStep: .listenerProfile, profileKind: .custom)
             } else {
                 dashboardSceneContent
             }

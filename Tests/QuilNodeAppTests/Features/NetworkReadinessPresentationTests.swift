@@ -55,9 +55,73 @@ final class NetworkReadinessPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.stage(.inboundPeers).privacyField, .networkActivity)
     }
 
+    func testInboundSetupKeepsRouterManualUntilTrafficIsObserved() {
+        let presentation = makePresentation(
+            snapshot: NodeSnapshot(isRunning: true, peers: 248),
+            assessment: NetworkReadinessAssessment(
+                state: .waitingForEvidence,
+                title: "Waiting",
+                detail: "Waiting"
+            )
+        )
+
+        XCTAssertEqual(
+            InboundSetupPresentation.steps(from: presentation).map(\.state),
+            [.verified, .verified, .manual, .waiting]
+        )
+        XCTAssertEqual(InboundSetupPresentation.recommendedEntryStep(from: presentation), .router)
+    }
+
+    func testInboundSetupDoesNotTreatFirewallConfigurationAsInboundProof() {
+        let firewall = ManagedFirewallStatus(
+            globalEnabled: true,
+            blockAllEnabled: false,
+            stealthEnabled: true,
+            nodeRule: .missing,
+            managedByQuilNode: false
+        )
+        let presentation = makePresentation(
+            snapshot: NodeSnapshot(isRunning: true, peers: 248),
+            assessment: NetworkReadinessAssessment(
+                state: .waitingForEvidence,
+                title: "Waiting",
+                detail: "Waiting"
+            ),
+            firewall: firewall
+        )
+
+        let steps = InboundSetupPresentation.steps(from: presentation)
+        XCTAssertEqual(steps[1].state, .needsAction)
+        XCTAssertEqual(steps[2].state, .manual)
+        XCTAssertEqual(steps[3].state, .waiting)
+        XCTAssertEqual(InboundSetupPresentation.recommendedEntryStep(from: presentation), .firewall)
+    }
+
+    func testInboundSetupCompletesOnlyAfterLocalInboundEvidence() {
+        let presentation = makePresentation(
+            snapshot: NodeSnapshot(
+                isRunning: true,
+                peers: 248,
+                inboundConnectionsEstablished: 1
+            ),
+            assessment: NetworkReadinessAssessment(
+                state: .inboundVerified,
+                title: "Verified",
+                detail: "Observed locally"
+            )
+        )
+
+        XCTAssertEqual(
+            InboundSetupPresentation.steps(from: presentation).map(\.state),
+            [.verified, .verified, .verified, .verified]
+        )
+        XCTAssertEqual(InboundSetupPresentation.recommendedEntryStep(from: presentation), .inboundProof)
+    }
+
     private func makePresentation(
         snapshot: NodeSnapshot,
-        assessment: NetworkReadinessAssessment
+        assessment: NetworkReadinessAssessment,
+        firewall: ManagedFirewallStatus? = nil
     ) -> NetworkWorkspacePresentation {
         let inspection = NetworkLocalInspection(
             localIPv4: "192.168.1.49",
@@ -77,13 +141,15 @@ final class NetworkReadinessPresentationTests: XCTestCase {
             title: "Gateway web service responded",
             detail: "Observed locally"
         )
-        let firewall = ManagedFirewallStatus(
-            globalEnabled: true,
-            blockAllEnabled: false,
-            stealthEnabled: true,
-            nodeRule: .allowed,
-            managedByQuilNode: true
-        )
+        let resolvedFirewall =
+            firewall
+            ?? ManagedFirewallStatus(
+                globalEnabled: true,
+                blockAllEnabled: false,
+                stealthEnabled: true,
+                nodeRule: .allowed,
+                managedByQuilNode: true
+            )
 
         return .make(
             snapshot: snapshot,
@@ -91,7 +157,7 @@ final class NetworkReadinessPresentationTests: XCTestCase {
             inspection: inspection,
             gateway: gateway,
             routerAccess: access,
-            firewall: firewall,
+            firewall: resolvedFirewall,
             portPlan: .residentialTCP(localWorkerCount: 8)
         )
     }

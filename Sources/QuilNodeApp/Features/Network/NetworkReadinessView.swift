@@ -11,8 +11,7 @@ struct NetworkReadinessView: View {
     @EnvironmentObject var monitor: NodeMonitor
     @EnvironmentObject var network: NetworkReadinessCoordinator
 
-    @State var showingFirewallConfirmation = false
-    @State var showingPortEditor = false
+    @State var inboundSetupStep: InboundSetupStep?
     @State private var selectedStage: NetworkStageKind = .gateway
 
     var compactLayout = false
@@ -45,14 +44,8 @@ struct NetworkReadinessView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingFirewallConfirmation) {
-            FirewallConfirmationView {
-                showingFirewallConfirmation = false
-                Task { await network.configureFirewall() }
-            }
-        }
-        .sheet(isPresented: $showingPortEditor) {
-            PortProfileEditorView(profile: network.activePortProfile)
+        .sheet(item: $inboundSetupStep) { initialStep in
+            InboundSetupAssistantView(initialStep: initialStep)
         }
         .onChange(of: presentation.stages.map(\.kind)) { _, kinds in
             if !kinds.contains(selectedStage) {
@@ -106,6 +99,6 @@ struct NetworkReadinessView: View {
 
     private func showPortEditor() {
         network.clearPortProfileError()
-        showingPortEditor = true
+        inboundSetupStep = .listenerProfile
     }
 }

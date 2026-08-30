@@ -9,7 +9,7 @@ extension NetworkReadinessView {
         } else if network.firewall.isReady {
             Task { await network.refresh() }
         } else {
-            showingFirewallConfirmation = true
+            inboundSetupStep = .firewall
         }
     }
 
