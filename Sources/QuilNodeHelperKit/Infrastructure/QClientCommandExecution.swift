@@ -114,9 +114,11 @@ extension QuilNodeHelper {
     }
 
     static func qclientRuntimeVersion(_ output: String) -> String? {
-        guard let expression = try? NSRegularExpression(
-            pattern: #"(?m)^(?:qclient version:\s*)?([0-9]+\.[0-9]+\.[0-9]+-p[0-9]+)$"#
-        ) else { return nil }
+        guard
+            let expression = try? NSRegularExpression(
+                pattern: #"(?m)^(?:qclient version:\s*)?([0-9]+\.[0-9]+\.[0-9]+-p[0-9]+)$"#
+            )
+        else { return nil }
         let fullRange = NSRange(output.startIndex..<output.endIndex, in: output)
         guard let match = expression.firstMatch(in: output, range: fullRange),
             let valueRange = Range(match.range(at: 1), in: output)
