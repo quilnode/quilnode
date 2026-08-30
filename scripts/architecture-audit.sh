@@ -124,6 +124,28 @@ if find Sources Tests -type f \( -name '*.legacy.swift' -o -name '*~' -o -name '
     fail "legacy or editor-backup source files remain in the codebase"
 fi
 
+# A named SwiftUI view with no reference beyond its declaration is inert
+# redesign residue: it compiles, inflates the public source surface, and can
+# quietly diverge from the component that actually ships. Root scene types
+# conform to `App` rather than `View`, so every named View must have a caller.
+while IFS= read -r view_type; do
+    [[ -z "$view_type" ]] && continue
+    reference_count="$(
+        rg -w -o "$view_type" Sources/QuilNodeApp Tests/QuilNodeAppTests --glob '*.swift' \
+            | wc -l \
+            | tr -d ' '
+    )"
+    if (( reference_count < 2 )); then
+        fail "SwiftUI view has no reachable caller: $view_type"
+    fi
+done < <(
+    rg -N -o \
+        '^(private |fileprivate |internal )?struct [A-Za-z_][A-Za-z0-9_]*(<[^>]+>)?: View' \
+        Sources/QuilNodeApp --glob '*.swift' \
+        | sed -E 's/.*struct ([A-Za-z_][A-Za-z0-9_]*).*/\1/' \
+        | sort -u
+)
+
 for target_path in Sources/* Tests/*; do
     [[ -d "$target_path" ]] || continue
     duplicate_names="$({ find "$target_path" -type f -name '*.swift' -exec basename {} \;; } | sort | uniq -d)"

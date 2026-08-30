@@ -9,7 +9,7 @@ import SwiftUI
 extension DashboardView {
     @ViewBuilder
     var destinationContent: some View {
-        if destination != .overview, !nodeObservation.hasLiveTelemetry {
+        if destination.waitsForInitialTelemetry, !nodeObservation.hasLiveTelemetry {
             NodeObservationWaitingView(presentation: nodeObservation)
         } else {
             switch destination {

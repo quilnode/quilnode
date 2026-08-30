@@ -151,26 +151,3 @@ struct LifecycleControlBar: View {
         .buttonStyle(.plain)
     }
 }
-
-struct ServiceStatusPill: View {
-    @Environment(\.quilTheme) private var theme
-    let title: String
-    let systemImage: String
-    let isReady: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(isReady ? theme.colors.success : Color.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(.quaternary, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isReady ? "Alerts enabled" : "Enable Alerts")
-        .accessibilityIdentifier("quilnode-alerts-button")
-        .help(isReady ? "Local notifications are enabled" : "Enable local notifications")
-    }
-}

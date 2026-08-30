@@ -48,6 +48,16 @@ enum DashboardDestination: String, CaseIterable, Identifiable {
         case .diagnostics: "7"
         }
     }
+
+    /// Only live-observation workspaces wait for the first complete node
+    /// sample. Recovery, updates, and diagnostics must remain reachable while
+    /// startup telemetry is still arriving because they are remediation paths.
+    var waitsForInitialTelemetry: Bool {
+        switch self {
+        case .activity, .network, .identity: true
+        case .overview, .recovery, .updates, .diagnostics: false
+        }
+    }
 }
 
 enum DashboardCommand: Equatable {

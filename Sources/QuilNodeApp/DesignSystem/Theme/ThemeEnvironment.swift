@@ -171,40 +171,6 @@ struct ThemeCanvasBackground: View {
     }
 }
 
-struct ThemeAccentShape<S: Shape>: View {
-    @Environment(\.quilTheme) private var theme
-    let shape: S
-
-    var body: some View {
-        switch theme.components.accentTreatment {
-        case .solid:
-            shape.fill(theme.colors.accent)
-        case .gradient:
-            shape.fill(
-                LinearGradient(
-                    colors: [theme.colors.accent, theme.colors.accentSecondary.opacity(0.82)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        }
-    }
-}
-
-struct ThemeDashedRule: View {
-    let color: Color
-
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            path.move(to: CGPoint(x: 0, y: size.height / 2))
-            path.addLine(to: CGPoint(x: size.width, y: size.height / 2))
-            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-        }
-        .accessibilityHidden(true)
-    }
-}
-
 private struct ThemePatternCanvas: View {
     enum Kind { case grid, dots, scanlines }
     let kind: Kind

@@ -23,68 +23,6 @@ struct HeroValue: View {
     }
 }
 
-struct OverviewStripMetric: View {
-    @Environment(\.quilTheme) private var theme
-    let title: String
-    let value: String
-    let detail: String
-    let tint: Color
-    let privacyField: PrivacyField?
-
-    var body: some View {
-        VStack(spacing: 3) {
-            Text(displayTitle)
-                .font(.system(size: 9, weight: .bold))
-                .tracking(1.1)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel(title)
-            PrivacyProtectedText(value: value, field: privacyField)
-                .font(
-                    .system(size: 18 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign)
-                        .monospacedDigit()
-                )
-                .foregroundStyle(tint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.70)
-                .quilLiveValueTransition(value: value)
-            Text(detail)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)
-    }
-
-    private var displayTitle: String {
-        switch theme.recipes.dataLabels {
-        case .human: title
-        case .registry: title.lowercased()
-        case .terminal: title.uppercased()
-        }
-    }
-}
-
-struct AllocationCountPill: View {
-    let value: Int
-    let label: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Text("\(value)")
-                .font(.caption.bold().monospacedDigit())
-            Text(label)
-                .font(.caption2.weight(.medium))
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(tint.opacity(0.10), in: Capsule())
-    }
-}
-
 struct RewardJourneyPill: View {
     let title: String
     let systemImage: String
@@ -184,48 +122,6 @@ struct LocalSourceBadge: View {
             .padding(.vertical, 5)
             .background(.quaternary, in: Capsule())
             .accessibilityLabel("Source: \(title.lowercased())")
-    }
-}
-
-struct ReadinessPill: View {
-    @Environment(\.quilTheme) private var theme
-    let title: String
-    let systemImage: String
-    let tint: Color
-
-    var body: some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background { badgeBackground }
-            .overlay { badgeBorder }
-    }
-
-    @ViewBuilder
-    private var badgeBackground: some View {
-        switch theme.recipes.badge {
-        case .capsule:
-            Capsule().fill(tint.opacity(0.10))
-        case .label:
-            Rectangle().fill(tint.opacity(0.07))
-        case .stamp:
-            RoundedRectangle(cornerRadius: 3).fill(tint.opacity(0.08))
-        }
-    }
-
-    @ViewBuilder
-    private var badgeBorder: some View {
-        switch theme.recipes.badge {
-        case .capsule:
-            EmptyView()
-        case .label:
-            Rectangle().strokeBorder(tint.opacity(0.35), lineWidth: 0.7)
-        case .stamp:
-            RoundedRectangle(cornerRadius: 3).strokeBorder(
-                tint.opacity(0.48), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-        }
     }
 }
 

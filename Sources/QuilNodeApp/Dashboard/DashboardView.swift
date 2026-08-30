@@ -26,7 +26,6 @@ struct DashboardView: View {
     @State var historyRange: HistoryRange = .sixHours
     @State var pendingUpdatePolicy: NodeUpdatePolicy?
     @State var buildLogExpanded = false
-    @State var updateProcessExpanded = false
     @State var destination: DashboardDestination = .overview
     @AppStorage("dashboardSidebarCollapsed") var sidebarCollapsed = false
 
