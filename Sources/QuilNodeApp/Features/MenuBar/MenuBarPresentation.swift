@@ -95,6 +95,21 @@ struct MenuBarPresentation {
         return "Online and synchronized; waiting for an allocation."
     }
 
+    /// Short copy for the menu-bar hero. The longer diagnostic explanation
+    /// remains available through `participationDetail` and the Activity view.
+    var participationSummary: String {
+        if phase == .checkingProcess { return "Reading the managed service" }
+        if phase == .loadingTelemetry {
+            return snapshot.isRunning ? "Process found; loading local telemetry" : "Managed service is stopped"
+        }
+        guard snapshot.isRunning else { return "Managed service is stopped" }
+        if chainProgress.state == .archiveRecovery { return "Allocated; waiting for archive recovery" }
+        if snapshot.activeShards > 0 { return "Participating and syncing" }
+        if snapshot.pendingJoins > 0 { return "Registered; waiting for shard activation" }
+        if snapshot.totalAllocations > 0 { return "Allocations recognized; activation pending" }
+        return "Connected; waiting for an allocation"
+    }
+
     var participationSystemImage: String {
         if phase == .checkingProcess { return "ellipsis.circle.fill" }
         if phase == .loadingTelemetry, snapshot.isRunning { return "checkmark.circle.fill" }
@@ -138,6 +153,19 @@ struct MenuBarPresentation {
         return "Eligibility begins after a shard allocation becomes active."
     }
 
+    var rewardSummary: String {
+        if chainProgress.state == .archiveRecovery {
+            return "Network recovery is holding reward-bearing frames"
+        }
+        if let frame = snapshot.lastRewardCreditFrame {
+            return "Credit observed at frame \(frame.grouped)"
+        }
+        if snapshot.activeShards > 0 {
+            return "Rewards pending — proving does not guarantee payment"
+        }
+        return "Reward eligibility begins after activation"
+    }
+
     var reachabilityTitle: String {
         switch snapshot.reachable {
         case true: "Inbound reachable"
@@ -148,6 +176,13 @@ struct MenuBarPresentation {
 
     var memoryText: String {
         snapshot.memoryMB.map { String(format: "%.1f GB", $0 / 1024) } ?? "—"
+    }
+
+    var memoryFraction: Double {
+        guard let memory = snapshot.memoryMB else { return 0 }
+        let totalMB = Double(ProcessInfo.processInfo.physicalMemory) / 1_048_576
+        guard totalMB > 0 else { return 0 }
+        return min(max(memory / totalMB, 0), 1)
     }
 
     var quilBalanceText: String {
@@ -162,7 +197,170 @@ struct MenuBarPresentation {
         CPUUsagePresentation(snapshot: snapshot).compactValueText
     }
 
+    var cpuFraction: Double {
+        min(max((snapshot.cpuPercent ?? 0) / 100, 0), 1)
+    }
+
+    var seniorityText: String {
+        guard hasLiveTelemetry, snapshot.seniority > 0 else { return "—" }
+        return snapshot.seniority.formatted(.number.grouping(.automatic))
+    }
+
+    var epochProgressText: String {
+        "\(Int((epochProgress * 100).rounded()))%"
+    }
+
+    var headerStatus: String {
+        switch phase {
+        case .checkingProcess: "Checking this Mac"
+        case .loadingTelemetry: snapshot.isRunning ? "Live on this Mac" : "Stopped on this Mac"
+        case .ready: snapshot.isRunning ? "Live on this Mac" : "Stopped on this Mac"
+        }
+    }
+
+    func freshnessText(at now: Date) -> String {
+        guard hasLiveTelemetry else { return "Updating" }
+        let seconds = max(Int(now.timeIntervalSince(snapshot.collectedAt)), 0)
+        if seconds < 5 { return "Updated now" }
+        if seconds < 60 { return "Updated \(seconds)s ago" }
+        if seconds < 3_600 { return "Updated \(seconds / 60)m ago" }
+        return "Updated \(seconds / 3_600)h ago"
+    }
+
     var versionText: String {
         snapshot.version ?? "Local build"
+    }
+}
+
+/// A compact, time-bound milestone surfaced only when it is near enough to
+/// affect current operation or when verified source evidence requires action.
+/// Ordinary future milestones stay in Activity instead of permanently taking
+/// space in the menu-bar panel.
+struct MenuBarMilestonePresentation: Equatable {
+    private typealias Candidate = (
+        milestone: ProtocolMilestone,
+        state: ProtocolMilestonePresentationPolicy.State
+    )
+
+    enum Tone: Equatable {
+        case information
+        case attention
+        case danger
+    }
+
+    let title: String
+    let detail: String
+    let timing: String
+    let systemImage: String
+    let tone: Tone
+
+    static func resolve(
+        milestones: [ProtocolMilestone],
+        snapshot: NodeSnapshot,
+        now: Date = Date()
+    ) -> MenuBarMilestonePresentation? {
+        let frame = max(snapshot.frame, snapshot.lastReceivedFrame)
+        let observed = snapshot.observedProtocolMilestones ?? [:]
+
+        let candidates: [Candidate] = milestones.compactMap { milestone in
+            let requiresAttention = ProtocolMilestonePresentationPolicy.requiresAttention(milestone)
+            let state = ProtocolMilestonePresentationPolicy.state(
+                for: milestone,
+                currentFrame: frame,
+                locallyObserved: observed[milestone.symbol] == milestone.targetFrame
+            )
+            guard state != .upcoming || requiresAttention else {
+                return nil
+            }
+            if frame > milestone.targetFrame,
+                !requiresAttention,
+                frame - milestone.targetFrame
+                    > ProtocolMilestonePresentationPolicy.completedOverviewRetentionFrames
+            {
+                return nil
+            }
+            return (milestone, state)
+        }
+        .sorted { lhs, rhs in
+            let lhsAttention = ProtocolMilestonePresentationPolicy.requiresAttention(lhs.milestone)
+            let rhsAttention = ProtocolMilestonePresentationPolicy.requiresAttention(rhs.milestone)
+            if lhsAttention != rhsAttention { return lhsAttention }
+            let lhsDistance =
+                lhs.milestone.targetFrame > frame
+                ? lhs.milestone.targetFrame - frame
+                : frame - lhs.milestone.targetFrame
+            let rhsDistance =
+                rhs.milestone.targetFrame > frame
+                ? rhs.milestone.targetFrame - frame
+                : frame - rhs.milestone.targetFrame
+            if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+            return lhs.milestone.symbol < rhs.milestone.symbol
+        }
+
+        guard let (milestone, state) = candidates.first else { return nil }
+        let estimate = ProtocolMilestoneTiming.estimate(
+            targetFrame: milestone.targetFrame,
+            currentFrame: frame,
+            framesPerMinute: snapshot.framesPerMinute,
+            lowerFramesPerMinute: snapshot.lowerFramesPerMinute,
+            upperFramesPerMinute: snapshot.upperFramesPerMinute,
+            now: now
+        )
+
+        if milestone.installedSupport == .missing {
+            return MenuBarMilestonePresentation(
+                title: "Protocol support missing",
+                detail: "The installed node does not include \(milestone.title).",
+                timing: compactTiming(estimate.expectedAt, now: now),
+                systemImage: "exclamationmark.shield.fill",
+                tone: .danger
+            )
+        }
+        if milestone.hasSourceConflict {
+            return MenuBarMilestonePresentation(
+                title: "Protocol source needs review",
+                detail: "Executable declarations disagree for \(milestone.title).",
+                timing: compactTiming(estimate.expectedAt, now: now),
+                systemImage: "exclamationmark.triangle.fill",
+                tone: .danger
+            )
+        }
+
+        switch state {
+        case .imminent:
+            return MenuBarMilestonePresentation(
+                title: milestone.title,
+                detail: "\(estimate.framesRemaining.grouped) frames until target \(milestone.targetFrame.grouped).",
+                timing: compactTiming(estimate.expectedAt, now: now),
+                systemImage: "scope",
+                tone: .attention
+            )
+        case .passedLocallyObserved:
+            return MenuBarMilestonePresentation(
+                title: "\(milestone.title) applied",
+                detail: "The protocol transition was observed locally.",
+                timing: "Complete",
+                systemImage: "checkmark.circle.fill",
+                tone: .information
+            )
+        case .passedWithoutLocalEvidence:
+            return MenuBarMilestonePresentation(
+                title: "\(milestone.title) awaiting evidence",
+                detail: "The target passed; local transition evidence is still pending.",
+                timing: "Review",
+                systemImage: "clock.badge.exclamationmark",
+                tone: .attention
+            )
+        case .upcoming:
+            return nil
+        }
+    }
+
+    private static func compactTiming(_ date: Date?, now: Date) -> String {
+        guard let date else { return "Soon" }
+        let seconds = max(Int(date.timeIntervalSince(now)), 0)
+        if seconds >= 86_400 { return "~\(seconds / 86_400)d" }
+        if seconds >= 3_600 { return "~\(seconds / 3_600)h \((seconds % 3_600) / 60)m" }
+        return "~\(max(seconds / 60, 1))m"
     }
 }

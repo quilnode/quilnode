@@ -182,6 +182,10 @@ struct QuilNodeApp: App {
             if designPreviewMode == "onboarding-identity" {
                 OnboardingDesignPreviewHost()
                     .frame(minWidth: 900, minHeight: 680)
+            } else if designPreviewMode == "menu-bar" {
+                MenuBarDesignPreviewHost(privacyEnabled: false)
+            } else if designPreviewMode == "menu-bar-private" {
+                MenuBarDesignPreviewHost(privacyEnabled: true)
             } else {
                 dashboardSceneContent
             }

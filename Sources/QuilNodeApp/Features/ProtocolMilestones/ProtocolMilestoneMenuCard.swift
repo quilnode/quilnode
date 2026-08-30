@@ -1,60 +1,67 @@
-import AppKit
 import SwiftUI
 
-#if canImport(QuilNodeCore)
-    import QuilNodeCore
-#endif
-
+/// A temporary, actionable protocol notice for the compact menu-bar surface.
+/// Selection policy lives in `MenuBarMilestonePresentation`; this component
+/// is intentionally presentation-only.
 struct ProtocolMilestoneMenuCard: View {
-    let milestones: [ProtocolMilestone]
-    let snapshot: NodeSnapshot
+    let notice: MenuBarMilestonePresentation
+    let action: () -> Void
 
     @Environment(\.quilTheme) private var theme
 
-    private var frame: UInt64 { max(snapshot.frame, snapshot.lastReceivedFrame) }
-    private var featured: ProtocolMilestone? {
-        milestones.first(where: { $0.targetFrame > frame })
-    }
-
     var body: some View {
-        if let milestone = featured {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let recoveryHold =
-                    ChainProgressEvaluator.evaluate(snapshot, now: context.date).state == .archiveRecovery
-                let timing = ProtocolMilestoneTiming.estimate(
-                    targetFrame: milestone.targetFrame,
-                    currentFrame: frame,
-                    framesPerMinute: snapshot.framesPerMinute,
-                    lowerFramesPerMinute: snapshot.lowerFramesPerMinute,
-                    upperFramesPerMinute: snapshot.upperFramesPerMinute,
-                    now: snapshot.collectedAt
-                )
-                HStack(spacing: 10) {
-                    Image(systemName: "scope")
-                        .foregroundStyle(
-                            milestone.installedSupport == .missing ? theme.colors.danger : theme.colors.info)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(milestone.title)
-                            .font(.caption.weight(.semibold))
-                        Text("\(timing.framesRemaining.grouped) frames · target \(milestone.targetFrame.grouped)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Text(recoveryHold ? "Waiting" : compactCountdown(timing.expectedAt, now: context.date))
-                        .font(.caption.bold().monospacedDigit())
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Image(systemName: notice.systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 34, height: 34)
+                    .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(notice.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(tint)
+                    Text(notice.detail)
+                        .font(.caption)
+                        .foregroundStyle(theme.colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(11)
-                .background(theme.colors.info.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+                Spacer(minLength: 6)
+
+                Text(notice.timing)
+                    .font(.caption.weight(.bold).monospacedDigit())
+                    .foregroundStyle(tint)
+                    .lineLimit(1)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(theme.colors.secondaryText.opacity(0.62))
+                    .accessibilityHidden(true)
             }
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(tint.opacity(0.075), in: RoundedRectangle(cornerRadius: 13))
+            .overlay {
+                RoundedRectangle(cornerRadius: 13)
+                    .strokeBorder(tint.opacity(0.22), lineWidth: max(theme.metrics.borderWidth, 0.5))
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(QuilPressFeedbackButtonStyle())
+        .quilHoverSurface(tint: tint, cornerRadius: 13)
+        .accessibilityLabel("\(notice.title). \(notice.detail). \(notice.timing)")
+        .accessibilityHint("Opens the protocol event in Activity")
     }
 
-    private func compactCountdown(_ date: Date?, now: Date) -> String {
-        guard let date else { return "now" }
-        let seconds = max(Int(date.timeIntervalSince(now)), 0)
-        if seconds >= 86_400 { return "~\(seconds / 86_400)d \((seconds % 86_400) / 3_600)h" }
-        if seconds >= 3_600 { return "~\(seconds / 3_600)h \((seconds % 3_600) / 60)m" }
-        return "~\(max(seconds / 60, 1))m"
+    private var tint: Color {
+        switch notice.tone {
+        case .information: theme.colors.info
+        case .attention: theme.colors.warning
+        case .danger: theme.colors.danger
+        }
     }
 }
