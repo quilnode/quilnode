@@ -105,6 +105,25 @@ public enum PrivilegedServiceClient {
         return (balance, nil)
     }
 
+    public static func readProverTelemetry(
+        timeout: TimeInterval = 35
+    ) -> (telemetry: LocalProverTelemetry?, error: String?) {
+        let result = response(.proverTelemetry, timeout: timeout)
+        guard result.exitCode == 0,
+            let output = result.response?.qclientOutput,
+            let data = output.data(using: .utf8)
+        else { return (nil, result.response?.message ?? result.error) }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let payload = try? decoder.decode(QClientProverTelemetryPayload.self, from: data),
+            let telemetry = LocalProverTelemetryParser.parse(payload)
+        else {
+            return (nil, "The secure service returned unreadable local prover telemetry.")
+        }
+        return (telemetry, nil)
+    }
+
     public static func readQClientStatus(
         timeout: TimeInterval = 8
     ) -> (status: ManagedQClientStatus?, error: String?) {

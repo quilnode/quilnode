@@ -107,7 +107,7 @@ extension QuilNodeHelper {
                 response = PrivilegedServiceResponse(
                     success: verifierReady,
                     message: verifierReady
-                        ? "capability-wallet-v2; signed-first-install-v3; durable-operations-v1; self-upgrade-v1; root-release-verification-v1; application-firewall-v1; managed-qclient-v1; permanent-app-identity-v1"
+                        ? "capability-wallet-v2; signed-first-install-v3; durable-operations-v1; self-upgrade-v1; root-release-verification-v1; application-firewall-v1; managed-qclient-v1; local-prover-telemetry-v1; permanent-app-identity-v1"
                         : "The root-owned release verifier is missing; service repair is required.",
                     nodePID: currentNodePID(),
                     serviceBuild: verifierReady ? PrivilegedServiceProtocol.currentServiceBuild : nil
@@ -161,6 +161,18 @@ extension QuilNodeHelper {
                     message: "Local QUIL wallet balance read completed.",
                     nodePID: currentNodePID(),
                     balanceOutput: balance
+                )
+            case .proverTelemetry:
+                guard !serviceOperations.isRunning else {
+                    throw HelperFailure.service("prover telemetry is paused while an update is activating")
+                }
+                try validateLaunchDaemonPlist()
+                let telemetry = try runQClientProverTelemetry(timeout: 15)
+                response = PrivilegedServiceResponse(
+                    success: true,
+                    message: "Local prover and shard telemetry read completed.",
+                    nodePID: currentNodePID(),
+                    qclientOutput: telemetry
                 )
             case .qclientStatus:
                 let status = inspectManagedQClient()

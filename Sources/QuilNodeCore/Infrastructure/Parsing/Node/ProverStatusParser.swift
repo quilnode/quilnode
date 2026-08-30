@@ -63,7 +63,7 @@ public enum ProverStatusParser {
     }
 
     private static func parseAllocation(_ line: String) -> ShardAllocation? {
-        let pattern = #"^\[([0-9]+)\]\s+Filter:\s+([0-9a-fA-F]+)\s+Status:\s+([^\s]+)(?:\s+Worker:\s+(.+))?$"#
+        let pattern = #"^\[([0-9]+)\]\s+Filter:\s*([0-9a-fA-F]*)\s+Status:\s+([^\s]+)(?:\s+Worker:\s+(.+))?$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
             let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
             let indexRange = Range(match.range(at: 1), in: line),

@@ -62,6 +62,16 @@ public struct LocalNodeCollector: Sendable {
         }.value
     }
 
+    public func collectProverTelemetry() async -> ProverTelemetryCollectionResult {
+        await Task.detached(priority: .utility) {
+            let read = PrivilegedServiceClient.readProverTelemetry()
+            return ProverTelemetryCollectionResult(
+                telemetry: read.telemetry,
+                error: read.error
+            )
+        }.value
+    }
+
     private func collectSynchronously(
         cachedSnapshot: NodeSnapshot?,
         cachedNodeInfo: NodeInfo?,
@@ -198,6 +208,7 @@ public struct LocalNodeCollector: Sendable {
             epochLength: cachedSnapshot?.epochLength ?? 720,
             nextEpochFrame: cachedSnapshot?.nextEpochFrame ?? 0,
             shardAllocations: cachedSnapshot?.shardAllocations ?? [],
+            networkShardSummary: cachedSnapshot?.networkShardSummary,
             frame: max(statusUInt64("frame", fallback: cachedSnapshot?.frame ?? 0), info?.frame ?? 0),
             peers: metricPeers ?? statusInt("peers", fallback: cachedSnapshot?.peers ?? 0),
             inboundConnectionsEstablished: inboundConnections ?? cachedSnapshot?.inboundConnectionsEstablished,

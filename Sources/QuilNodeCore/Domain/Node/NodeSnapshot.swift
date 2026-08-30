@@ -74,6 +74,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     public var epochLength: UInt64
     public var nextEpochFrame: UInt64
     public var shardAllocations: [ShardAllocation]
+    public var networkShardSummary: NetworkShardSummary?
     public var frame: UInt64
     public var peers: Int
     /// Successful libp2p connections accepted by this node since the current
@@ -153,6 +154,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         epochLength: UInt64 = 720,
         nextEpochFrame: UInt64 = 0,
         shardAllocations: [ShardAllocation] = [],
+        networkShardSummary: NetworkShardSummary? = nil,
         frame: UInt64 = 0,
         peers: Int = 0,
         inboundConnectionsEstablished: UInt64? = nil,
@@ -212,6 +214,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.epochLength = epochLength
         self.nextEpochFrame = nextEpochFrame
         self.shardAllocations = shardAllocations
+        self.networkShardSummary = networkShardSummary
         self.frame = frame
         self.peers = peers
         self.inboundConnectionsEstablished = inboundConnectionsEstablished

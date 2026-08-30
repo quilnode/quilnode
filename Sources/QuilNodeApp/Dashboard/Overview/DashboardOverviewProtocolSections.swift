@@ -10,7 +10,7 @@ extension DashboardView {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text("Allocation lattice")
                     .font(.system(size: 13, weight: .semibold))
-                Text("Local capacity and shard assignment state")
+                Text("Workers, assigned shards and coverage")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
@@ -52,11 +52,11 @@ extension DashboardView {
                 )
                 allocationSummaryDivider
                 ProtocolAllocationSummaryStat(
-                    title: "Registry",
-                    value: nodeObservation.value(String(monitor.snapshot.totalAllocations)),
-                    detail: "total allocations",
-                    tint: theme.colors.accentSecondary,
-                    privacyField: .allocationCount
+                    title: "Coverage",
+                    value: nodeObservation.value(localCoverageLabel),
+                    detail: "assigned shards",
+                    tint: localCoverageTint,
+                    privacyField: .shardAllocation
                 )
             }
             .frame(minHeight: 58)
@@ -66,10 +66,7 @@ extension DashboardView {
                     .strokeBorder(theme.colors.border.opacity(0.56), lineWidth: max(theme.metrics.borderWidth, 0.5))
             }
 
-            if privacyModeEnabled {
-                ProtocolPrivateAllocationCell()
-                    .frame(maxWidth: .infinity)
-            } else if monitor.snapshot.shardAllocations.isEmpty,
+            if monitor.snapshot.shardAllocations.isEmpty,
                 monitor.snapshot.totalAllocations > 0
             {
                 ProtocolAggregateAllocationCell(
@@ -78,7 +75,7 @@ extension DashboardView {
                     total: monitor.snapshot.totalAllocations
                 )
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 8)], spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
                     if monitor.snapshot.shardAllocations.isEmpty {
                         if let capacity = localWorkerCapacity, capacity > 0 {
                             let visibleWorkers = min(capacity, 7)
@@ -102,7 +99,7 @@ extension DashboardView {
                             .buttonStyle(QuilPressFeedbackButtonStyle())
                         }
                     } else {
-                        ForEach(monitor.snapshot.shardAllocations.prefix(8)) { allocation in
+                        ForEach(monitor.snapshot.shardAllocations) { allocation in
                             Button {
                                 destination = .identity
                             } label: {
@@ -113,6 +110,36 @@ extension DashboardView {
                         }
                     }
                 }
+            }
+
+            if let summary = monitor.snapshot.networkShardSummary {
+                HStack(spacing: 6) {
+                    Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                        .foregroundStyle(summary.atRiskShards > 0 ? theme.colors.warning : theme.colors.success)
+                    Text("Local shard view")
+                        .fontWeight(.semibold)
+                    Text("·")
+                    Text("\(summary.healthyShards) healthy")
+                    Text("·")
+                    Text("\(summary.belowTargetShards) below target")
+                    Text("·")
+                    Text("\(summary.atRiskShards) at risk")
+                    Text("·")
+                    Text("\(summary.unassignedShards) unassigned")
+                    Spacer(minLength: 10)
+                    Text(networkTopologyDetail(summary))
+                }
+                .font(.system(size: 9.5, design: .monospaced))
+                .foregroundStyle(theme.colors.secondaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(theme.colors.surface.opacity(0.34))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(theme.colors.border.opacity(0.42), lineWidth: max(theme.metrics.borderWidth, 0.5))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .accessibilityElement(children: .combine)
             }
 
             HStack(spacing: 6) {
@@ -128,15 +155,15 @@ extension DashboardView {
                         : monitor.snapshot.shardAllocations.isEmpty ? theme.colors.warning : theme.colors.success)
                 Text(
                     privacyModeEnabled
-                        ? "Allocation state remains available locally and is concealed from this presentation."
+                        ? "Sensitive allocation values are hidden; labels and controls remain available."
                         : monitor.snapshot.shardAllocations.isEmpty
                             ? monitor.snapshot.totalAllocations > 0
-                                ? "Aggregate registry state is current; per-shard details are not exposed by local telemetry."
+                                ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
                                 : "No shard assignment is present in the local registry yet. Capacity remains visible above."
-                            : "Each lane is emitted by the local node registry; select one for its full evidence."
+                            : "Each worker lane and coverage value comes from the managed node's local read-only RPC."
                 )
                 Spacer(minLength: 10)
-                Text("Local node registry")
+                Text("Local node only")
             }
             .font(.system(size: 10, design: .monospaced))
             .foregroundStyle(theme.colors.secondaryText)
@@ -151,6 +178,34 @@ extension DashboardView {
         if let workers = monitor.snapshot.localWorkerCount, workers > 0 { return workers }
         if monitor.snapshot.allocatedWorkers > 0 { return monitor.snapshot.allocatedWorkers }
         return nil
+    }
+
+    private var localCoverageState: ShardCoverageState? {
+        let states = monitor.snapshot.shardAllocations.compactMap(\.coverageState)
+        if states.contains(.unassigned) { return .unassigned }
+        if states.contains(.atRisk) { return .atRisk }
+        if states.contains(.belowTarget) { return .belowTarget }
+        if states.contains(.healthy) { return .healthy }
+        return nil
+    }
+
+    private var localCoverageLabel: String {
+        localCoverageState?.label ?? "Checking"
+    }
+
+    private var localCoverageTint: Color {
+        switch localCoverageState {
+        case .healthy: theme.colors.success
+        case .belowTarget: theme.colors.warning
+        case .atRisk, .unassigned: theme.colors.danger
+        case nil: theme.colors.info
+        }
+    }
+
+    private func networkTopologyDetail(_ summary: NetworkShardSummary) -> String {
+        let shardText = "\(summary.totalShards) observed data shards"
+        guard let worldState = summary.worldState else { return shardText }
+        return "\(shardText) · \(worldState) world"
     }
 
     private var allocationSummaryDivider: some View {

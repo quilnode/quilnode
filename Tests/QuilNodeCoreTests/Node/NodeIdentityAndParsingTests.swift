@@ -96,4 +96,65 @@ final class NodeIdentityAndParsingTests: XCTestCase {
         expect(unchangedTrend.direction == .unchanged, "seniority unchanged trend")
 
     }
+
+    func testLocalQClientShardTopologyAndCoverageParsing() {
+        let statusOutput = """
+            Peer ID:            QmExamplePeer
+            Version:            2.1.0.25
+            Seniority:          12345678
+            Peer Score:         91.2
+            Running Workers:    3
+            Allocated Workers:  2
+            Last Received:      766956
+            Last Global Head:   766956
+            Epoch:              1065  (length 720 frames; next boundary @ frame 767520)
+            Reachable:          true
+
+            Shard Allocations:
+              [0] Filter: 00aabb  Status: active  Worker: 2
+                  Last Active: 766955
+              [1] Filter: 11ccdd  Status: joining  Worker: 3
+                  Join Frame: 766900 (epoch 1065)
+            """
+        let shardInfoOutput = """
+            All Shards (4 shards):
+              Filter: 00aabb  Size: 12.4 GB    Shards: 2      Provers: 3    Ring: 0  Reward: ~0.0012 QUIL/frame  [Worker 2]
+              Filter: 11ccdd  Size: 8.0 GB     Shards: 1      Provers: 5    Ring: 1  Reward: ~0.0007 QUIL/frame  [Worker 3]
+              Filter: 22eeff  Size: 4.0 GB     Shards: 1      Provers: 6    Ring: 0  Reward: ~0.0005 QUIL/frame
+              Filter: 33aaff  Size: 2.0 GB     Shards: 1      Provers: 0    Ring: 0  Reward: ~0 QUIL/frame
+
+            Difficulty: 12345  Frame: 766956
+            World State: 75.36 GB
+            """
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let payload = QClientProverTelemetryPayload(
+            statusOutput: statusOutput,
+            shardInfoOutput: shardInfoOutput,
+            observedAt: observedAt
+        )
+
+        guard let telemetry = LocalProverTelemetryParser.parse(payload) else {
+            return XCTFail("local qclient telemetry parsing")
+        }
+        expect(telemetry.status.allocations.count == 2, "local allocation count")
+        expect(telemetry.status.allocations[0].worker == "2", "worker mapping")
+        expect(telemetry.status.allocations[0].ring == 0, "local allocation ring")
+        expect(telemetry.status.allocations[0].activeProvers == 3, "local prover count")
+        expect(telemetry.status.allocations[0].coverageState == .atRisk, "halt-threshold band")
+        expect(telemetry.status.allocations[1].coverageState == .belowTarget, "below-target band")
+        expect(telemetry.networkSummary?.totalShards == 4, "network shard total")
+        expect(telemetry.networkSummary?.healthyShards == 1, "healthy coverage count")
+        expect(telemetry.networkSummary?.belowTargetShards == 1, "below-target coverage count")
+        expect(telemetry.networkSummary?.atRiskShards == 1, "at-risk coverage count")
+        expect(telemetry.networkSummary?.unassignedShards == 1, "unassigned coverage count")
+        expect(telemetry.networkSummary?.frame == 766_956, "shard topology frame")
+        expect(telemetry.networkSummary?.worldState == "75.36 GB", "world-state size")
+        expect(telemetry.networkSummary?.observedAt == observedAt, "topology observation time")
+
+        expect(ShardCoverageState(activeProvers: 0) == .unassigned, "zero-prover coverage band")
+        expect(ShardCoverageState(activeProvers: 3) == .atRisk, "inclusive halt threshold")
+        expect(ShardCoverageState(activeProvers: 4) == .belowTarget, "coverage recovery band")
+        expect(ShardCoverageState(activeProvers: 5) == .belowTarget, "minimum target boundary")
+        expect(ShardCoverageState(activeProvers: 6) == .healthy, "healthy coverage boundary")
+    }
 }

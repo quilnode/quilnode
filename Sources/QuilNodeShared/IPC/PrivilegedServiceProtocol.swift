@@ -5,8 +5,8 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 110
-    public static let minimumSupportedServiceBuild = 110
+    public static let currentServiceBuild = 112
+    public static let minimumSupportedServiceBuild = 112
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
 }
@@ -18,6 +18,7 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
     case nodeInfo
     case metrics
     case balance
+    case proverTelemetry
     case start
     case stop
     case restart
@@ -32,6 +33,21 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
     case firewallConfigure
     case qclientStatus
     case qclientInstall
+}
+
+/// Bounded output from two fixed, read-only qclient commands. The privileged
+/// service owns command selection and never accepts caller-provided arguments,
+/// while the app remains responsible for parsing operator-facing telemetry.
+public struct QClientProverTelemetryPayload: Codable, Equatable, Sendable {
+    public var statusOutput: String
+    public var shardInfoOutput: String
+    public var observedAt: Date
+
+    public init(statusOutput: String, shardInfoOutput: String, observedAt: Date) {
+        self.statusOutput = statusOutput
+        self.shardInfoOutput = shardInfoOutput
+        self.observedAt = observedAt
+    }
 }
 
 public struct PrivilegedServiceRequest: Codable, Sendable {

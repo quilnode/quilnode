@@ -131,16 +131,27 @@ struct ShardAllocationRow: View {
     let currentFrame: UInt64
 
     private var tint: Color {
+        switch allocation.coverageState {
+        case .atRisk, .unassigned: return theme.colors.danger
+        case .belowTarget: return theme.colors.warning
+        case .healthy, nil: break
+        }
         switch allocation.status.lowercased() {
-        case "active": theme.colors.success
-        case "joining": theme.colors.warning
-        case "paused": theme.colors.warning
-        case "leaving", "expiredjoin", "expiredleave", "re-confirm!": theme.colors.danger
-        default: .secondary
+        case "active": return theme.colors.success
+        case "joining": return theme.colors.warning
+        case "paused": return theme.colors.warning
+        case "leaving", "expiredjoin", "expiredleave", "re-confirm!": return theme.colors.danger
+        default: return .secondary
         }
     }
 
     private var timingDetail: String {
+        if let ring = allocation.ring,
+            let provers = allocation.activeProvers,
+            let coverage = allocation.coverageState
+        {
+            return "Ring \(ring) · \(provers) \(provers == 1 ? "prover" : "provers") · \(coverage.label)"
+        }
         if let action = allocation.action { return action }
         if let confirm = allocation.confirmFrame, confirm > currentFrame {
             return "Confirm frame \(confirm.grouped) · \((confirm - currentFrame).grouped) frames away"
@@ -159,23 +170,28 @@ struct ShardAllocationRow: View {
             )
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 7) {
-                    Text("Allocation \(allocation.index + 1)")
-                        .font(.subheadline.weight(.semibold))
-                    Text(allocation.status)
+                    PrivacyProtectedText(
+                        value: allocation.worker.map {
+                            $0.localizedCaseInsensitiveContains("worker") ? $0 : "Worker \($0)"
+                        } ?? "Allocation \(allocation.index + 1)",
+                        field: .shardAllocation
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    PrivacyProtectedText(value: allocation.status, field: .shardAllocation)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(tint)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(tint.opacity(0.10), in: Capsule())
                 }
-                Text(timingDetail)
+                PrivacyProtectedText(value: timingDetail, field: .shardAllocation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text(allocation.filter.compactIdentifier)
+                PrivacyProtectedText(value: allocation.filter.compactIdentifier, field: .shardAllocation)
                     .font(.caption.monospaced())
                 Text("shard filter")
                     .font(.caption2)

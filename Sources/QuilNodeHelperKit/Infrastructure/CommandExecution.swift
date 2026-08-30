@@ -27,6 +27,43 @@ extension QuilNodeHelper {
     }
 
     static func runQClientBalance(timeout: TimeInterval) throws -> String {
+        try runQClientRead(
+            ["token", "--config", "/opt/quilibrium/node/.config", "balance"],
+            timeout: timeout
+        )
+    }
+
+    /// Runs only the two fixed, read-only node RPCs needed by the dashboard.
+    /// The caller cannot choose an executable, config path, subcommand, or
+    /// argument. qclient is privilege-dropped to the isolated node account,
+    /// so the GUI process never gains access to identity material.
+    static func runQClientProverTelemetry(timeout: TimeInterval) throws -> String {
+        let status = try runQClientRead(
+            ["node", "prover", "status"],
+            timeout: timeout
+        )
+        let shardInfo = try runQClientRead(
+            ["node", "prover", "shardinfo"],
+            timeout: timeout
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return String(
+            decoding: try encoder.encode(
+                QClientProverTelemetryPayload(
+                    statusOutput: status,
+                    shardInfoOutput: shardInfo,
+                    observedAt: Date()
+                )
+            ),
+            as: UTF8.self
+        )
+    }
+
+    private static func runQClientRead(
+        _ arguments: [String],
+        timeout: TimeInterval
+    ) throws -> String {
         let (qclient, qclientRecord) = try trustedQClient()
         let trustArguments = qclientRecord.trust == .officialSigned ? ["--signature-check=false"] : ["-y"]
 
@@ -48,10 +85,9 @@ extension QuilNodeHelper {
                 "-n", "-H", "-u", serviceUser, "--",
                 "/usr/bin/env", "HOME=\(runtimeHome.path)",
                 qclient.path,
-            ] + trustArguments + [
-                "token", "--config", "/opt/quilibrium/node/.config", "balance",
-            ],
-            timeout: timeout
+            ] + trustArguments + arguments,
+            timeout: timeout,
+            currentDirectory: nodeDirectory
         )
     }
 

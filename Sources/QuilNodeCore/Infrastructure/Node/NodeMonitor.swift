@@ -29,13 +29,16 @@ public final class NodeMonitor: ObservableObject {
     private let refreshInterval: Duration
     private let nodeInfoRefreshInterval: TimeInterval
     private let balanceRefreshInterval: TimeInterval
+    private let proverTelemetryRefreshInterval: TimeInterval
     private var loopTask: Task<Void, Never>?
     private var balanceTask: Task<Void, Never>?
+    private var proverTelemetryTask: Task<Void, Never>?
     private var hasRecoveredHistoricalEvidence = false
     private var refreshInFlight = false
     private var cachedNodeInfo: NodeInfo?
     private var lastNodeInfoRefresh: Date?
     private var lastBalanceRefresh: Date?
+    private var lastProverTelemetryRefresh: Date?
     private var lastFrame: UInt64?
     private var lastFrameAdvanceAt: Date?
     private var frameSamples: [(date: Date, frame: UInt64)] = []
@@ -45,17 +48,20 @@ public final class NodeMonitor: ObservableObject {
         collector: LocalNodeCollector = LocalNodeCollector(),
         refreshInterval: Duration = .seconds(2),
         nodeInfoRefreshInterval: TimeInterval = 300,
-        balanceRefreshInterval: TimeInterval = 60
+        balanceRefreshInterval: TimeInterval = 60,
+        proverTelemetryRefreshInterval: TimeInterval = 60
     ) {
         self.collector = collector
         self.refreshInterval = refreshInterval
         self.nodeInfoRefreshInterval = nodeInfoRefreshInterval
         self.balanceRefreshInterval = balanceRefreshInterval
+        self.proverTelemetryRefreshInterval = proverTelemetryRefreshInterval
     }
 
     deinit {
         loopTask?.cancel()
         balanceTask?.cancel()
+        proverTelemetryTask?.cancel()
     }
 
     public func start() {
@@ -103,6 +109,12 @@ public final class NodeMonitor: ObservableObject {
             forceNodeInfo
             || lastBalanceRefresh == nil
             || lastBalanceRefresh.map { Date().timeIntervalSince($0) >= balanceRefreshInterval } != false
+        let shouldRefreshProverTelemetry =
+            forceNodeInfo
+            || lastProverTelemetryRefresh == nil
+            || lastProverTelemetryRefresh.map {
+                Date().timeIntervalSince($0) >= proverTelemetryRefreshInterval
+            } != false
         // Historical evidence can require bounded reverse scans of large node
         // logs. Never put that work on the first telemetry path; recover it on
         // a later pass after the dashboard is already truthful and usable.
@@ -134,6 +146,7 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.epochLength = snapshot.epochLength
         nextSnapshot.nextEpochFrame = snapshot.nextEpochFrame
         nextSnapshot.shardAllocations = snapshot.shardAllocations
+        nextSnapshot.networkShardSummary = snapshot.networkShardSummary
         nextSnapshot.inboundConnectionsEstablished =
             result.snapshot.inboundConnectionsEstablished
             ?? snapshot.inboundConnectionsEstablished
@@ -174,7 +187,57 @@ public final class NodeMonitor: ObservableObject {
                 snapshot = updated
             }
         }
+        if shouldRefreshProverTelemetry,
+            nextSnapshot.isRunning,
+            proverTelemetryTask == nil
+        {
+            lastProverTelemetryRefresh = Date()
+            proverTelemetryTask = Task { [weak self] in
+                guard let self else { return }
+                defer { proverTelemetryTask = nil }
+                let result = await collector.collectProverTelemetry()
+                guard !Task.isCancelled else { return }
+                var updated = snapshot
+                if let telemetry = result.telemetry {
+                    applyProverTelemetry(telemetry, to: &updated)
+                    updated.proverStatusError = nil
+                } else {
+                    updated.proverStatusError = result.error
+                }
+                snapshot = updated
+            }
+        }
         lastRefreshError = nil
+    }
+
+    private func applyProverTelemetry(
+        _ telemetry: LocalProverTelemetry,
+        to snapshot: inout NodeSnapshot
+    ) {
+        let status = telemetry.status
+        snapshot.peerScore = status.peerScore
+        snapshot.reachable = status.reachable
+        snapshot.allocatedWorkers = status.allocatedWorkers
+        snapshot.lastReceivedFrame = status.lastReceivedFrame
+        snapshot.lastGlobalHeadFrame = status.lastGlobalHeadFrame
+        snapshot.epoch = status.epoch
+        snapshot.epochLength = status.epochLength
+        snapshot.nextEpochFrame = status.nextEpochFrame
+        snapshot.shardAllocations = status.allocations
+        snapshot.networkShardSummary = telemetry.networkSummary
+        snapshot.proverStatusUpdatedAt = telemetry.observedAt
+
+        let statuses = status.allocations.map { $0.status.lowercased() }
+        snapshot.activeShards = statuses.count { $0 == "active" }
+        snapshot.pendingJoins = statuses.count { $0 == "joining" }
+        snapshot.totalAllocations = status.allocations.count
+        if status.runningWorkers > 0 {
+            snapshot.localWorkerCount = status.runningWorkers
+        }
+        snapshot.frame = max(
+            max(snapshot.frame, status.lastReceivedFrame),
+            telemetry.networkSummary?.frame ?? 0
+        )
     }
 
     private func refreshProcessPresence() async {

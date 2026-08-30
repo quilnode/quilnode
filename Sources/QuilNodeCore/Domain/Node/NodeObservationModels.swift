@@ -9,6 +9,14 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
     public var joinFrame: UInt64?
     public var confirmFrame: UInt64?
     public var lastActiveFrame: UInt64?
+    /// Locally queried shard topology. These remain optional because an older
+    /// qclient or a temporarily unavailable RPC must not invalidate the
+    /// allocation lifecycle evidence above.
+    public var activeProvers: Int?
+    public var ring: Int?
+    public var estimatedRewardPerFrame: String?
+    public var shardSize: String?
+    public var dataShards: Int?
 
     public var id: Int { index }
 
@@ -20,7 +28,12 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
         action: String? = nil,
         joinFrame: UInt64? = nil,
         confirmFrame: UInt64? = nil,
-        lastActiveFrame: UInt64? = nil
+        lastActiveFrame: UInt64? = nil,
+        activeProvers: Int? = nil,
+        ring: Int? = nil,
+        estimatedRewardPerFrame: String? = nil,
+        shardSize: String? = nil,
+        dataShards: Int? = nil
     ) {
         self.index = index
         self.filter = filter
@@ -30,6 +43,15 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
         self.joinFrame = joinFrame
         self.confirmFrame = confirmFrame
         self.lastActiveFrame = lastActiveFrame
+        self.activeProvers = activeProvers
+        self.ring = ring
+        self.estimatedRewardPerFrame = estimatedRewardPerFrame
+        self.shardSize = shardSize
+        self.dataShards = dataShards
+    }
+
+    public var coverageState: ShardCoverageState? {
+        activeProvers.map(ShardCoverageState.init(activeProvers:))
     }
 }
 
@@ -140,6 +162,16 @@ public struct ProverStatusCollectionResult: Sendable {
 
     public init(status: LocalProverStatus? = nil, error: String? = nil) {
         self.status = status
+        self.error = error
+    }
+}
+
+public struct ProverTelemetryCollectionResult: Sendable {
+    public var telemetry: LocalProverTelemetry?
+    public var error: String?
+
+    public init(telemetry: LocalProverTelemetry? = nil, error: String? = nil) {
+        self.telemetry = telemetry
         self.error = error
     }
 }

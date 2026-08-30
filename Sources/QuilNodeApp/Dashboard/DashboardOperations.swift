@@ -179,7 +179,7 @@ extension DashboardView {
                                 )
                                 .font(.subheadline.weight(.semibold))
                                 Text(
-                                    "The lightweight `.25` status stream reports lifecycle counts, but not individual shard filters. Nothing is inferred or requested from an explorer."
+                                    "Detailed worker and shard topology is temporarily unavailable. The aggregate registry counts above remain local and nothing is inferred from an explorer."
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
