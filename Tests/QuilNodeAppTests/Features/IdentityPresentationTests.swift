@@ -41,9 +41,25 @@ final class IdentityPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation.participation.state, .awaitingAllocation)
-        XCTAssertEqual(presentation.participation.title, "Online · awaiting allocation")
+        XCTAssertEqual(presentation.participation.title, "Awaiting allocation")
         XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("eligible"))
         XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("earning"))
+    }
+
+    func testActiveAllocationDoesNotClaimContinuousProofProductionOrReward() {
+        let presentation = IdentityWorkspacePresentation.make(
+            snapshot: NodeSnapshot(
+                isRunning: true,
+                activeShards: 5,
+                totalAllocations: 7
+            ),
+            seniorityTrend: collectingTrend
+        )
+
+        XCTAssertEqual(presentation.participation.title, "Allocations active")
+        XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("serving"))
+        XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("reward"))
+        XCTAssertTrue(presentation.participation.detail.localizedCaseInsensitiveContains("not continuous"))
     }
 
     func testMissingIdentifiersStayUnavailableAndUnclassified() {

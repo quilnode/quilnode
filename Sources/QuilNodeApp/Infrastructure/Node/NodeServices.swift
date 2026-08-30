@@ -165,7 +165,7 @@ final class NodeServices: NSObject, ObservableObject, UNUserNotificationCenterDe
             scheduleAlert(
                 id: "shards-active",
                 title: "Quilibrium allocations are active",
-                body: "The node is now serving active shard work.",
+                body: "The consensus registry now reports active shard allocations.",
                 cooldown: 60 * 60
             )
         }

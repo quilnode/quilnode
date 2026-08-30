@@ -18,6 +18,10 @@ struct MenuBarPresentation {
         ChainProgressEvaluator.evaluate(snapshot)
     }
 
+    private var participationEvidence: ParticipationEvidencePresentation {
+        ParticipationEvidencePresentation.make(snapshot: snapshot)
+    }
+
     var effectiveFrame: UInt64 {
         max(snapshot.frame, snapshot.lastReceivedFrame)
     }
@@ -57,12 +61,7 @@ struct MenuBarPresentation {
         if phase == .loadingTelemetry {
             return snapshot.isRunning ? "Node Detected" : "Node Offline"
         }
-        guard snapshot.isRunning else { return "Node Offline" }
-        if chainProgress.state == .archiveRecovery { return "Prover Waiting" }
-        if snapshot.activeShards > 0 { return "Prover Active" }
-        if snapshot.pendingJoins > 0 { return "Joining Shards" }
-        if snapshot.totalAllocations > 0 { return "Awaiting Activation" }
-        return "Connected"
+        return participationEvidence.title
     }
 
     var participationDetail: String {
@@ -75,24 +74,7 @@ struct MenuBarPresentation {
         if phase == .loadingTelemetry {
             return "The managed service check confirmed that the node is stopped."
         }
-        guard snapshot.isRunning else {
-            return "The local node service is stopped."
-        }
-        if chainProgress.state == .archiveRecovery {
-            return "Allocations remain active; archive state is converging. No restart is recommended."
-        }
-        if snapshot.activeShards > 0 {
-            return snapshot.lastRewardCreditFrame == nil
-                ? "Serving assigned work; no reward credit has been observed locally yet."
-                : "Serving assigned work with a locally observed reward credit."
-        }
-        if snapshot.pendingJoins > 0 {
-            return "Registered and waiting for shard activation."
-        }
-        if snapshot.totalAllocations > 0 {
-            return "Allocations are recognized but not active yet."
-        }
-        return "Online and synchronized; waiting for an allocation."
+        return participationEvidence.detail
     }
 
     /// Short copy for the menu-bar hero. The longer diagnostic explanation
@@ -102,22 +84,13 @@ struct MenuBarPresentation {
         if phase == .loadingTelemetry {
             return snapshot.isRunning ? "Process found; loading local telemetry" : "Managed service is stopped"
         }
-        guard snapshot.isRunning else { return "Managed service is stopped" }
-        if chainProgress.state == .archiveRecovery { return "Allocated; waiting for archive recovery" }
-        if snapshot.activeShards > 0 { return "Participating and syncing" }
-        if snapshot.pendingJoins > 0 { return "Registered; waiting for shard activation" }
-        if snapshot.totalAllocations > 0 { return "Allocations recognized; activation pending" }
-        return "Connected; waiting for an allocation"
+        return participationEvidence.summary
     }
 
     var participationSystemImage: String {
         if phase == .checkingProcess { return "ellipsis.circle.fill" }
         if phase == .loadingTelemetry, snapshot.isRunning { return "checkmark.circle.fill" }
-        if !snapshot.isRunning { return "power" }
-        if chainProgress.state == .archiveRecovery { return "hourglass" }
-        if snapshot.activeShards > 0 { return "bolt.shield.fill" }
-        if snapshot.pendingJoins > 0 { return "hourglass" }
-        return "network"
+        return participationEvidence.systemImage
     }
 
     var participationCount: Int? {
@@ -134,36 +107,15 @@ struct MenuBarPresentation {
     }
 
     var rewardTitle: String {
-        if chainProgress.state == .archiveRecovery { return "Network waiting" }
-        if snapshot.lastRewardCreditFrame != nil { return "Credit observed" }
-        if snapshot.activeShards > 0 { return "Rewards pending" }
-        return "Not eligible yet"
+        participationEvidence.rewardTitle
     }
 
     var rewardDetail: String {
-        if chainProgress.state == .archiveRecovery {
-            return "Reward-bearing frames are waiting for shared archive state to converge."
-        }
-        if let frame = snapshot.lastRewardCreditFrame {
-            return "Reward credit observed at frame \(frame.grouped)."
-        }
-        if snapshot.activeShards > 0 {
-            return "Active work establishes eligibility, not guaranteed payment."
-        }
-        return "Eligibility begins after a shard allocation becomes active."
+        participationEvidence.rewardDetail
     }
 
     var rewardSummary: String {
-        if chainProgress.state == .archiveRecovery {
-            return "Network recovery is holding reward-bearing frames"
-        }
-        if let frame = snapshot.lastRewardCreditFrame {
-            return "Credit observed at frame \(frame.grouped)"
-        }
-        if snapshot.activeShards > 0 {
-            return "Rewards pending — proving does not guarantee payment"
-        }
-        return "Reward eligibility begins after activation"
+        participationEvidence.rewardSummary
     }
 
     var reachabilityTitle: String {

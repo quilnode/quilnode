@@ -69,6 +69,14 @@ extension DashboardView {
             if privacyModeEnabled {
                 ProtocolPrivateAllocationCell()
                     .frame(maxWidth: .infinity)
+            } else if monitor.snapshot.shardAllocations.isEmpty,
+                monitor.snapshot.totalAllocations > 0
+            {
+                ProtocolAggregateAllocationCell(
+                    active: monitor.snapshot.activeShards,
+                    joining: monitor.snapshot.pendingJoins,
+                    total: monitor.snapshot.totalAllocations
+                )
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 8)], spacing: 8) {
                     if monitor.snapshot.shardAllocations.isEmpty {
@@ -122,7 +130,9 @@ extension DashboardView {
                     privacyModeEnabled
                         ? "Allocation state remains available locally and is concealed from this presentation."
                         : monitor.snapshot.shardAllocations.isEmpty
-                            ? "No shard assignment is present in the local registry yet. Capacity remains visible above."
+                            ? monitor.snapshot.totalAllocations > 0
+                                ? "Aggregate registry state is current; per-shard details are not exposed by local telemetry."
+                                : "No shard assignment is present in the local registry yet. Capacity remains visible above."
                             : "Each lane is emitted by the local node registry; select one for its full evidence."
                 )
                 Spacer(minLength: 10)

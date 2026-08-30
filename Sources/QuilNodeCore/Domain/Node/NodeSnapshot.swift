@@ -12,7 +12,7 @@ public enum NodeHealth: String, Codable, Sendable {
         case .stopped: "Offline"
         case .syncing: "Online · Waiting"
         case .joining: "Joining Shards"
-        case .active: "Active · Prover"
+        case .active: "Allocations Active"
         case .stalled: "Stalled"
         }
     }

@@ -90,6 +90,59 @@ struct ProtocolCapacityOverflowCell: View {
     }
 }
 
+struct ProtocolAggregateAllocationCell: View {
+    @Environment(\.quilTheme) private var theme
+    let active: Int
+    let joining: Int
+    let total: Int
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Image(systemName: "rectangle.stack.badge.person.crop")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(theme.colors.info)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Registry allocation summary")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(theme.colors.primaryText)
+                HStack(spacing: 5) {
+                    PrivacyProtectedPhrase(
+                        value: String(active),
+                        suffix: " active",
+                        field: .activeShardCount
+                    )
+                    Text("·")
+                    PrivacyProtectedPhrase(
+                        value: String(joining),
+                        suffix: " joining",
+                        field: .allocationCount
+                    )
+                    Text("·")
+                    PrivacyProtectedPhrase(
+                        value: String(total),
+                        suffix: " total",
+                        field: .allocationCount
+                    )
+                }
+                .font(.system(size: 9.5, design: .monospaced))
+                .foregroundStyle(theme.colors.secondaryText)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .background(theme.colors.surface.opacity(0.52))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(
+                    theme.colors.info.opacity(0.38),
+                    lineWidth: max(theme.metrics.borderWidth, 0.5)
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+    }
+}
+
 struct ProtocolPrivateAllocationCell: View {
     @Environment(\.quilTheme) private var theme
 

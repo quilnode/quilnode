@@ -112,17 +112,13 @@ extension DashboardView {
                 (Text("Participation ").foregroundStyle(theme.colors.primaryText)
                     + Text("paused.").foregroundStyle(theme.colors.danger))
             } else if monitor.snapshot.activeShards > 0 {
-                (Text("Actively ").foregroundStyle(theme.colors.primaryText)
-                    + Text("proving.").foregroundStyle(protocolSignal))
-                (Text("Rewards ").foregroundStyle(theme.colors.primaryText)
-                    + Text(
-                        monitor.snapshot.lastRewardCreditFrame == nil
-                            ? "in progress." : "observed."
-                    )
-                    .foregroundStyle(
-                        monitor.snapshot.lastRewardCreditFrame == nil
-                            ? theme.colors.warning : theme.colors.success
-                    ))
+                (Text("Allocations ").foregroundStyle(theme.colors.primaryText)
+                    + Text("active.").foregroundStyle(protocolSignal))
+                (Text(
+                    monitor.snapshot.lastRewardCreditFrame == nil
+                        ? "No reward credit " : "Reward credit "
+                ).foregroundStyle(theme.colors.primaryText)
+                    + Text("observed.").foregroundStyle(rewardTint))
             } else if monitor.snapshot.pendingJoins > 0 {
                 (Text("Registered · ").foregroundStyle(theme.colors.primaryText)
                     + Text("joining.").foregroundStyle(protocolSignal))

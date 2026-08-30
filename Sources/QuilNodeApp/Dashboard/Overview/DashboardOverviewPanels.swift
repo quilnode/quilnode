@@ -67,7 +67,7 @@ extension DashboardView {
                     .font(.caption2.bold())
                     .foregroundStyle(.tertiary)
                 RewardJourneyPill(
-                    title: monitor.snapshot.lastRewardCreditFrame == nil ? "Credit pending" : "Credit observed",
+                    title: monitor.snapshot.lastRewardCreditFrame == nil ? "No credit observed" : "Credit observed",
                     systemImage: monitor.snapshot.lastRewardCreditFrame == nil ? "clock" : "checkmark",
                     tint: rewardTint
                 )

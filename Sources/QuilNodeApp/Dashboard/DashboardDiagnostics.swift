@@ -77,11 +77,7 @@ extension DashboardView {
 
     var provingPhaseTitle: String {
         if let startupTitle = nodeObservation.primaryTitle { return startupTitle }
-        if !monitor.snapshot.isRunning { return "Node offline" }
-        if monitor.snapshot.activeShards > 0 { return "Active" }
-        if monitor.snapshot.pendingJoins > 0 { return "Registered · joining" }
-        if monitor.snapshot.totalAllocations > 0 { return "Allocated · waiting" }
-        return "Online · awaiting allocation"
+        return participationEvidence.title
     }
 
     @ViewBuilder
@@ -104,22 +100,7 @@ extension DashboardView {
 
     var provingPhaseDetail: String {
         if let startupDetail = nodeObservation.primaryDetail { return startupDetail }
-        if !monitor.snapshot.isRunning {
-            return "Start the node to resume synchronization and prover participation."
-        }
-        if chainProgress.state == .archiveRecovery {
-            return
-                "Allocations remain active, but network frame production is waiting for archive state to converge. The node is retrying automatically; this is not a local restart condition."
-        }
-        if monitor.snapshot.activeShards > 0 {
-            return
-                "Enrolled and serving shard work. Rewards are credited separately after validated reward-bearing shard frames."
-        }
-        if monitor.snapshot.pendingJoins > 0 {
-            return
-                "The current keyset is recognized and joining allocations. Reward eligibility begins after activation."
-        }
-        return "The node is connected and synchronized, but the local registry has not assigned active shard work."
+        return participationEvidence.detail
     }
 
     var overviewTint: Color {
@@ -267,33 +248,28 @@ extension DashboardView {
     }
 
     var rewardStatusTitle: String {
-        if chainProgress.state == .archiveRecovery { return "Network waiting" }
-        if monitor.snapshot.lastRewardCreditFrame != nil { return "Credited" }
-        if monitor.snapshot.activeShards > 0 { return "Rewards pending" }
-        return "Not eligible yet"
+        participationEvidence.rewardTitle
     }
 
     var rewardStatusDetail: String {
-        if chainProgress.state == .archiveRecovery {
-            return
-                "No new reward-bearing frames can be credited while the shared network head is waiting for archive recovery. Keep the node online."
-        }
-        if let frame = monitor.snapshot.lastRewardCreditFrame {
-            return "The local node recorded a reward credit at frame \(frame.grouped)."
-        }
-        if monitor.snapshot.activeShards > 0 {
-            return
-                "No reward credit observed locally yet. Active allocations establish eligibility, not guaranteed payment."
-        }
-        return "Reward eligibility begins after a shard allocation becomes active."
+        participationEvidence.rewardDetail
     }
 
     var rewardSystemImage: String {
-        monitor.snapshot.lastRewardCreditFrame == nil ? "clock.badge" : "banknote.fill"
+        participationEvidence.rewardSystemImage
     }
 
     var rewardTint: Color {
-        monitor.snapshot.lastRewardCreditFrame == nil ? theme.colors.privacy : theme.colors.success
+        switch participationEvidence.rewardState {
+        case .networkWaiting: theme.colors.info
+        case .creditObserved: theme.colors.success
+        case .noCreditObserved: theme.colors.warning
+        case .notEligible: theme.colors.secondaryText
+        }
+    }
+
+    var participationEvidence: ParticipationEvidencePresentation {
+        ParticipationEvidencePresentation.make(snapshot: monitor.snapshot)
     }
 
     var refreshTime: String {

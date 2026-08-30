@@ -189,43 +189,20 @@ struct IdentityWorkspacePresentation {
     }
 
     private static func participation(_ snapshot: NodeSnapshot) -> IdentityParticipationPresentation {
-        if !snapshot.isRunning {
-            return IdentityParticipationPresentation(
-                state: .offline,
-                title: "Node offline",
-                detail: "Start the node to resume synchronization and prover participation.",
-                symbol: "power"
-            )
-        }
-        if snapshot.activeShards > 0 {
-            return IdentityParticipationPresentation(
-                state: .active,
-                title: "Active prover",
-                detail: "Serving assigned shard work. Reward credits remain a separate chain observation.",
-                symbol: "bolt.fill"
-            )
-        }
-        if snapshot.pendingJoins > 0 {
-            return IdentityParticipationPresentation(
-                state: .joining,
-                title: "Registered · joining",
-                detail: "The node reports pending shard joins, but no active shard work yet.",
-                symbol: "arrow.triangle.2.circlepath"
-            )
-        }
-        if snapshot.totalAllocations > 0 {
-            return IdentityParticipationPresentation(
-                state: .allocated,
-                title: "Allocated · waiting",
-                detail: "Allocations are present locally, but none are active yet.",
-                symbol: "clock.badge.checkmark"
-            )
-        }
+        let evidence = ParticipationEvidencePresentation.make(snapshot: snapshot)
+        let state: IdentityParticipationPresentation.State =
+            switch evidence.state {
+            case .offline: .offline
+            case .networkRecovery, .allocated: .allocated
+            case .activeAllocations: .active
+            case .joining: .joining
+            case .awaitingAllocation: .awaitingAllocation
+            }
         return IdentityParticipationPresentation(
-            state: .awaitingAllocation,
-            title: "Online · awaiting allocation",
-            detail: "Connected to the network, but no active shard work is reported locally.",
-            symbol: "hourglass"
+            state: state,
+            title: evidence.title,
+            detail: evidence.detail,
+            symbol: evidence.systemImage
         )
     }
 

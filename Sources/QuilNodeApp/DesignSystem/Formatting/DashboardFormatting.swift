@@ -90,11 +90,11 @@ extension NodeSnapshot {
     var workDetail: String {
         if !isRunning { return "The local node process is stopped" }
         if ChainProgressEvaluator.evaluate(self).state == .archiveRecovery {
-            return "Serving active shards · waiting for archive recovery"
+            return "Active registry allocations · waiting for archive recovery"
         }
         if activeShards > 0 {
-            let rewards = lastRewardCreditFrame == nil ? "rewards pending" : "rewards credited"
-            return "Serving active shards · \(rewards)"
+            let rewards = lastRewardCreditFrame == nil ? "no reward credit observed" : "reward credit observed"
+            return "Active registry allocations · \(rewards)"
         }
         if health == .stalled { return "Frame progress has stopped" }
         if pendingJoins > 0 { return "Joining shard allocations — not active yet" }

@@ -19,11 +19,11 @@ final class MenuBarPresentationTests: XCTestCase {
             phase: .ready
         )
 
-        XCTAssertEqual(presentation.participationTitle, "Prover Active")
-        XCTAssertEqual(presentation.participationSummary, "Participating and syncing")
+        XCTAssertEqual(presentation.participationTitle, "Allocations active")
+        XCTAssertEqual(presentation.participationSummary, "Active registry allocations")
         XCTAssertEqual(
             presentation.rewardSummary,
-            "Rewards pending — proving does not guarantee payment"
+            "No local reward credit observed"
         )
     }
 

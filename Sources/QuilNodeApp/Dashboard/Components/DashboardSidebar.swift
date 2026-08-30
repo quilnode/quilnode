@@ -440,6 +440,6 @@ struct DashboardSidebar: View {
     }
 
     private var rewardLabel: String {
-        snapshot.lastRewardCreditFrame == nil ? "rewards pending" : "rewards credited"
+        snapshot.lastRewardCreditFrame == nil ? "no credit observed" : "credit observed"
     }
 }
