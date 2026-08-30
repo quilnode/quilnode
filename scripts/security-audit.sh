@@ -201,7 +201,7 @@ if rg -n 'runChecked\((binary|staged)\.path' Sources/QuilNodeApp/Features/Update
 fi
 
 if ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Network/NetworkLocalInspector.swift ||
-   ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Node/LocalNodeCollector.swift ||
+   ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Node/LocalNodeCollector+Runtime.swift ||
    ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeApp/Infrastructure/Node/NodeLifecycleController.swift ||
    ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeApp/Features/Installation/Infrastructure/InstallationHostInspector.swift ||
    ! rg -q 'maximumOutputBytes' Sources/QuilNodeCore/Infrastructure/Process/BoundedCommandRunner.swift; then
@@ -232,7 +232,6 @@ if ! rg -q 'BoundedFileDownloadDelegate' Sources/QuilNodeApp/Features/Updates ||
 fi
 
 if ! rg -q 'O_RDONLY \| O_CLOEXEC \| O_NOFOLLOW \| O_NONBLOCK' Sources/QuilNodeShared/FileSystem/BoundedLocalData.swift ||
-   ! rg -q 'BoundedLocalData\.read' Sources/QuilNodeShared/Widget/WidgetNodeSnapshot.swift ||
    ! rg -q 'BoundedLocalData\.read' Sources/QuilNodeApp/Infrastructure/Persistence/NodeHistoryStore.swift ||
    [[ "$(rg -o 'BoundedLocalData\.read' Sources/QuilNodeApp/Features/Updates | wc -l | tr -d ' ')" -lt 4 ]]; then
     echo "FAIL: local UI state is missing bounded no-follow reads" >&2
@@ -257,7 +256,7 @@ if ! rg -q 'catch HelperFailure\.unauthorized' Sources/QuilNodeHelperKit/Service
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'manifestAge >= -300' Sources/QuilNodeHelperKit/Node/NodeOperations.swift ||
+if ! rg -q 'manifestAge >= -300' Sources/QuilNodeHelperKit/Node/NodeStageValidation.swift ||
    ! rg -q 'manifestAge >= -300' Sources/QuilNodeHelperKit/Wallet/WalletTransactions.swift ||
    ! rg -q 'timeIntervalSince\(manifest\.createdAt\) >= -300' Sources/QuilNodeHelperKit/QClient/QClientOperations.swift; then
     echo "FAIL: signed transaction manifests do not reject excessive future clock skew" >&2

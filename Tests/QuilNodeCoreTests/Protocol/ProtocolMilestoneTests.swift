@@ -151,15 +151,5 @@ final class ProtocolMilestoneTests: XCTestCase {
             "failed reset is not successful evidence"
         )
 
-        if let data = try? JSONEncoder().encode(WidgetNodeSnapshot.placeholder),
-            let decoded = try? JSONDecoder().decode(WidgetNodeSnapshot.self, from: data)
-        {
-            expect(decoded.frame == WidgetNodeSnapshot.placeholder.frame, "widget frame round trip")
-            expect(decoded.peers == WidgetNodeSnapshot.placeholder.peers, "widget peer round trip")
-            expect(decoded.activeShards == WidgetNodeSnapshot.placeholder.activeShards, "widget shard round trip")
-        } else {
-            XCTFail("widget snapshot Codable round trip")
-        }
-
     }
 }

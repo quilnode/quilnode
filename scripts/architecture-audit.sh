@@ -10,6 +10,41 @@ fail() {
     failures=$((failures + 1))
 }
 
+expected_source_roots=(
+    QuilNodeApp
+    QuilNodeCore
+    QuilNodeHelperCLI
+    QuilNodeHelperKit
+    QuilNodeProbe
+    QuilNodeReleaseVerifier
+    QuilNodeShared
+)
+expected_test_roots=(
+    QuilNodeAppTests
+    QuilNodeCoreTests
+    QuilNodeHelperKitTests
+    QuilNodeSharedTests
+)
+
+for source_root in Sources/*; do
+    [[ -d "$source_root" ]] || continue
+    source_name="${source_root#Sources/}"
+    if [[ ! " ${expected_source_roots[*]} " =~ " ${source_name} " ]]; then
+        fail "undeclared or orphaned source root is present: $source_root"
+    fi
+done
+for test_root in Tests/*; do
+    [[ -d "$test_root" ]] || continue
+    test_name="${test_root#Tests/}"
+    if [[ ! " ${expected_test_roots[*]} " =~ " ${test_name} " ]]; then
+        fail "undeclared or orphaned test root is present: $test_root"
+    fi
+done
+
+if ! rg -q 'Sources/QuilNodeReleaseVerifier/main\.c' scripts/build-app.sh; then
+    fail "the manually compiled release-verifier source is not declared by the release build"
+fi
+
 required_directories=(
     Sources/QuilNodeApp/Application
     Sources/QuilNodeApp/Dashboard

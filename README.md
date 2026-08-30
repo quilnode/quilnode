@@ -141,7 +141,7 @@ Sources/
 │   ├── Features/       operator workflows grouped by responsibility
 │   └── Infrastructure/ local adapters for node, network, and persistence
 ├── QuilNodeCore/       deterministic domain rules and local observation
-├── QuilNodeShared/     IPC, release, filesystem, theme, and widget contracts
+├── QuilNodeShared/     IPC, release, filesystem, and theme contracts
 ├── QuilNodeHelperKit/  privileged implementation behind one narrow facade
 ├── QuilNodeHelperCLI/  minimal privileged-service entry point
 ├── QuilNodeProbe/      read-only diagnostics executable
