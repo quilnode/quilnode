@@ -135,6 +135,11 @@ swift run quilnode-probe
 ```text
 Sources/
 ├── QuilNodeApp/        SwiftUI shell, features, presentation, coordination
+│   ├── Application/    process entry points and app-level commands
+│   ├── Dashboard/      window shell, shared chrome, and overview composition
+│   ├── DesignSystem/   reusable components, theme, layout, motion, and copy
+│   ├── Features/       operator workflows grouped by responsibility
+│   └── Infrastructure/ local adapters for node, network, and persistence
 ├── QuilNodeCore/       deterministic domain rules and local observation
 ├── QuilNodeShared/     IPC, release, filesystem, theme, and widget contracts
 ├── QuilNodeHelperKit/  privileged implementation behind one narrow facade
@@ -149,9 +154,15 @@ Tests/
 └── QuilNodeHelperKitTests/
 ```
 
-Dependency direction and file-size limits are enforced by
-`scripts/architecture-audit.sh`. Release artifacts are built locally by a
-fail-closed pipeline; this project does not depend on GitHub Actions.
+Larger feature folders separate `Coordination`, `Infrastructure`,
+`Persistence`, `Presentation`, `Views`, and `PreviewSupport` where those roles
+exist. Feature tests mirror the corresponding feature name. Swift files cannot
+sit loose at a feature root, and the dashboard cannot retain a computed view
+with no reachable caller. These rules, dependency direction, and file-size
+limits are enforced by `scripts/architecture-audit.sh`.
+
+Release artifacts are built locally by a fail-closed pipeline; this project
+does not depend on GitHub Actions.
 
 ## Contributing and security
 

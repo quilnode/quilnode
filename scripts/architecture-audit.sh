@@ -22,7 +22,7 @@ required_directories=(
     Sources/QuilNodeApp/Features/Updates/Models
     Sources/QuilNodeApp/Features/Updates/Persistence
     Sources/QuilNodeApp/Features/Updates/Staging
-    Sources/QuilNodeApp/Features/Updates/Views
+    Sources/QuilNodeApp/Features/Updates/Views/Dashboard
     Sources/QuilNodeApp/Dashboard/Overview
     Sources/QuilNodeApp/DesignSystem/Theme/BuiltIns
     Sources/QuilNodeApp/DesignSystem/Theme/Loading
@@ -45,9 +45,16 @@ for directory in "${required_directories[@]}"; do
     [[ -d "$directory" ]] || fail "required architecture directory is missing: $directory"
 done
 
-while IFS= read -r source; do
-    [[ -z "$source" ]] || fail "large update feature files must live in a responsibility folder: $source"
-done < <(find Sources/QuilNodeApp/Features/Updates -maxdepth 1 -type f -name '*.swift' -print)
+for feature_path in Sources/QuilNodeApp/Features/*; do
+    [[ -d "$feature_path" ]] || continue
+    while IFS= read -r source; do
+        [[ -z "$source" ]] || fail "feature source must live in a responsibility folder: $source"
+    done < <(find "$feature_path" -maxdepth 1 -type f -name '*.swift' -print)
+done
+
+while IFS= read -r test_source; do
+    [[ -z "$test_source" ]] || fail "feature test must live with its feature suite: $test_source"
+done < <(find Tests/QuilNodeAppTests/Features -maxdepth 1 -type f -name '*.swift' -print)
 
 for target in QuilNodeApp QuilNodeCore QuilNodeShared QuilNodeHelperKit; do
     while IFS= read -r source; do

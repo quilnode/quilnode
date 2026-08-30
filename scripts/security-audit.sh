@@ -203,7 +203,7 @@ fi
 if ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Network/NetworkLocalInspector.swift ||
    ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Node/LocalNodeCollector.swift ||
    ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeApp/Infrastructure/Node/NodeLifecycleController.swift ||
-   ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeApp/Features/Installation/InstallationHostInspector.swift ||
+   ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeApp/Features/Installation/Infrastructure/InstallationHostInspector.swift ||
    ! rg -q 'maximumOutputBytes' Sources/QuilNodeCore/Infrastructure/Process/BoundedCommandRunner.swift; then
     echo "FAIL: local subprocesses are missing centralized timeout/output bounds" >&2
     failures=$((failures + 1))
@@ -244,7 +244,7 @@ if ! rg -q 'openat\(' Sources/QuilNodeShared/FileSystem/TrustedLocalFile.swift |
    ! rg -q 'O_WRONLY \| O_CREAT \| O_EXCL \| O_NOFOLLOW \| O_CLOEXEC \| O_NONBLOCK' \
         Sources/QuilNodeShared/FileSystem/PrivateLocalFileSystem.swift ||
    ! rg -q 'TrustedLocalFile\.read' Sources/QuilNodeApp/Features/Updates/Infrastructure/UpdateStorage.swift ||
-   ! rg -q 'PrivateLocalFileSystem\.write' Sources/QuilNodeApp/Features/Wallet/WalletManager.swift; then
+   ! rg -q 'PrivateLocalFileSystem\.write' Sources/QuilNodeApp/Features/Wallet/Coordination/WalletManager.swift; then
     echo "FAIL: descriptor-relative recovery reads or private atomic state writes are missing" >&2
     failures=$((failures + 1))
 fi
