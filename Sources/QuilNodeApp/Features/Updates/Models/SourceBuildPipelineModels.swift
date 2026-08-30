@@ -10,7 +10,6 @@ struct SourceBuildPipelineContext {
     let startedAt: Date
     let channel: String
     let directory: URL
-    let workspace: URL
     let repository: URL
     let buildScript: URL
     let sourceVersion: String

@@ -80,7 +80,6 @@ extension ReleaseChecker {
             startedAt: startedAt,
             channel: channel,
             directory: directory,
-            workspace: workspace,
             repository: repository,
             buildScript: buildScript,
             sourceVersion: sourceVersion,
