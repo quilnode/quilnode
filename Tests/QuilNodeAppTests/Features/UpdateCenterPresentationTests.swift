@@ -95,12 +95,48 @@ final class UpdateCenterPresentationTests: XCTestCase {
     }
 
     func testFlightPlanCollapsesImplementationStepsWithoutLosingSafetyBoundary() {
+        XCTAssertEqual(
+            NodeUpdateWorkflow.sourceNode.steps,
+            [
+                .selectCandidate, .acquire, .verifyTrust, .resolveDependencies,
+                .compileNode, .linkNode, .inspectArtifact, .client, .sealPlan,
+                .switchRuntime, .healthGate,
+            ]
+        )
+        XCTAssertTrue(
+            NodeUpdateWorkflow.sourceNode.permitsTransition(
+                from: .verifyTrust,
+                to: .resolveDependencies
+            )
+        )
+        XCTAssertFalse(
+            NodeUpdateWorkflow.sourceNode.permitsTransition(
+                from: .resolveDependencies,
+                to: .acquire
+            )
+        )
         XCTAssertEqual(UpdateFlightStage.current(for: .compileNode), .acquire)
+        XCTAssertEqual(UpdateFlightStage.current(for: .resolveDependencies), .acquire)
         XCTAssertEqual(UpdateFlightStage.current(for: .sealPlan), .stage)
         XCTAssertEqual(UpdateFlightStage.current(for: .switchRuntime), .activate)
         XCTAssertEqual(UpdateFlightStage.current(for: .healthGate), .health)
         XCTAssertEqual(UpdateFlightStage.activate.section, .activation)
         XCTAssertEqual(UpdateFlightStage.stage.section, .preparation)
+    }
+
+    func testSourceBuildProgressNeverRegressesAfterFinalNodeLinkBegins() {
+        let progress = ReleaseChecker.sourceBuildProgress(
+            log: """
+                Compiling rocksdb-sys v0.1.0
+                Compiling quil-node v2.1.0
+                error: linker was interrupted
+                """,
+            startedAt: Date(timeIntervalSince1970: 1_777_000_000),
+            logURL: URL(fileURLWithPath: "/private/tmp/build.log")
+        )
+
+        XCTAssertEqual(progress.step, .linkNode)
+        XCTAssertEqual(progress.phase, "Compiler reported an error")
     }
 
     func testRunningAndFailedReceiptsRevealAvailableLogs() {

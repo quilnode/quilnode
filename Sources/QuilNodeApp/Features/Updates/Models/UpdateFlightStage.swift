@@ -7,7 +7,6 @@ enum UpdateFlightStage: String, CaseIterable, Identifiable, Sendable {
     case stage
     case activate
     case health
-    case rollback
 
     var id: String { rawValue }
 
@@ -19,7 +18,6 @@ enum UpdateFlightStage: String, CaseIterable, Identifiable, Sendable {
         case .stage: "Stage"
         case .activate: "Activate"
         case .health: "Health gate"
-        case .rollback: "Rollback guard"
         }
     }
 
@@ -31,7 +29,6 @@ enum UpdateFlightStage: String, CaseIterable, Identifiable, Sendable {
         case .stage: "Seal immutable plan"
         case .activate: "Brief runtime switch"
         case .health: "Validate local node"
-        case .rollback: "Restore on failure"
         }
     }
 
@@ -43,13 +40,12 @@ enum UpdateFlightStage: String, CaseIterable, Identifiable, Sendable {
         case .stage: "square.stack.3d.up"
         case .activate: "arrow.triangle.swap"
         case .health: "waveform.path.ecg"
-        case .rollback: "arrow.uturn.backward.circle"
         }
     }
 
     var section: NodeUpdatePlanSection {
         switch self {
-        case .activate, .health, .rollback: .activation
+        case .activate, .health: .activation
         default: .preparation
         }
     }
@@ -58,7 +54,7 @@ enum UpdateFlightStage: String, CaseIterable, Identifiable, Sendable {
         switch step {
         case .selectCandidate: .discover
         case .verifyTrust: .verify
-        case .acquire, .compileNode, .linkNode: .acquire
+        case .acquire, .resolveDependencies, .compileNode, .linkNode: .acquire
         case .inspectArtifact, .client, .sealPlan: .stage
         case .switchRuntime: .activate
         case .healthGate: .health

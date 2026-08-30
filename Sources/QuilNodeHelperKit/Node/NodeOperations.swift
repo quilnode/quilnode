@@ -176,9 +176,18 @@ extension QuilNodeHelper {
             }
             print("Installed \(manifest.version) from \(manifest.channel); startup and local metrics passed.")
         } catch {
-            try? restore(previous)
-            try? restartAndValidate(expectedVersion: nil)
-            throw HelperFailure.healthCheck("Update failed and the previous binary was restored: \(error)")
+            let updateError = error
+            do {
+                try restore(previous)
+                try restartAndValidate(expectedVersion: nil)
+            } catch {
+                throw HelperFailure.healthCheck(
+                    "Update failed and automatic restoration could not be verified: \(updateError). Restoration error: \(error)"
+                )
+            }
+            throw HelperFailure.healthCheck(
+                "Update failed; the previous binary was restored and passed local health checks: \(updateError)"
+            )
         }
     }
 

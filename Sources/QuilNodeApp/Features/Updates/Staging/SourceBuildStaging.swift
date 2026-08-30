@@ -141,11 +141,9 @@ extension ReleaseChecker {
             workspace: workspace,
             repository: repository
         )
-        let packageCount = cargoPackageCount(in: repository)
-        let cachedUnits = cachedCompileUnits(in: repository, maximum: packageCount)
         progress(
             NodeUpdateProgress(
-                step: .acquire,
+                step: .resolveDependencies,
                 phase: "Resolving locked dependencies",
                 detail: "Fetching only the packages pinned by Cargo.lock inside the isolated build home",
                 fraction: 0.14,
@@ -172,13 +170,9 @@ extension ReleaseChecker {
             NodeUpdateProgress(
                 step: .compileNode,
                 phase: "Compiling node",
-                detail: cachedUnits > 0
-                    ? "Reusing about \(cachedUnits) cached compile units; Cargo will rebuild only what changed"
-                    : "Starting the pinned upstream build; Cargo and macOS manage parallel work",
-                fraction: 0.16 + (Double(cachedUnits) / Double(packageCount)) * 0.72,
+                detail: "Cargo and macOS manage parallel work; compatible cached artifacts are reused automatically",
+                fraction: 0.16,
                 startedAt: startedAt,
-                completedUnits: cachedUnits,
-                totalUnits: packageCount,
                 isEstimate: true,
                 logURL: logURL
             ))
@@ -199,8 +193,7 @@ extension ReleaseChecker {
         ) { log in
             progress(
                 sourceBuildProgress(
-                    log: log, packageCount: packageCount, repository: repository,
-                    startedAt: startedAt, logURL: logURL
+                    log: log, startedAt: startedAt, logURL: logURL
                 ))
         }
 

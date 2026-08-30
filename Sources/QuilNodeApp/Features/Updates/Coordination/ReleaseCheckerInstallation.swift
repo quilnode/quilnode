@@ -208,6 +208,9 @@ extension ReleaseChecker {
         }
         guard result.exitCode == 0 else {
             operation = .idle
+            if result.output.contains("automatic restoration could not be verified") {
+                throw UpdateCenterError.activationRecoveryUnverified(result.output)
+            }
             throw UpdateCenterError.activationFailed(result.output)
         }
 

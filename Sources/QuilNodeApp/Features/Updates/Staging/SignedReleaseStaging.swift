@@ -145,7 +145,7 @@ extension ReleaseChecker {
         )
         progress(
             NodeUpdateProgress(
-                step: .acquire,
+                step: .resolveDependencies,
                 phase: "Resolving locked qclient dependencies",
                 detail: "Pinned to the installed node commit \(selected.commit.prefix(12))",
                 fraction: 0.08, startedAt: startedAt, isEstimate: true, logURL: logURL

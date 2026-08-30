@@ -4,14 +4,12 @@ extension DashboardView {
     @ViewBuilder
     func updateProgressCard(_ progress: NodeUpdateProgress) -> some View {
         TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let displayedFraction = progress.timeWeightedFraction(at: timeline.date)
-            let percentage = Int((displayedFraction * 100).rounded())
             let elapsedReference = progress.status == .running ? timeline.date : progress.updatedAt
             let elapsed = max(elapsedReference.timeIntervalSince(progress.startedAt), 0)
             let currentStage = UpdateFlightStage.current(for: progress.step)
 
             VStack(alignment: .leading, spacing: 12) {
-                updateOperationHeader(progress, percentage: percentage)
+                updateOperationHeader(progress)
                 updateFlightSectionLabels
                 updateFlightStageGrid(
                     current: progress.status == .succeeded ? nil : currentStage,
@@ -19,10 +17,7 @@ extension DashboardView {
                 )
                 updateOperationProgress(
                     progress,
-                    percentage: percentage,
-                    fraction: displayedFraction,
-                    elapsed: elapsed,
-                    now: timeline.date
+                    elapsed: elapsed
                 )
                 updateOperationControls(progress)
 
@@ -59,7 +54,7 @@ extension DashboardView {
         }
     }
 
-    private func updateOperationHeader(_ progress: NodeUpdateProgress, percentage: Int) -> some View {
+    private func updateOperationHeader(_ progress: NodeUpdateProgress) -> some View {
         HStack(spacing: 12) {
             DashboardCircleIcon(
                 systemImage: operationIcon(progress),
@@ -79,10 +74,10 @@ extension DashboardView {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Text(progress.isEstimate ? "About \(percentage)%" : "\(percentage)%")
-                    .font(.title3.bold().monospacedDigit())
+                Text(updateOperationStatusTitle(progress))
+                    .font(.subheadline.bold())
                     .foregroundStyle(operationTint(progress))
-                    .quilLiveValueTransition(value: percentage)
+                    .quilLiveValueTransition(value: progress.currentStepNumber)
                 Label(updateContinuityTitle(progress), systemImage: continuityIcon(progress))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(updateContinuityTint(progress))
@@ -92,33 +87,32 @@ extension DashboardView {
 
     private func updateOperationProgress(
         _ progress: NodeUpdateProgress,
-        percentage: Int,
-        fraction: Double,
-        elapsed: TimeInterval,
-        now: Date
+        elapsed: TimeInterval
     ) -> some View {
         HStack(spacing: 12) {
-            Text("Step \(progress.currentStepNumber)/\(progress.orderedSteps.count)")
+            Text("Step \(progress.currentStepNumber) of \(progress.orderedSteps.count)")
                 .font(.caption.weight(.semibold).monospacedDigit())
-            ProgressView(value: fraction)
+            if progress.status == .running {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(operationTint(progress))
+            } else {
+                ProgressView(
+                    value: Double(progress.completedStepCount),
+                    total: Double(progress.orderedSteps.count)
+                )
                 .progressViewStyle(.linear)
                 .tint(operationTint(progress))
-                .animation(motion.progress, value: fraction)
-            Text("\(percentage)%")
-                .font(.caption.weight(.semibold).monospacedDigit())
+            }
             Text("Elapsed \(durationLabel(elapsed))")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            if let range = progress.workflowRemainingRange(at: now) {
-                Text("ETA \(durationLabel(range.lowerBound))–\(durationLabel(range.upperBound))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Update progress")
         .accessibilityValue(
-            "Step \(progress.currentStepNumber) of \(progress.orderedSteps.count), \(percentage) percent")
+            "Step \(progress.currentStepNumber) of \(progress.orderedSteps.count), \(updateOperationStatusTitle(progress))"
+        )
     }
 
     private func updateOperationControls(_ progress: NodeUpdateProgress) -> some View {
@@ -171,11 +165,7 @@ extension DashboardView {
     ) -> Set<UpdateFlightStage> {
         if progress.status == .succeeded { return Set(UpdateFlightStage.allCases) }
         guard let index = UpdateFlightStage.allCases.firstIndex(of: current) else { return [] }
-        var completed = Set(UpdateFlightStage.allCases.prefix(index))
-        if progress.step.section == .activation || progress.status == .failed {
-            completed.insert(.rollback)
-        }
-        return completed
+        return Set(UpdateFlightStage.allCases.prefix(index))
     }
 
     private func operationIcon(_ progress: NodeUpdateProgress) -> String {
@@ -198,16 +188,31 @@ extension DashboardView {
 
     private func continuityIcon(_ progress: NodeUpdateProgress) -> String {
         if progress.status == .succeeded { return "checkmark.circle.fill" }
-        if progress.status == .failed { return "arrow.uturn.backward.circle.fill" }
+        if progress.status == .failed {
+            return progress.step.section == .preparation
+                ? "bolt.horizontal.circle.fill" : "exclamationmark.triangle.fill"
+        }
+        if progress.status == .ready { return "shippingbox.fill" }
         return progress.currentImpact.systemImage
     }
 
     func updateContinuityTitle(_ progress: NodeUpdateProgress) -> String {
         if progress.status == .succeeded { return "Node online and verified" }
-        if progress.status == .failed && progress.step.section == .activation {
-            return "Previous runtime restored"
+        if progress.status == .ready { return "Verified candidate retained" }
+        if progress.status == .failed {
+            return progress.step.section == .preparation
+                ? "Running node was not changed" : "Runtime outcome needs review"
         }
         return progress.currentImpact.title
+    }
+
+    private func updateOperationStatusTitle(_ progress: NodeUpdateProgress) -> String {
+        switch progress.status {
+        case .running: "In progress"
+        case .ready: "Ready to install"
+        case .succeeded: "Complete"
+        case .failed: "Stopped"
+        }
     }
 
     func updateContinuityTint(_ progress: NodeUpdateProgress) -> Color {

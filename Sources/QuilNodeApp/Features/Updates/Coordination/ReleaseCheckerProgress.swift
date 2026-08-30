@@ -19,6 +19,9 @@ extension ReleaseChecker {
                 var value = incomingValue
                 if let current = self.progress {
                     value.workflow = current.workflow
+                    guard current.workflow.permitsTransition(from: current.step, to: value.step) else {
+                        return
+                    }
                     value.stepStartedAt =
                         current.step == value.step
                         ? current.stepStartedAt
@@ -34,10 +37,8 @@ extension ReleaseChecker {
                 if let current = self.progress, current.phase == value.phase {
                     value.phaseStartedAt = current.phaseStartedAt
                 } else {
-                    if let current = self.progress { self.recordCompletedPhase(current) }
                     value.phaseStartedAt = Date()
                 }
-                self.applyTimingEstimate(to: &value)
                 self.progress = value
                 self.updateOperationJournal(from: value)
             }
@@ -55,12 +56,12 @@ extension ReleaseChecker {
     ) {
         guard var current = progress else { return }
         let nextStep = step ?? NodeUpdateStep.classify(phase: phase, workflow: current.workflow)
+        guard current.workflow.permitsTransition(from: current.step, to: nextStep) else { return }
         if current.step != nextStep {
             current.step = nextStep
             current.stepStartedAt = Date()
         }
         if current.phase != phase {
-            recordCompletedPhase(current)
             current.phaseStartedAt = Date()
         }
         current.phase = phase
@@ -70,59 +71,8 @@ extension ReleaseChecker {
         current.totalUnits = totalUnits
         current.isEstimate = isEstimate
         current.updatedAt = Date()
-        applyTimingEstimate(to: &current)
         progress = current
         updateOperationJournal(from: current)
-    }
-
-    func applyTimingEstimate(to progress: inout NodeUpdateProgress) {
-        let saved = defaults.dictionary(forKey: phaseTimingKey)?[progress.phase] as? Double
-        switch progress.phase {
-        case "Compiling node":
-            let warmCache =
-                if let completed = progress.completedUnits, let total = progress.totalUnits, total > 0 {
-                    Double(completed) / Double(total) > 0.75
-                } else { false }
-            progress.expectedPhaseDuration = warmCache ? 90 : (saved ?? 5.5 * 60)
-            progress.remainingKnownDuration = 6.5 * 60
-        case "Linking optimized node":
-            progress.expectedPhaseDuration = saved ?? 6 * 60
-            progress.remainingKnownDuration = 30
-        case "Checking built binary":
-            progress.expectedPhaseDuration = saved ?? 15
-            progress.remainingKnownDuration = 25
-        case "Compiling matching qclient":
-            progress.expectedPhaseDuration = saved ?? 5 * 60
-            progress.remainingKnownDuration = 25
-        case "Reusing verified qclient":
-            progress.expectedPhaseDuration = 3
-            progress.remainingKnownDuration = 25
-        case "Creating integrity metadata":
-            progress.expectedPhaseDuration = saved ?? 20
-            progress.remainingKnownDuration = 5
-        case "Activating and health-checking":
-            progress.expectedPhaseDuration = saved ?? 60
-            progress.remainingKnownDuration = 0
-        default:
-            progress.expectedPhaseDuration = nil
-            progress.remainingKnownDuration = 0
-        }
-    }
-
-    func recordCompletedPhase(_ progress: NodeUpdateProgress) {
-        guard
-            [
-                "Compiling node", "Linking optimized node", "Checking built binary",
-                "Compiling matching qclient", "Creating integrity metadata",
-                "Activating and health-checking",
-            ].contains(progress.phase)
-        else { return }
-        let duration = Date().timeIntervalSince(progress.phaseStartedAt)
-        guard duration >= 1, duration < 3 * 60 * 60 else { return }
-        var timings = defaults.dictionary(forKey: phaseTimingKey) ?? [:]
-        let previous = timings[progress.phase] as? Double
-        timings[progress.phase] = previous.map { $0 * 0.7 + duration * 0.3 } ?? duration
-        defaults.set(timings, forKey: phaseTimingKey)
     }
 
     func markProgressFailed(_ detail: String) {
@@ -171,10 +121,16 @@ extension ReleaseChecker {
         }
         operation = .idle
         lastError = error.localizedDescription
-        if stagedUpdate != nil, var current = progress {
-            // Activation failure rolls the node back but does not invalidate a
-            // verified staging bundle. Keep it immediately retryable without
-            // forcing an app restart or an expensive rebuild.
+        let recoveryIsUnverified: Bool =
+            if case UpdateCenterError.activationRecoveryUnverified = error {
+                true
+            } else {
+                false
+            }
+        if stagedUpdate != nil, !recoveryIsUnverified, var current = progress {
+            // The candidate was sealed before activation and remains safe to
+            // retry. Runtime recovery evidence stays in the helper receipt;
+            // this branch is forbidden when restoration was not re-verified.
             current.status = .ready
             current.phase = "Ready to retry"
             current.detail =

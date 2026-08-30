@@ -118,7 +118,7 @@ final class NodeServices: NSObject, ObservableObject, UNUserNotificationCenterDe
             id: "update-failed-\(notificationDigest(candidateID))",
             title: "Automatic node update stopped",
             body:
-                "\(version) was not installed. The current node was preserved; open Update Center for the retained evidence and retry controls.",
+                "\(version) did not complete. Open Update Center to review the retained evidence and verified runtime outcome.",
             cooldown: 6 * 60 * 60
         )
     }

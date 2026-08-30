@@ -309,8 +309,7 @@ final class InstallationCoordinator: ObservableObject {
             detail: "The local service is creating the restricted runtime and launchd service",
             fraction: 0.35,
             startedAt: Date(),
-            isEstimate: true,
-            expectedPhaseDuration: 90
+            isEstimate: true
         )
         let result = await Task.detached(priority: .userInitiated) {
             PrivilegedServiceClient.requestOperation(.install, manifestPath: manifest.path, timeout: 420)
@@ -327,8 +326,7 @@ final class InstallationCoordinator: ObservableObject {
             detail: "Checking launchd, the node process, its version, and loopback metrics",
             fraction: 0.92,
             startedAt: Date(),
-            isEstimate: true,
-            expectedPhaseDuration: 30
+            isEstimate: true
         )
         try? await Task.sleep(for: .seconds(2))
         let refreshed = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value

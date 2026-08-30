@@ -93,44 +93,12 @@ struct NodeUpdateProgress: Equatable, Sendable {
     var totalUnits: Int?
     var isEstimate: Bool = true
     var logURL: URL?
-    var expectedPhaseDuration: TimeInterval?
-    var remainingKnownDuration: TimeInterval = 0
 
     var boundedFraction: Double { min(max(fraction, 0), 1) }
     var shouldAutomaticallyRevealLog: Bool {
         logURL != nil && (status == .running || status == .failed)
     }
 
-    func estimatedRemaining(at now: Date = Date()) -> TimeInterval? {
-        guard status == .running,
-            phase != "Ready to install",
-            boundedFraction >= 0.08,
-            boundedFraction < 0.98
-        else { return nil }
-        if let expectedPhaseDuration {
-            let phaseElapsed = max(now.timeIntervalSince(phaseStartedAt), 0)
-            var predictedPhaseDuration = max(expectedPhaseDuration, phaseElapsed * 1.12)
-            if phase == "Compiling node",
-                let completedUnits, let totalUnits, totalUnits > 0
-            {
-                let unitProgress = min(max(Double(completedUnits) / Double(totalUnits), 0.05), 0.92)
-                let observedDuration = phaseElapsed / unitProgress
-                predictedPhaseDuration = max(
-                    phaseElapsed * 1.12,
-                    expectedPhaseDuration * 0.65 + observedDuration * 0.35
-                )
-            }
-            return max(predictedPhaseDuration - phaseElapsed + remainingKnownDuration, 5)
-        }
-        let elapsed = max(now.timeIntervalSince(startedAt), 1)
-        return min(max((elapsed / boundedFraction) * (1 - boundedFraction), 1), 3 * 60 * 60)
-    }
-
-    func estimatedRemainingRange(at now: Date = Date()) -> ClosedRange<TimeInterval>? {
-        guard let estimate = estimatedRemaining(at: now) else { return nil }
-        let uncertainty = max(estimate * 0.18, 15)
-        return max(estimate - uncertainty, 1)...min(estimate + uncertainty, 3 * 60 * 60)
-    }
 }
 
 struct StagedNodeUpdate: Equatable, Sendable {

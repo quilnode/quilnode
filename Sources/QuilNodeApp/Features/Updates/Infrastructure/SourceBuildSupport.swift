@@ -228,13 +228,6 @@ extension ReleaseChecker {
         else { throw UpdateCenterError.sourceArtifactUnsafe(url.lastPathComponent) }
     }
 
-    nonisolated static func cargoPackageCount(in repository: URL) -> Int {
-        let lock = repository.appendingPathComponent("Cargo.lock")
-        guard let data = try? BoundedLocalData.read(from: lock, maximumBytes: 8 * 1_024 * 1_024) else { return 800 }
-        let text = String(decoding: data, as: UTF8.self)
-        return max(text.components(separatedBy: "[[package]]").count - 1, 1)
-    }
-
     /// Cargo build scripts cache absolute source paths. A cache moved from an older
     /// workspace can therefore look valid while pointing `protoc` and native builds
     /// at files that no longer exist. Reset only generated `target/` data when the
@@ -254,42 +247,24 @@ extension ReleaseChecker {
         return reset
     }
 
-    nonisolated static func cachedCompileUnits(in repository: URL, maximum: Int) -> Int {
-        let fingerprints =
-            repository
-            .appendingPathComponent("target/aarch64-apple-darwin/release/.fingerprint", isDirectory: true)
-        let count =
-            (try? FileManager.default.contentsOfDirectory(
-                at: fingerprints, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
-            ).count) ?? 0
-        return min(count, maximum)
-    }
-
     nonisolated static func sourceBuildProgress(
         log: String,
-        packageCount: Int,
-        repository: URL,
         startedAt: Date,
         logURL: URL
     ) -> NodeUpdateProgress {
         let lines = log.split(whereSeparator: \.isNewline).map {
             String($0).trimmingCharacters(in: .whitespaces)
         }
-        let emittedCompiles = lines.filter { $0.hasPrefix("Compiling ") }.count
-        let compiled = max(
-            emittedCompiles,
-            cachedCompileUnits(in: repository, maximum: packageCount)
-        )
-        let ratio = min(Double(compiled) / Double(max(packageCount, 1)), 1)
-        var fraction = 0.16 + ratio * 0.72
+        var fraction = 0.32
         var phase = "Compiling node"
         var detail =
             lines.reversed().first(where: {
                 $0.hasPrefix("Compiling ") || $0.hasPrefix("Finished ") || $0.hasPrefix("built ")
             }) ?? "Cargo is preparing dependencies"
 
-        if lines.contains(where: { $0.hasPrefix("Compiling quil-node ") }) {
-            fraction = max(fraction, 0.89)
+        let reachedFinalNodeBuild = lines.contains(where: { $0.hasPrefix("Compiling quil-node ") })
+        if reachedFinalNodeBuild {
+            fraction = 0.89
             phase = "Linking optimized node"
             detail = "Final link-time optimization is active; this stage can be quiet for several minutes."
         }
@@ -304,14 +279,13 @@ extension ReleaseChecker {
             phase = "Compiler reported an error"
             detail = error
         }
+        let step: NodeUpdateStep = reachedFinalNodeBuild ? .linkNode : .compileNode
         return NodeUpdateProgress(
-            step: phase == "Linking optimized node" ? .linkNode : .compileNode,
+            step: step,
             phase: phase,
             detail: detail,
             fraction: fraction,
             startedAt: startedAt,
-            completedUnits: compiled,
-            totalUnits: packageCount,
             isEstimate: true,
             logURL: logURL
         )

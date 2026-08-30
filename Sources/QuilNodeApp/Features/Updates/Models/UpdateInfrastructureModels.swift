@@ -29,7 +29,8 @@ enum UpdateCenterError: LocalizedError {
     case seniorityDatasetUnavailable, sourceCacheInvalid
     case updateSignalUnavailable
     case hashFailed, downloadFailed, downloadTimedOut, authorizationCancelled
-    case activationFailed(String), commandFailed(String), commandTimedOut(String, TimeInterval)
+    case activationFailed(String), activationRecoveryUnverified(String)
+    case commandFailed(String), commandTimedOut(String, TimeInterval)
 
     var errorDescription: String? {
         switch self {
@@ -74,6 +75,10 @@ enum UpdateCenterError: LocalizedError {
         case .downloadTimedOut: "The release download timed out."
         case .authorizationCancelled: "Administrator authorization was cancelled."
         case let .activationFailed(message): message.isEmpty ? "Update activation failed." : message
+        case let .activationRecoveryUnverified(message):
+            message.isEmpty
+                ? "Update activation failed and the previous runtime could not be re-verified."
+                : message
         case let .commandFailed(message): message
         case let .commandTimedOut(command, timeout):
             "\(URL(fileURLWithPath: command).lastPathComponent) exceeded its \(Int(timeout))-second safety limit."

@@ -57,7 +57,8 @@ enum NodeUpdateWorkflow: String, Sendable {
             [.selectCandidate, .acquire, .verifyTrust, .inspectArtifact, .sealPlan, .switchRuntime, .healthGate]
         case .sourceNode, .generic:
             [
-                .selectCandidate, .acquire, .verifyTrust, .compileNode, .linkNode,
+                .selectCandidate, .acquire, .verifyTrust, .resolveDependencies,
+                .compileNode, .linkNode,
                 .inspectArtifact, .client, .sealPlan, .switchRuntime, .healthGate,
             ]
         case .qclient:
@@ -69,21 +70,11 @@ enum NodeUpdateWorkflow: String, Sendable {
         self == .qclient ? .unaffected : .briefRestart
     }
 
-    func defaultDuration(for step: NodeUpdateStep) -> TimeInterval {
-        switch (self, step) {
-        case (_, .selectCandidate): 10
-        case (.signedNode, .acquire), (.qclient, .acquire): 90
-        case (.sourceNode, .acquire), (.generic, .acquire): 35
-        case (_, .verifyTrust): 90
-        case (_, .compileNode): 5 * 60
-        case (_, .linkNode): 6 * 60
-        case (_, .inspectArtifact): 20
-        case (_, .client): 20
-        case (_, .sealPlan): 20
-        case (.qclient, .switchRuntime): 20
-        case (_, .switchRuntime): 20
-        case (_, .healthGate): 90
-        }
+    func permitsTransition(from current: NodeUpdateStep, to next: NodeUpdateStep) -> Bool {
+        guard let currentIndex = steps.firstIndex(of: current),
+            let nextIndex = steps.firstIndex(of: next)
+        else { return false }
+        return nextIndex >= currentIndex
     }
 }
 
@@ -91,6 +82,7 @@ enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
     case selectCandidate
     case acquire
     case verifyTrust
+    case resolveDependencies
     case compileNode
     case linkNode
     case inspectArtifact
@@ -106,6 +98,7 @@ enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
         case .selectCandidate: "Pin candidate"
         case .acquire: "Acquire"
         case .verifyTrust: "Verify trust"
+        case .resolveDependencies: "Dependencies"
         case .compileNode: "Compile"
         case .linkNode: "Link"
         case .inspectArtifact: "Inspect binary"
@@ -120,6 +113,7 @@ enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .selectCandidate: "Pin"
         case .verifyTrust: "Trust"
+        case .resolveDependencies: "Dependencies"
         case .inspectArtifact: "Inspect"
         case .sealPlan: "Seal"
         case .switchRuntime: "Switch"
@@ -133,6 +127,7 @@ enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
         case .selectCandidate: "scope"
         case .acquire: "arrow.down.circle"
         case .verifyTrust: "checkmark.seal"
+        case .resolveDependencies: "shippingbox.and.arrow.backward"
         case .compileNode: "hammer"
         case .linkNode: "link"
         case .inspectArtifact: "doc.text.magnifyingglass"
@@ -181,6 +176,9 @@ enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
         }
         if value.contains("linking optimized") { return .linkNode }
         if value.contains("compiling node") { return .compileNode }
+        if value.contains("resolving locked") || value.contains("dependencies") {
+            return .resolveDependencies
+        }
         if value.contains("seniority") || value.contains("verifying signed")
             || value.contains("verifying official") || value.contains("release trust")
         {
@@ -212,36 +210,4 @@ extension NodeUpdateProgress {
         return max(currentStepNumber - 1, 0)
     }
 
-    /// The displayed percentage is an estimate of elapsed work-time, not a
-    /// Cargo package count. Completed stages contribute their learned/default
-    /// duration; the active stage advances against its predicted duration and
-    /// intentionally caps at 95% until the stage actually completes.
-    func timeWeightedFraction(at now: Date = Date()) -> Double {
-        if status == .succeeded { return 1 }
-        let steps = orderedSteps
-        guard let index = steps.firstIndex(of: step) else { return boundedFraction }
-        let durations = steps.map { workflow.defaultDuration(for: $0) }
-        let completed = durations.prefix(index).reduce(0, +)
-        let stageElapsed = max(now.timeIntervalSince(stepStartedAt), 0)
-        let predicted = max(expectedPhaseDuration ?? durations[index], stageElapsed * 1.12, 1)
-        let active = predicted * min(stageElapsed / predicted, 0.95)
-        let adjustedTotal = durations.reduce(0, +) - durations[index] + predicted
-        return min(max((completed + active) / max(adjustedTotal, 1), 0.01), 0.99)
-    }
-
-    func workflowRemainingRange(at now: Date = Date()) -> ClosedRange<TimeInterval>? {
-        guard status == .running, step != .switchRuntime || phase != "Ready to install" else { return nil }
-        let steps = orderedSteps
-        guard let index = steps.firstIndex(of: step) else { return nil }
-        let stageElapsed = max(now.timeIntervalSince(stepStartedAt), 0)
-        let baseline = workflow.defaultDuration(for: step)
-        let predicted = max(expectedPhaseDuration ?? baseline, stageElapsed * 1.12)
-        let currentRemaining = max(predicted - stageElapsed, 3)
-        let later = steps.dropFirst(index + 1).reduce(0) {
-            $0 + workflow.defaultDuration(for: $1)
-        }
-        let estimate = min(currentRemaining + later, 3 * 60 * 60)
-        let uncertainty = max(estimate * (workflow == .sourceNode ? 0.28 : 0.18), 20)
-        return max(estimate - uncertainty, 1)...min(estimate + uncertainty, 3 * 60 * 60)
-    }
 }

@@ -59,7 +59,6 @@ final class ReleaseChecker: ObservableObject {
     let defaults = UserDefaults.standard
     let checkInterval = UpdateDiscoveryPolicy.fullReconciliationInterval
     let protocolCheckInterval: TimeInterval = 30 * 60
-    let phaseTimingKey = "node-update-phase-timings-v1"
     let checkDurationKey = "node-update-check-duration-v1"
     let automaticAttemptKey = "node-update-last-automatic-attempt-v1"
     var automationTask: Task<Void, Never>?
