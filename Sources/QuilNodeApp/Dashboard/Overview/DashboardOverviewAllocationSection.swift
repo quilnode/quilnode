@@ -92,8 +92,7 @@ extension DashboardView {
                 HStack(spacing: 6) {
                     Image(systemName: "point.3.filled.connected.trianglepath.dotted")
                         .foregroundStyle(summary.atRiskShards > 0 ? theme.colors.warning : theme.colors.success)
-                    Text("Network shard coverage")
-                        .fontWeight(.semibold)
+                    Text("Network shard coverage").fontWeight(.semibold)
                     Text("·")
                     Text("\(summary.healthyShards) healthy")
                     Text("·")
@@ -129,17 +128,7 @@ extension DashboardView {
                     privacyModeEnabled
                         ? theme.colors.privacy
                         : monitor.snapshot.shardAllocations.isEmpty ? theme.colors.warning : theme.colors.success)
-                Text(
-                    !nodeObservation.hasLiveTelemetry
-                        ? "Loading worker capacity, shard assignments and coverage from the local node."
-                        : privacyModeEnabled
-                            ? "Allocation layout is hidden behind a fixed placeholder that does not reveal worker or allocation count."
-                            : monitor.snapshot.shardAllocations.isEmpty
-                                ? monitor.snapshot.totalAllocations > 0
-                                    ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
-                                    : "No shard assignment is present in the local registry yet. Capacity remains visible above."
-                                : "Each card separates the allocation lifecycle from the assigned shard's network coverage."
-                )
+                Text(allocationEvidenceNote)
                 Spacer(minLength: 10)
                 Text("Local node only")
             }
@@ -207,21 +196,30 @@ extension DashboardView {
     private var protocolAllocationLayoutPhase: ProtocolAllocationLayoutPhase {
         if !nodeObservation.hasLiveTelemetry { return .loading }
         if privacyModeEnabled { return .privacy }
-        if monitor.snapshot.shardAllocations.isEmpty,
-            monitor.snapshot.totalAllocations > 0
-        {
+        if monitor.snapshot.shardAllocations.isEmpty, monitor.snapshot.totalAllocations > 0 {
             return .aggregate
         }
         return monitor.snapshot.shardAllocations.isEmpty ? .capacity : .allocations
     }
 
-    private var localCoverageState: ShardCoverageState? {
-        allocationLattice.coverageState
+    private var allocationEvidenceNote: String {
+        if !nodeObservation.hasLiveTelemetry {
+            return "Loading worker capacity, shard assignments and coverage from the local node."
+        }
+        if privacyModeEnabled {
+            return
+                "Allocation layout is hidden behind a fixed placeholder that does not reveal worker or allocation count."
+        }
+        if monitor.snapshot.shardAllocations.isEmpty {
+            return monitor.snapshot.totalAllocations > 0
+                ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
+                : "No shard assignment is present in the local registry yet. Capacity remains visible above."
+        }
+        return "Each card separates the allocation lifecycle from the assigned shard's network coverage."
     }
 
-    private var localCoverageLabel: String {
-        localCoverageState?.label ?? "Checking"
-    }
+    private var localCoverageState: ShardCoverageState? { allocationLattice.coverageState }
+    private var localCoverageLabel: String { localCoverageState?.label ?? "Checking" }
 
     private var localCoverageTint: Color {
         switch localCoverageState {
@@ -245,133 +243,10 @@ extension DashboardView {
             .padding(.vertical, 10)
     }
 
-    var protocolRewardEvidenceSection: some View {
-        HStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(rewardTint.opacity(0.13))
-                    Image(systemName: rewardSystemImage)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(rewardTint)
-                }
-                .frame(width: 39, height: 39)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("REWARD EVIDENCE")
-                        .protocolSectionLabel(color: theme.colors.secondaryText)
-                    Text(rewardStatusTitle)
-                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(rewardTint)
-                    Text(rewardEvidenceSummary)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(theme.colors.secondaryText)
-                        .lineLimit(2)
-                }
-            }
-            .padding(.trailing, 20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            protocolEvidenceDivider
-            ProtocolEvidenceStat(
-                title: "Last credit",
-                value: monitor.snapshot.lastRewardCreditFrame.map { "Frame \($0.grouped)" } ?? "None observed",
-                detail: monitor.snapshot.lastRewardCreditAt?.formatted(date: .abbreviated, time: .shortened)
-                    ?? "Local reward log",
-                tint: rewardTint,
-                privacyField: nil
-            )
-            protocolEvidenceDivider
-            ProtocolEvidenceStat(
-                title: "Eligibility",
-                value: monitor.snapshot.activeAllocations > 0 ? "Active" : "Not active",
-                detail: monitor.snapshot.activeAllocations > 0
-                    ? "Active allocations assigned" : "Awaiting active allocations",
-                tint: monitor.snapshot.activeAllocations > 0 ? theme.colors.success : theme.colors.warning,
-                privacyField: nil
-            )
-            protocolEvidenceDivider
-            ProtocolEvidenceStat(
-                title: "QUIL balance",
-                value: monitor.snapshot.quilBalance?.compactDecimal ?? "—",
-                detail: balanceDetail,
-                tint: theme.colors.wallet,
-                privacyField: .quilBalance
-            )
-
-            Button {
-                destination = .activity
-            } label: {
-                Label("View activity", systemImage: "arrow.right")
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 10.5, weight: .semibold))
-            .foregroundStyle(theme.colors.info)
-            .padding(.leading, 18)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(theme.colors.surface.opacity(0.58))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(theme.colors.border.opacity(0.72), lineWidth: max(theme.metrics.borderWidth, 0.5))
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-    }
-
-    private var rewardEvidenceSummary: String {
-        if chainProgress.state == .archiveRecovery {
-            return "Archive recovery is holding new reward-bearing frames. Keep the node online."
-        }
-        if monitor.snapshot.lastRewardCreditFrame != nil {
-            return "A reward credit was observed in the local node log."
-        }
-        if monitor.snapshot.activeShards > 0 {
-            return "Active allocations establish eligibility; no local credit has been observed yet."
-        }
-        return "Reward eligibility begins only after an allocation becomes active."
-    }
-
-    private var protocolEvidenceDivider: some View {
-        Rectangle()
-            .fill(theme.colors.border.opacity(0.54))
-            .frame(width: max(theme.metrics.borderWidth, 0.5), height: 52)
-            .padding(.horizontal, 14)
-    }
-
     private var protocolSectionRule: some View {
         Rectangle()
             .fill(theme.colors.border.opacity(0.66))
             .frame(height: max(theme.metrics.borderWidth, 0.5))
             .allowsHitTesting(false)
-    }
-}
-
-private struct ProtocolEvidenceStat: View {
-    @Environment(\.quilTheme) private var theme
-    let title: String
-    let value: String
-    let detail: String
-    let tint: Color
-    let privacyField: PrivacyField?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title.uppercased())
-                .protocolSectionLabel(color: theme.colors.secondaryText)
-            PrivacyProtectedText(value: value, field: privacyField)
-                .font(.system(size: 12.5, weight: .semibold, design: .monospaced).monospacedDigit())
-                .foregroundStyle(tint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-            Text(detail)
-                .font(.system(size: 9.5))
-                .foregroundStyle(theme.colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .frame(width: 126, alignment: .leading)
     }
 }
