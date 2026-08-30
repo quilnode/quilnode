@@ -10,7 +10,6 @@ import SwiftUI
 /// explicit, and reversible where the platform permits.
 struct DiagnosticsDashboardView: View {
     @Environment(\.quilTheme) private var theme
-    @Environment(\.quilMotion) private var motion
     @EnvironmentObject private var monitor: NodeMonitor
     @EnvironmentObject private var lifecycle: NodeLifecycleController
     @EnvironmentObject private var network: NetworkReadinessCoordinator
@@ -22,7 +21,7 @@ struct DiagnosticsDashboardView: View {
     @State private var isScanning = false
     @State private var scanStage = "Ready"
     @State private var lastScanAt: Date?
-    @State private var expandedChecks: Set<String> = []
+    @State private var selectedCheckID: String?
     @State private var pendingConfirmation: NodeDiagnosticRepair?
     @State private var repairMessage: String?
 
@@ -43,15 +42,36 @@ struct DiagnosticsDashboardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            reportHero
-            ForEach(NodeDiagnosticCategory.allCases, id: \.rawValue) { category in
-                checkGroup(category)
+        let presentation = DiagnosticsPresentation.make(report: report)
+        return VStack(alignment: .leading, spacing: 12) {
+            diagnosticsHeader
+            DiagnosticsSummaryBand(
+                report: report,
+                presentation: presentation,
+                isScanning: isScanning,
+                scanStage: scanStage,
+                lastScanAt: lastScanAt
+            )
+            HStack(alignment: .top, spacing: 10) {
+                DiagnosticsFindingsQueue(
+                    findings: presentation.findings,
+                    selectedID: selectedCheck?.id,
+                    onSelect: { selectedCheckID = $0 }
+                )
+                DiagnosticsProofMatrix(
+                    categories: presentation.categories,
+                    selectedID: selectedCheck?.id,
+                    onSelect: { selectedCheckID = $0 }
+                )
             }
+            DiagnosticsEvidenceInspector(check: selectedCheck, onRepair: handle)
             recentEvidence
-            provenance
+            DiagnosticsProvenanceStrip()
         }
         .task {
+            if selectedCheckID == nil {
+                selectedCheckID = presentation.selectedFallbackID
+            }
             if lastScanAt == nil {
                 await runFullScan()
             }
@@ -68,113 +88,42 @@ struct DiagnosticsDashboardView: View {
         }
     }
 
-    private var reportHero: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle().fill(overallTint.opacity(0.13))
-                if isScanning {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: overallIcon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(overallTint)
-                }
-            }
-            .frame(width: 54, height: 54)
-
+    private var diagnosticsHeader: some View {
+        HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(overallTitle)
-                    .font(.title3.bold())
-                Text(overallDetail)
+                Text("LOCAL ASSURANCE")
+                    .font(.caption2.weight(.bold))
+                    .tracking(1.5)
+                    .foregroundStyle(theme.colors.accent)
+                Text("Diagnostics")
+                    .font(.largeTitle.weight(.bold))
+                Text("Local evidence, explicit conclusions, scoped repair.")
                     .font(.caption)
-                    .foregroundStyle(theme.colors.secondaryText)
-                if isScanning {
-                    Text(scanStage)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(theme.colors.accent)
-                } else if let lastScanAt {
-                    HStack(spacing: 0) {
-                        Text("Last full check ")
-                        PrivacyProtectedText(
-                            value: lastScanAt.formatted(date: .omitted, time: .standard),
-                            field: .localTimestamp
-                        )
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(theme.colors.secondaryText)
-                }
+                    .foregroundStyle(.secondary)
             }
-
-            Spacer(minLength: 12)
-
-            VStack(alignment: .trailing, spacing: 8) {
-                HStack(spacing: 6) {
-                    statusCount(title: "Passed", value: report.passedCount, tint: theme.colors.success)
-                    if report.waitingCount > 0 {
-                        statusCount(title: "Waiting", value: report.waitingCount, tint: theme.colors.info)
-                    }
-                    statusCount(
-                        title: "Review", value: report.actionCount,
-                        tint: report.actionCount == 0 ? theme.colors.secondaryText : theme.colors.warning)
-                }
-                Button {
-                    Task { await runFullScan() }
-                } label: {
-                    if isScanning {
-                        Label("Running checks", systemImage: "waveform.path.ecg")
-                    } else {
-                        Label("Run full check", systemImage: "stethoscope")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isScanning)
+            Spacer()
+            Button("Copy safe report", systemImage: "doc.on.doc") {
+                copySafeReport()
             }
+            .buttonStyle(.bordered)
+            Button {
+                Task { await runFullScan() }
+            } label: {
+                Label(isScanning ? "Running checks" : "Run full check", systemImage: "stethoscope")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isScanning)
         }
-        .padding(18)
-        .controlSurface(tint: overallTint)
     }
 
-    private func statusCount(title: String, value: Int, tint: Color) -> some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            Text(String(value))
-                .font(.headline.bold().monospacedDigit())
-                .foregroundStyle(tint)
-            Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(theme.colors.secondaryText)
+    private var selectedCheck: NodeDiagnosticCheck? {
+        if let selectedCheckID,
+            let check = report.checks.first(where: { $0.id == selectedCheckID })
+        {
+            return check
         }
-        .frame(minWidth: 48)
-    }
-
-    private func checkGroup(_ category: NodeDiagnosticCategory) -> some View {
-        let checks = report.checks.filter { $0.category == category }
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(categoryTitle(category), systemImage: categoryIcon(category))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(theme.colors.secondaryText)
-                Spacer()
-                Text(groupStatus(checks))
-                    .font(.caption2.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(theme.colors.secondaryText)
-            }
-            .padding(.horizontal, 4)
-
-            VStack(spacing: 0) {
-                ForEach(Array(checks.enumerated()), id: \.element.id) { index, check in
-                    DiagnosticCheckRow(
-                        check: check,
-                        isExpanded: expandedChecks.contains(check.id),
-                        onToggle: { toggle(check.id) },
-                        onRepair: { repair in handle(repair) }
-                    )
-                    if index < checks.count - 1 {
-                        Divider().padding(.leading, 54)
-                    }
-                }
-            }
-            .controlSurface()
-        }
+        let presentation = DiagnosticsPresentation.make(report: report)
+        return presentation.findings.first ?? report.checks.first
     }
 
     @ViewBuilder
@@ -185,12 +134,6 @@ struct DiagnosticsDashboardView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.colors.secondaryText)
                     .padding(.horizontal, 4)
-                Spacer()
-                Button("Copy safe report", systemImage: "doc.on.doc") {
-                    copySafeReport()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -247,30 +190,8 @@ struct DiagnosticsDashboardView: View {
         }
     }
 
-    private var provenance: some View {
-        HStack(spacing: 16) {
-            Label("Tests run locally", systemImage: "lock.shield.fill")
-            Label("No keys read", systemImage: "key.slash")
-            Label("No explorer dependency", systemImage: "network.slash")
-            Spacer()
-            Text("Repairs are never run silently")
-        }
-        .font(.caption2)
-        .foregroundStyle(theme.colors.secondaryText)
-        .padding(.horizontal, 4)
-    }
-
     private var recoveryEvidenceIsWaiting: Bool {
         report.checks.first(where: { $0.id == "recent-evidence" })?.state == .waiting
-    }
-
-    private func groupStatus(_ checks: [NodeDiagnosticCheck]) -> String {
-        let passed = checks.filter { $0.state == .passed }.count
-        let waiting = checks.filter { $0.state == .waiting }.count
-        if waiting > 0 {
-            return "\(passed) passed · \(waiting) waiting"
-        }
-        return "\(passed)/\(checks.count) passed"
     }
 
     private func runFullScan() async {
@@ -292,6 +213,10 @@ struct DiagnosticsDashboardView: View {
 
         lastScanAt = Date()
         scanStage = "Complete"
+        let refreshedPresentation = DiagnosticsPresentation.make(report: report)
+        selectedCheckID =
+            refreshedPresentation.findings.first?.id
+            ?? refreshedPresentation.selectedFallbackID
         isScanning = false
     }
 
@@ -337,16 +262,6 @@ struct DiagnosticsDashboardView: View {
         }
     }
 
-    private func toggle(_ id: String) {
-        withAnimation(motion.disclosure) {
-            if expandedChecks.contains(id) {
-                expandedChecks.remove(id)
-            } else {
-                expandedChecks.insert(id)
-            }
-        }
-    }
-
     private func copySafeReport() {
         let lines = report.checks.map {
             "\($0.category.rawValue.capitalized) · \($0.state.rawValue.capitalized) · \($0.title)"
@@ -355,67 +270,6 @@ struct DiagnosticsDashboardView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         repairMessage = "Copied a privacy-safe summary without identifiers, ports, counts, paths, or raw logs."
-    }
-
-    private var overallTitle: String {
-        if isScanning { return "Running local checks" }
-        return switch report.overallState {
-        case .checking: "Evidence still collecting"
-        case .passed: "All tested systems are ready"
-        case .waiting: "Network recovery in progress"
-        case .advisory: "Review recommended"
-        case .failed: "Action required"
-        }
-    }
-
-    private var overallDetail: String {
-        if isScanning { return "Each test updates as its local evidence arrives." }
-        return switch report.overallState {
-        case .checking: "No failure is declared until the relevant probe has completed."
-        case .passed: "Process, progress, network, and tooling checks passed with current local evidence."
-        case .waiting:
-            "This node is healthy and waiting for shared archive state. Keep it running; no local repair is recommended."
-        case .advisory: "The node may continue running, but one or more signals deserve review."
-        case .failed: "At least one readiness condition failed. Expand it for evidence and a scoped repair."
-        }
-    }
-
-    private var overallTint: Color {
-        switch report.overallState {
-        case .checking: theme.colors.info
-        case .passed: theme.colors.success
-        case .waiting: theme.colors.info
-        case .advisory: theme.colors.warning
-        case .failed: theme.colors.danger
-        }
-    }
-
-    private var overallIcon: String {
-        switch report.overallState {
-        case .checking: "ellipsis.circle.fill"
-        case .passed: "checkmark.seal.fill"
-        case .waiting: "hourglass.circle.fill"
-        case .advisory: "exclamationmark.circle.fill"
-        case .failed: "xmark.octagon.fill"
-        }
-    }
-
-    private func categoryTitle(_ category: NodeDiagnosticCategory) -> String {
-        switch category {
-        case .runtime: "Runtime & evidence"
-        case .progress: "Chain progress"
-        case .network: "Network readiness"
-        case .tooling: "Tooling & provenance"
-        }
-    }
-
-    private func categoryIcon(_ category: NodeDiagnosticCategory) -> String {
-        switch category {
-        case .runtime: "bolt.horizontal.circle"
-        case .progress: "forward.frame"
-        case .network: "network"
-        case .tooling: "checkmark.shield"
-        }
     }
 
     private func confirmationTitle(for repair: NodeDiagnosticRepair) -> String {
