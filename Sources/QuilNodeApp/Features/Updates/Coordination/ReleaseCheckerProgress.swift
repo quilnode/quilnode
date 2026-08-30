@@ -161,6 +161,14 @@ extension ReleaseChecker {
         branch: String? = nil,
         commit: String? = nil
     ) {
+        if let candidateID = activeAutomaticCandidateID {
+            rememberAutomaticFailure(for: candidateID)
+            services?.announceAutomaticUpdateFailed(
+                candidateID: candidateID,
+                version: version
+            )
+            activeAutomaticCandidateID = nil
+        }
         operation = .idle
         lastError = error.localizedDescription
         if stagedUpdate != nil, var current = progress {

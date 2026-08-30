@@ -47,6 +47,9 @@ final class ReleaseChecker: ObservableObject {
     @Published var progress: NodeUpdateProgress?
     @Published var history: [NodeUpdateEvent] = []
     @Published var nextAutomaticCheck: Date?
+    @Published var nextSignalCheck: Date?
+    @Published var lastSignalCheck: Date?
+    @Published var signalCheckError: String?
     @Published var protocolMilestones: [ProtocolMilestone] = []
     @Published var protocolMilestoneError: String?
     @Published var nextProtocolCheck: Date?
@@ -54,12 +57,15 @@ final class ReleaseChecker: ObservableObject {
     @Published var stagedUpdate: StagedNodeUpdate?
 
     let defaults = UserDefaults.standard
-    let checkInterval: TimeInterval = 6 * 60 * 60
+    let checkInterval = UpdateDiscoveryPolicy.fullReconciliationInterval
     let protocolCheckInterval: TimeInterval = 30 * 60
     let phaseTimingKey = "node-update-phase-timings-v1"
     let checkDurationKey = "node-update-check-duration-v1"
     let automaticAttemptKey = "node-update-last-automatic-attempt-v1"
     var automationTask: Task<Void, Never>?
+    var signalTask: Task<Void, Never>?
+    var signalCheckTask: Task<Void, Never>?
+    var signalGeneration = UUID()
     var protocolTask: Task<Void, Never>?
     var protocolRefreshTask: Task<Void, Never>?
     var checkTask: Task<Void, Never>?
@@ -67,6 +73,10 @@ final class ReleaseChecker: ObservableObject {
     var operationTask: Task<Void, Never>?
     var operationJournal: UpdateOperationJournal?
     var shouldCheckAfterOperation = false
+    var automaticCheckPending = false
+    var signalFailureCount = 0
+    var automaticReconciliationPending = false
+    var activeAutomaticCandidateID: String?
     var started = false
     weak var monitor: NodeMonitor?
     weak var services: NodeServices?
@@ -89,6 +99,8 @@ final class ReleaseChecker: ObservableObject {
 
     deinit {
         automationTask?.cancel()
+        signalTask?.cancel()
+        signalCheckTask?.cancel()
         protocolTask?.cancel()
         protocolRefreshTask?.cancel()
         checkTask?.cancel()
@@ -175,6 +187,7 @@ final class ReleaseChecker: ObservableObject {
 
     func requestInstallSigned() {
         guard stagedUpdate == nil, case let .available(snapshot) = state else { return }
+        clearAutomaticFailureSuppression()
         beginOperation { [weak self] in
             await self?.installSigned(snapshot.signed)
         }
@@ -196,6 +209,7 @@ final class ReleaseChecker: ObservableObject {
             case let .available(snapshot) = state,
             let approved = snapshot.source.approvedDevelopment
         else { return }
+        clearAutomaticFailureSuppression()
         beginOperation { [weak self] in
             await self?.installSource(
                 approved.head,
@@ -207,6 +221,7 @@ final class ReleaseChecker: ObservableObject {
 
     func requestInstallBleedingEdge() {
         guard stagedUpdate == nil, case let .available(snapshot) = state else { return }
+        clearAutomaticFailureSuppression()
         beginOperation { [weak self] in
             await self?.installSource(
                 snapshot.source.newestAnyBranch,

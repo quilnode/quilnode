@@ -21,7 +21,11 @@ public enum LegacyPreferencesMigrator {
         "selectedQuilThemeAppearance",
         "node-update-policy",
         "node-update-last-check",
+        "node-update-check-duration-v1",
+        "node-update-last-automatic-attempt-v1",
         "node-update-phase-timings-v1",
+        "node-update-signal-baseline-v1",
+        "node-update-automatic-failure-candidate-v1",
         "dashboardSidebarCollapsed",
         "settings.selectedPane",
     ]

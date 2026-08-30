@@ -178,6 +178,7 @@ extension ReleaseChecker {
         }.value
         if result.exitCode == -128 {
             operation = .idle
+            activeAutomaticCandidateID = nil
             lastMessage = "Update is staged. Administrator authorization was cancelled."
             updateProgress(
                 step: .switchRuntime,
@@ -233,6 +234,14 @@ extension ReleaseChecker {
             detail: result.output.isEmpty ? "Activation and health check passed." : result.output
         )
         lastMessage = "Installed \(manifest.version). Node health check passed."
+        if let candidateID = activeAutomaticCandidateID {
+            clearAutomaticFailureSuppression()
+            services?.announceAutomaticUpdateSucceeded(
+                candidateID: candidateID,
+                version: manifest.version
+            )
+            activeAutomaticCandidateID = nil
+        }
         stagedUpdate = nil
         finishOperationJournal(status: .installed, detail: lastMessage ?? "Installed")
         if var current = progress {

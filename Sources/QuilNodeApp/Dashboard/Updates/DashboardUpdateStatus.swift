@@ -72,13 +72,13 @@ extension DashboardView {
     var updatePolicyFootnote: String {
         switch releaseChecker.policy {
         case .manual:
-            "Manual installs. Release-channel metadata refreshes every 30 minutes; no artifact is downloaded, built, installed, or restarted automatically."
+            "Manual installs. Opening Update Center reuses metadata for up to five minutes; protocol milestones keep their separate 30-minute monitor. No node artifact is built or installed automatically."
         case .signedStable:
-            "Checks every six hours. Only a strictly newer signed release can activate—never an automatic downgrade. SHA3-256 and at least 7 valid Ed448 signatures are verified first."
+            "While QuilNode is running, a conditional release signal runs about every five minutes with jitter, plus a full six-hour reconciliation. Only a strictly newer signed release can activate—never an automatic downgrade. SHA3-256 and at least 7 valid Ed448 signatures are verified first."
         case .approvedDevelopment:
-            "Checks every six hours. Only the exact commit that changes the subpatch marker on the highest version branch can activate; later unmarked commits are excluded."
+            "While QuilNode is running, official version-branch refs are sampled about every five minutes with jitter, plus a full six-hour reconciliation. Only the exact commit that changes the subpatch marker can activate; later unmarked commits are excluded."
         case .bleedingEdge:
-            "Checks every six hours and follows the newest raw commit across every official branch. This is intentionally high risk. Keys, config, and stores remain excluded from every update operation."
+            "While QuilNode is running, official branch refs are sampled about every five minutes with jitter, plus a full six-hour reconciliation. The newest raw commit can activate. This is intentionally high risk; keys, config, and stores remain excluded."
         }
     }
 
@@ -89,10 +89,17 @@ extension DashboardView {
         if releaseChecker.isInstalling {
             return "Building or installing the selected update"
         }
-        guard let nextCheck = releaseChecker.nextAutomaticCheck else {
+        let signal = releaseChecker.nextSignalCheck.map {
+            "signal \($0.formatted(date: .omitted, time: .shortened))"
+        }
+        let reconciliation = releaseChecker.nextAutomaticCheck.map {
+            "full reconciliation \($0.formatted(date: .omitted, time: .shortened))"
+        }
+        let schedule = [signal, reconciliation].compactMap { $0 }.joined(separator: " · ")
+        guard !schedule.isEmpty else {
             return "Preparing the automatic schedule"
         }
-        return "Next check \(nextCheck.formatted(date: .abbreviated, time: .shortened))"
+        return "Next \(schedule)"
     }
 
 }

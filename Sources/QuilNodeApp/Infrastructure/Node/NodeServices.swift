@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CryptoKit
 import Foundation
 import UserNotifications
 
@@ -33,7 +34,7 @@ final class NodeServices: NSObject, ObservableObject, UNUserNotificationCenterDe
                 id: "alerts-enabled",
                 title: "QuilNode alerts enabled",
                 body:
-                    "You will be notified about stops, stalls, joining changes, active shards, and source-backed protocol milestones.",
+                    "You will be notified about node health, protocol milestones, and automatic update results.",
                 cooldown: 365 * 24 * 60 * 60
             )
         }
@@ -80,6 +81,45 @@ final class NodeServices: NSObject, ObservableObject, UNUserNotificationCenterDe
             body:
                 "Target frame \(milestone.targetFrame.formatted()) · \(remaining.formatted()) frames away. \(readiness)",
             cooldown: 365 * 24 * 60 * 60
+        )
+    }
+
+    func announceAutomaticUpdateDetected(
+        candidateID: String,
+        channel: String,
+        version: String
+    ) {
+        scheduleAlert(
+            id: "update-detected-\(notificationDigest(candidateID))",
+            title: "QuilNode update detected",
+            body:
+                "\(channel) \(version) is eligible under your automatic policy. Preparation is starting while the current node remains online.",
+            cooldown: 365 * 24 * 60 * 60
+        )
+    }
+
+    func announceAutomaticUpdateSucceeded(
+        candidateID: String,
+        version: String
+    ) {
+        scheduleAlert(
+            id: "update-succeeded-\(notificationDigest(candidateID))",
+            title: "Quilibrium node updated",
+            body: "\(version) was installed and passed the local runtime health gate.",
+            cooldown: 365 * 24 * 60 * 60
+        )
+    }
+
+    func announceAutomaticUpdateFailed(
+        candidateID: String,
+        version: String
+    ) {
+        scheduleAlert(
+            id: "update-failed-\(notificationDigest(candidateID))",
+            title: "Automatic node update stopped",
+            body:
+                "\(version) was not installed. The current node was preserved; open Update Center for the retained evidence and retry controls.",
+            cooldown: 6 * 60 * 60
         )
     }
 
@@ -194,6 +234,12 @@ final class NodeServices: NSObject, ObservableObject, UNUserNotificationCenterDe
             )
             return false
         }
+    }
+
+    private func notificationDigest(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).prefix(8)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
     private func scheduleAlert(

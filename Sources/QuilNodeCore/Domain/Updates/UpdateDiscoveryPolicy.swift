@@ -5,6 +5,9 @@ import Foundation
 /// decisions live here so they can be verified without touching the network.
 public enum UpdateDiscoveryPolicy {
     public static let defaultFreshnessInterval: TimeInterval = 5 * 60
+    public static let signalInterval: TimeInterval = 5 * 60
+    public static let fullReconciliationInterval: TimeInterval = 6 * 60 * 60
+    public static let maximumSignalBackoff: TimeInterval = 60 * 60
 
     public static func shouldRefresh(
         lastCheckedAt: Date?,
@@ -13,6 +16,23 @@ public enum UpdateDiscoveryPolicy {
     ) -> Bool {
         guard let lastCheckedAt else { return true }
         return now.timeIntervalSince(lastCheckedAt) >= max(freshnessInterval, 0)
+    }
+
+    /// Signal checks are intentionally lightweight and jittered so many Macs do
+    /// not query the same upstream at once. Failures back off exponentially;
+    /// successful probes return to the five-minute cadence. The jitter input is
+    /// explicit to keep the policy deterministic in tests.
+    public static func nextSignalDelay(
+        consecutiveFailures: Int,
+        jitterUnit: Double
+    ) -> TimeInterval {
+        let exponent = min(max(consecutiveFailures, 0), 4)
+        let base = min(
+            signalInterval * pow(2, Double(exponent)),
+            maximumSignalBackoff
+        )
+        let boundedJitter = min(max(jitterUnit, 0), 1)
+        return base + base * 0.1 * boundedJitter
     }
 }
 

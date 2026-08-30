@@ -37,19 +37,30 @@ extension ReleaseChecker {
 
     func rescheduleAutomaticChecks(runImmediately: Bool) {
         automationTask?.cancel()
+        signalTask?.cancel()
+        signalCheckTask?.cancel()
+        signalGeneration = UUID()
         nextAutomaticCheck = nil
-        guard policy != .manual else { return }
+        nextSignalCheck = nil
+        guard policy != .manual else {
+            automaticCheckPending = false
+            automaticReconciliationPending = false
+            signalFailureCount = 0
+            signalCheckError = nil
+            return
+        }
 
         automationTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            if runImmediately { self.beginCheck(origin: .automatic) }
+            if runImmediately { self.requestScheduledAutomaticCheck() }
             while !Task.isCancelled {
                 let next = Date().addingTimeInterval(self.checkInterval)
                 self.nextAutomaticCheck = next
                 do { try await Task.sleep(for: .seconds(self.checkInterval)) } catch { return }
-                self.beginCheck(origin: .automatic)
+                self.requestScheduledAutomaticCheck()
             }
         }
+        scheduleNextSignalProbe()
     }
 
     /// Protocol metadata is operationally time-sensitive but is not release
@@ -136,11 +147,28 @@ extension ReleaseChecker {
                 if self.checkGeneration == generation {
                     self.checkTask = nil
                     self.releaseCheckProgress = nil
+                    if self.automaticCheckPending, self.operationTask == nil, self.operation == .idle {
+                        self.automaticCheckPending = false
+                        Task { @MainActor [weak self] in self?.requestScheduledAutomaticCheck() }
+                    }
                 }
             }
             let candidate = await self.check(origin: origin, generation: generation)
             guard self.checkGeneration == generation else { return }
             guard let candidate else { return }
+            if origin == .automatic, self.automaticCandidateIsSuppressed(candidate) {
+                self.lastMessage =
+                    "Automatic retry is paused for this exact candidate after a failed attempt. A new upstream signal or a manual retry will clear the pause."
+                return
+            }
+            if origin == .automatic {
+                self.activeAutomaticCandidateID = candidate.identifier
+                self.services?.announceAutomaticUpdateDetected(
+                    candidateID: candidate.identifier,
+                    channel: candidate.notificationChannel,
+                    version: candidate.notificationVersion
+                )
+            }
             switch candidate {
             case let .signed(release):
                 self.beginOperation { [weak self] in await self?.installSigned(release) }
@@ -168,7 +196,14 @@ extension ReleaseChecker {
             guard let self else { return }
             self.operationTask = nil
             UpdateActivityGuard.shared.setInstalling(false)
-            if self.shouldCheckAfterOperation {
+            // A signal observed during a long build takes precedence over the
+            // ordinary post-install refresh. The automatic reconciliation is
+            // itself a full refresh and can safely act on a second candidate.
+            if self.automaticCheckPending {
+                self.automaticCheckPending = false
+                self.shouldCheckAfterOperation = false
+                self.requestScheduledAutomaticCheck()
+            } else if self.shouldCheckAfterOperation {
                 self.shouldCheckAfterOperation = false
                 self.beginCheck(origin: .user)
             }
@@ -247,6 +282,10 @@ extension ReleaseChecker {
                 checkedAt: Date()
             )
             state = .available(snapshot)
+            if origin == .automatic {
+                automaticReconciliationPending = false
+                signalFailureCount = 0
+            }
             defaults.set(snapshot.checkedAt, forKey: "node-update-last-check")
             let duration = max(snapshot.checkedAt.timeIntervalSince(startedAt), 0)
             lastCheckDuration = duration
@@ -277,6 +316,11 @@ extension ReleaseChecker {
         } catch {
             guard checkGeneration == generation else { return nil }
             lastError = error.localizedDescription
+            if origin == .automatic {
+                automaticReconciliationPending = true
+                signalFailureCount = min(signalFailureCount + 1, 4)
+                scheduleNextSignalProbe()
+            }
             state = previousSnapshot.map(State.available) ?? .failed(error.localizedDescription)
             return nil
         }

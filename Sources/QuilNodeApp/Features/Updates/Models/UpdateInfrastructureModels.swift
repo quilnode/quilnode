@@ -27,6 +27,7 @@ enum UpdateCenterError: LocalizedError {
     case sourceCheckoutModified, sourceToolMissing(String)
     case sourceSandboxUnavailable, sourceArtifactUnsafe(String)
     case seniorityDatasetUnavailable, sourceCacheInvalid
+    case updateSignalUnavailable
     case hashFailed, downloadFailed, downloadTimedOut, authorizationCancelled
     case activationFailed(String), commandFailed(String), commandTimedOut(String, TimeInterval)
 
@@ -66,6 +67,8 @@ enum UpdateCenterError: LocalizedError {
             "The official seniority build dataset could not be obtained with the exact SHA-256 and byte count committed by upstream."
         case .sourceCacheInvalid:
             "The reusable source-build cache does not point to the official Quilibrium repository."
+        case .updateSignalUnavailable:
+            "The lightweight update signal could not be validated. The last trusted release state remains in use."
         case .hashFailed: "The staged binary SHA-256 could not be calculated."
         case .downloadFailed: "An official release file could not be downloaded safely."
         case .downloadTimedOut: "The release download timed out."

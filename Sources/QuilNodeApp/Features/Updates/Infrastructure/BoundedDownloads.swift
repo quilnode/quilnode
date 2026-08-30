@@ -3,6 +3,10 @@ import CryptoKit
 import Darwin
 import Foundation
 
+func boundedResponseBodyIsValid(statusCode: Int, data: Data) -> Bool {
+    statusCode == 304 || !data.isEmpty
+}
+
 #if canImport(QuilNodeCore)
     import QuilNodeCore
 #endif
@@ -100,14 +104,16 @@ extension ReleaseChecker {
     nonisolated static func downloadBoundedDataSynchronously(
         _ request: URLRequest,
         maximumBytes: Int,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        acceptedStatusCodes: Set<Int> = [200]
     ) throws -> (Data, HTTPURLResponse) {
-        guard let expectedURL = request.url, maximumBytes > 0 else {
+        guard let expectedURL = request.url, maximumBytes > 0, !acceptedStatusCodes.isEmpty else {
             throw UpdateCenterError.downloadFailed
         }
         let delegate = BoundedDataDownloadDelegate(
             expectedURL: expectedURL,
-            maximumBytes: maximumBytes
+            maximumBytes: maximumBytes,
+            acceptedStatusCodes: acceptedStatusCodes
         )
         let configuration = ephemeralConfiguration(resourceTimeout: timeout)
         configuration.timeoutIntervalForRequest = min(timeout, 15)
@@ -181,13 +187,15 @@ private final class BoundedDataDownloadDelegate: BoundedDownloadState<(Data, HTT
 {
     private let expectedURL: URL
     private let maximumBytes: Int
+    private let acceptedStatusCodes: Set<Int>
     private let dataLock = NSLock()
     private var received = Data()
     private var acceptedResponse: HTTPURLResponse?
 
-    init(expectedURL: URL, maximumBytes: Int) {
+    init(expectedURL: URL, maximumBytes: Int, acceptedStatusCodes: Set<Int>) {
         self.expectedURL = expectedURL
         self.maximumBytes = maximumBytes
+        self.acceptedStatusCodes = acceptedStatusCodes
     }
 
     func urlSession(
@@ -207,7 +215,7 @@ private final class BoundedDataDownloadDelegate: BoundedDownloadState<(Data, HTT
         completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
     ) {
         guard let http = response as? HTTPURLResponse,
-            http.statusCode == 200,
+            acceptedStatusCodes.contains(http.statusCode),
             matches(http.url, expected: expectedURL),
             response.expectedContentLength <= Int64(maximumBytes)
                 || response.expectedContentLength == NSURLSessionTransferSizeUnknown
@@ -241,7 +249,13 @@ private final class BoundedDataDownloadDelegate: BoundedDownloadState<(Data, HTT
         let data = received
         let response = acceptedResponse
         dataLock.unlock()
-        guard let response, !data.isEmpty, data.count <= maximumBytes else {
+        // A successful metadata document must contain bytes. HTTP 304 is the
+        // deliberate exception: its empty body is the protocol-level proof
+        // that the previously validated entity is unchanged.
+        guard let response,
+            boundedResponseBodyIsValid(statusCode: response.statusCode, data: data),
+            data.count <= maximumBytes
+        else {
             finish(.failure(UpdateCenterError.downloadFailed))
             return
         }

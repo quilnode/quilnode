@@ -64,6 +64,14 @@ final class UpdateDiscoveryTests: XCTestCase {
             LegacyPreferencesMigrator.isAllowed("node-update-approved-marker-v2.1.0.25-number"),
             "legacy monotonic update marker prefix"
         )
+        expect(
+            LegacyPreferencesMigrator.isAllowed("node-update-signal-baseline-v1"),
+            "validated update-signal baseline survives the bundle-ID migration"
+        )
+        expect(
+            LegacyPreferencesMigrator.isAllowed("node-update-automatic-failure-candidate-v1"),
+            "automatic retry suppression survives the bundle-ID migration"
+        )
         expect(!LegacyPreferencesMigrator.isAllowed("privateKey"), "legacy preferences reject unclassified keys")
 
         expect(NodeVersion("v2.1.0.25")?.display == "2.1.0.25", "version prefix normalization")
@@ -104,6 +112,18 @@ final class UpdateDiscoveryTests: XCTestCase {
                 now: discoveryNow
             ),
             "stale update discovery refreshes at the policy boundary"
+        )
+        expect(
+            UpdateDiscoveryPolicy.nextSignalDelay(consecutiveFailures: 0, jitterUnit: 0) == 5 * 60,
+            "successful update signals return to the five-minute cadence"
+        )
+        expect(
+            UpdateDiscoveryPolicy.nextSignalDelay(consecutiveFailures: 2, jitterUnit: 0) == 20 * 60,
+            "signal failures back off exponentially"
+        )
+        expect(
+            UpdateDiscoveryPolicy.nextSignalDelay(consecutiveFailures: 9, jitterUnit: 1) == 66 * 60,
+            "signal backoff is capped before bounded jitter"
         )
         let protocolPlan = ProtocolSourcePlan.paths(
             previous: ["crates/quil-execution/src/known.rs", "../private.rs"],
