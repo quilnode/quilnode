@@ -146,6 +146,28 @@ done < <(
         | sort -u
 )
 
+# Dashboard composition frequently lives in computed view properties on
+# `DashboardView` extensions. Unlike named View types, an abandoned property
+# can compile forever without any reachable caller. Reject declaration-only
+# properties so a redesign cannot leave an inert screen graph behind.
+while IFS= read -r view_property; do
+    [[ -z "$view_property" || "$view_property" == "body" ]] && continue
+    reference_count="$(
+        rg -w -o "$view_property" Sources/QuilNodeApp Tests/QuilNodeAppTests --glob '*.swift' \
+            | wc -l \
+            | tr -d ' '
+    )"
+    if (( reference_count < 2 )); then
+        fail "computed SwiftUI view has no reachable caller: $view_property"
+    fi
+done < <(
+    rg -N -o \
+        '^\s*(private |fileprivate )?var [A-Za-z_][A-Za-z0-9_]*: some View' \
+        Sources/QuilNodeApp --glob '*.swift' \
+        | sed -E 's/.*var ([A-Za-z_][A-Za-z0-9_]*):.*/\1/' \
+        | sort -u
+)
+
 for target_path in Sources/* Tests/*; do
     [[ -d "$target_path" ]] || continue
     duplicate_names="$({ find "$target_path" -type f -name '*.swift' -exec basename {} \;; } | sort | uniq -d)"

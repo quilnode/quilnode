@@ -1,5 +1,3 @@
-import AppKit
-import Charts
 import SwiftUI
 
 #if canImport(QuilNodeCore)
@@ -22,19 +20,12 @@ struct DashboardView: View {
     @Environment(\.quilTheme) var theme
     @Environment(\.quilMotion) var motion
     @State var dashboardLayoutClass = DashboardLayoutClass.regular
-    @State var diagnosticsExpanded = false
-    @State var allocationsExpanded = false
-    @State var historyRange: HistoryRange = .sixHours
     @State var pendingUpdatePolicy: NodeUpdatePolicy?
     @State var buildLogExpanded = false
     @State var destination: DashboardDestination = .overview
     @AppStorage("dashboardSidebarCollapsed") var sidebarCollapsed = false
 
     var privacyModeEnabled: Bool { privacyMode.isEnabled }
-
-    var cpuUsage: CPUUsagePresentation {
-        CPUUsagePresentation(snapshot: monitor.snapshot)
-    }
 
     var nodeObservation: NodeObservationPresentation {
         NodeObservationPresentation(

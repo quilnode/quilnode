@@ -1,5 +1,4 @@
 import AppKit
-import Charts
 import SwiftUI
 
 #if canImport(QuilNodeCore)
