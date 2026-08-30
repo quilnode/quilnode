@@ -39,10 +39,8 @@ public final class NodeMonitor: ObservableObject {
     private var lastNodeInfoRefresh: Date?
     private var lastBalanceRefresh: Date?
     private var lastProverTelemetryRefresh: Date?
-    private var lastFrame: UInt64?
-    private var lastFrameAdvanceAt: Date?
-    private var frameSamples: [(date: Date, frame: UInt64)] = []
-    private var cpuTimeSamples: [CPUTimeSample] = []
+    private var processorUsageSampler = NodeProcessorUsageSampler()
+    private var frameProgressTracker = NodeFrameProgressTracker()
 
     public init(
         collector: LocalNodeCollector = LocalNodeCollector(),
@@ -156,8 +154,8 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.localWorkerCount =
             result.snapshot.localWorkerCount
             ?? snapshot.localWorkerCount
-        updateProcessorUsage(&nextSnapshot)
-        updateFrameProgress(&nextSnapshot)
+        processorUsageSampler.apply(to: &nextSnapshot)
+        frameProgressTracker.apply(to: &nextSnapshot)
         snapshot = nextSnapshot
         hasCompletedInitialRefresh = true
         observationPhase = .ready
@@ -253,144 +251,4 @@ public final class NodeMonitor: ObservableObject {
         observationPhase = .loadingTelemetry
     }
 
-    /// Converts cumulative process CPU time into a short rolling average. The
-    /// primary percentage represents the whole Mac (0...100), while the core
-    /// equivalent preserves the per-process detail macOS tools traditionally
-    /// expose. Four samples at the normal cadence produce an approximately
-    /// six-second window without making brief proving bursts unreadably noisy.
-    private func updateProcessorUsage(_ nextSnapshot: inout NodeSnapshot) {
-        let logicalCoreCount = max(ProcessInfo.processInfo.activeProcessorCount, 1)
-        guard nextSnapshot.isRunning,
-            let pid = nextSnapshot.processID,
-            let cpuTime = nextSnapshot.processCPUTimeSeconds,
-            let sampledAt = nextSnapshot.cpuSampledAt
-        else {
-            cpuTimeSamples.removeAll()
-            nextSnapshot.cpuPercent = nil
-            nextSnapshot.cpuCoreEquivalent = nil
-            nextSnapshot.cpuSampleWindowSeconds = nil
-            return
-        }
-
-        if let previous = cpuTimeSamples.last,
-            previous.pid != pid || sampledAt <= previous.date || cpuTime < previous.cpuTimeSeconds
-        {
-            cpuTimeSamples.removeAll()
-        }
-        if cpuTimeSamples.last?.date != sampledAt {
-            cpuTimeSamples.append(
-                CPUTimeSample(pid: pid, date: sampledAt, cpuTimeSeconds: cpuTime)
-            )
-        }
-        if cpuTimeSamples.count > 4 {
-            cpuTimeSamples.removeFirst(cpuTimeSamples.count - 4)
-        }
-
-        if let first = cpuTimeSamples.first,
-            let last = cpuTimeSamples.last,
-            last.date > first.date,
-            last.cpuTimeSeconds >= first.cpuTimeSeconds
-        {
-            let window = last.date.timeIntervalSince(first.date)
-            let coreEquivalent = min(
-                max((last.cpuTimeSeconds - first.cpuTimeSeconds) / window, 0),
-                Double(logicalCoreCount)
-            )
-            nextSnapshot.cpuCoreEquivalent = coreEquivalent
-            nextSnapshot.cpuPercent = coreEquivalent / Double(logicalCoreCount) * 100
-            nextSnapshot.cpuSampleWindowSeconds = window
-            return
-        }
-
-        // The first refresh has no interval delta yet. Normalize the `ps`
-        // decaying average so the dashboard is useful while the live window
-        // warms up, then replace it on the next sample.
-        if let perCorePercent = nextSnapshot.cpuPercent {
-            let coreEquivalent = min(max(perCorePercent / 100, 0), Double(logicalCoreCount))
-            nextSnapshot.cpuCoreEquivalent = coreEquivalent
-            nextSnapshot.cpuPercent = coreEquivalent / Double(logicalCoreCount) * 100
-        }
-        nextSnapshot.cpuSampleWindowSeconds = nil
-    }
-
-    private func updateFrameProgress(_ nextSnapshot: inout NodeSnapshot) {
-        guard nextSnapshot.isRunning, nextSnapshot.frame > 0 else {
-            lastFrame = nil
-            lastFrameAdvanceAt = nil
-            frameSamples.removeAll()
-            nextSnapshot.framesPerMinute = nil
-            nextSnapshot.lowerFramesPerMinute = nil
-            nextSnapshot.upperFramesPerMinute = nil
-            return
-        }
-
-        let now = nextSnapshot.collectedAt
-        if let previous = lastFrame {
-            if nextSnapshot.frame != previous {
-                lastFrame = nextSnapshot.frame
-                lastFrameAdvanceAt = now
-                frameSamples.append((now, nextSnapshot.frame))
-            }
-        } else {
-            lastFrame = nextSnapshot.frame
-            lastFrameAdvanceAt = now
-            frameSamples = [(now, nextSnapshot.frame)]
-        }
-
-        frameSamples.removeAll { now.timeIntervalSince($0.date) > 5 * 60 }
-        nextSnapshot.frameLastAdvancedAt = lastFrameAdvanceAt
-        guard let first = frameSamples.first,
-            let last = frameSamples.last,
-            last.frame >= first.frame,
-            last.date.timeIntervalSince(first.date) >= 120
-        else {
-            // Short windows are dominated by batched status writes and catch-up
-            // bursts. Keep the public 10-second protocol fallback until two
-            // minutes of local evidence exists instead of publishing a wildly
-            // optimistic countdown after every app restart.
-            nextSnapshot.framesPerMinute = nil
-            nextSnapshot.lowerFramesPerMinute = nil
-            nextSnapshot.upperFramesPerMinute = nil
-            return
-        }
-
-        let totalWindow = last.date.timeIntervalSince(first.date)
-        nextSnapshot.framesPerMinute = Double(last.frame - first.frame) / totalWindow * 60
-
-        var windowRates: [Double] = []
-        for earlierIndex in frameSamples.indices {
-            for laterIndex in frameSamples.indices where laterIndex > earlierIndex {
-                let earlier = frameSamples[earlierIndex]
-                let later = frameSamples[laterIndex]
-                let seconds = later.date.timeIntervalSince(earlier.date)
-                guard seconds >= 60, later.frame >= earlier.frame else { continue }
-                let rate = Double(later.frame - earlier.frame) / seconds * 60
-                if rate > 0.05, rate < 120 { windowRates.append(rate) }
-            }
-        }
-        if windowRates.count >= 3 {
-            let sorted = windowRates.sorted()
-            nextSnapshot.lowerFramesPerMinute = percentile(sorted, 0.25)
-            nextSnapshot.upperFramesPerMinute = percentile(sorted, 0.75)
-        } else {
-            nextSnapshot.lowerFramesPerMinute = nil
-            nextSnapshot.upperFramesPerMinute = nil
-        }
-    }
-
-    private func percentile(_ sorted: [Double], _ fraction: Double) -> Double? {
-        guard !sorted.isEmpty else { return nil }
-        let position = min(max(fraction, 0), 1) * Double(sorted.count - 1)
-        let lower = Int(position.rounded(.down))
-        let upper = Int(position.rounded(.up))
-        guard lower != upper else { return sorted[lower] }
-        let weight = position - Double(lower)
-        return sorted[lower] * (1 - weight) + sorted[upper] * weight
-    }
-}
-
-private struct CPUTimeSample {
-    let pid: Int32
-    let date: Date
-    let cpuTimeSeconds: Double
 }
