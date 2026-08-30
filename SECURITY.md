@@ -1,0 +1,60 @@
+# Security policy
+
+QuilNode controls a local node that may hold valuable self-custodied identity
+material. Please do not open a public issue for a suspected vulnerability.
+
+## Supported versions
+
+Only the latest published QuilNode release is supported. Security fixes are not
+backported before the first stable public release.
+
+Application updates require both the Ed25519 archive signature and a signed
+Sparkle appcast. The code-signing identity used by the privileged local service
+is a separate project key. Node identity, application signing, update signing,
+and source-hosting credentials are independent trust domains.
+
+## Reporting a vulnerability
+
+Until a public repository enables GitHub private vulnerability reporting,
+contact the maintainer privately through the release channel where you obtained
+the app. Include the affected version, macOS version, reproduction steps, and
+impact. Do not include real `config.yml`, `keys.yml`, private keys, passwords,
+wallet exports, or unredacted diagnostic bundles.
+
+The repository owner must enable GitHub **Private vulnerability reporting**
+before publishing the first alpha. Until its URL exists, this is an explicit
+release blocker rather than a promise that reports can already be accepted.
+
+## Security boundary
+
+- The SwiftUI interface never opens, parses, hashes, copies, modifies, displays,
+  or transmits private-key bytes.
+- A root-owned local service performs only a fixed operation vocabulary. It
+  returns public identity metadata, status, or a sanitized result—not key bytes.
+- Official release digest and Ed448 quorum checks run once before authorization
+  and independently again inside the privileged boundary.
+- Downloaded executables never run in the interface process. Root-owned copies
+  are re-verified before a restricted, network-denied runtime version probe.
+- The service authenticates both the controlling Unix account and the exact
+  code-signed app before accepting a request.
+- Operator-selected import/export folders are path capabilities. The service
+  validates their permitted roots, ownership, type, symbolic links, hard links,
+  permissions, exact filenames, and size limits.
+- Key mutations are local, transactional, backed up before activation, and
+  rolled back when validation fails. Stores are outside wallet transactions.
+- Recovery exports use descriptor-relative exclusive creation and byte-for-byte
+  read-back verification; subprocess and network inputs have explicit time and
+  size limits.
+- Interface journals and log paths are untrusted after relaunch. Recovery reads
+  are confined to private app-owned roots, and state writes atomically replace
+  destinations without following links.
+- Unauthenticated local clients receive no PID, service-account, capability,
+  or build metadata.
+- QuilNode has no telemetry, remote command endpoint, or hosted key service.
+
+Security review reduces risk; it does not establish that software has “zero
+vulnerabilities.” Public releases require the local preflight, clean-machine
+matrix, and independent review recorded in the release checklist.
+
+The complete working threat model and release evidence are maintained outside
+the public source tree so machine-local context cannot enter repository history.

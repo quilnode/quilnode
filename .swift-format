@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "indentation": { "spaces": 4 },
+  "tabWidth": 4,
+  "lineLength": 120,
+  "maximumBlankLines": 1,
+  "respectsExistingLineBreaks": true,
+  "lineBreakBeforeEachArgument": false,
+  "lineBreakBeforeEachGenericRequirement": false,
+  "multiElementCollectionTrailingCommas": true,
+  "reflowMultilineStringLiterals": "never",
+  "rules": {
+    "AllPublicDeclarationsHaveDocumentation": false,
+    "AlwaysUseLowerCamelCase": true,
+    "AvoidRetroactiveConformances": true,
+    "DoNotUseSemicolons": true,
+    "IdentifiersMustBeASCII": true,
+    "NoBlockComments": true,
+    "OrderedImports": true,
+    "UseTripleSlashForDocumentationComments": true,
+    "ValidateDocumentationComments": false
+  }
+}

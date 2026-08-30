@@ -1,0 +1,19 @@
+title = "QuilNode secret scanning policy"
+minVersion = "v8.25.0"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The project Sparkle Ed25519 public verification key is intentionally public. Repository policy separately restricts where it may appear."
+regexTarget = "secret"
+regexes = [
+  '''^DJIxXBjq/gVQx7fUypBouvqtsS1Qx7SKvBUAi/yKZp8=$'''
+]
+
+[[allowlists]]
+description = "Generated build and analyzer products are recreated from source and scanned through their signed bundle instead."
+paths = [
+  '''(^|/)\.build/''',
+  '''(^|/)Audit/'''
+]

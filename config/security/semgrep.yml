@@ -1,0 +1,85 @@
+rules:
+  - id: quilnode.helper-no-path-based-unbounded-reads
+    message: Privileged code must use descriptor-bound, bounded, no-follow reads.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/QuilNodeHelperKit/**
+    pattern-regex: '(?:Data|String)\s*\(\s*contentsOf\s*:|FileHandle\s*\(\s*forReadingFrom\s*:'
+
+  - id: quilnode.gui-no-path-based-unbounded-reads
+    message: GUI state must use BoundedLocalData or another reviewed bounded reader.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/QuilNodeApp/**
+        - /Sources/QuilNodeCore/**
+        - /Sources/QuilNodeShared/**
+    pattern-regex: '(?:Data|String)\s*\(\s*contentsOf\s*:|FileHandle\s*\(\s*forReadingFrom\s*:'
+
+  - id: quilnode.no-custom-server-trust-bypass
+    message: Never construct credentials from untrusted server trust challenges.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/**
+    pattern-regex: 'URLCredential\s*\(\s*trust\s*:'
+
+  - id: quilnode.no-unreviewed-shell-runtime
+    message: Shell execution is limited to the reviewed resource-limit and sandbox wrappers.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/**
+      exclude:
+        - /Sources/QuilNodeCore/Infrastructure/Process/BoundedCommandRunner.swift
+        - /Sources/QuilNodeApp/Features/Updates/Infrastructure/BoundedProcessExecution.swift
+        - /Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildStaging.swift
+        - /Sources/QuilNodeHelperKit/Infrastructure/CommandExecution.swift
+    pattern-regex: '/bin/(?:ba|z)?sh'
+
+  - id: quilnode.no-unreviewed-authorized-shell
+    message: Administrator shell fallback is allowed only in the two typed authorization adapters.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/**
+      exclude:
+        - /Sources/QuilNodeApp/Features/Updates/Infrastructure/UpdateAuthorization.swift
+        - /Sources/QuilNodeApp/Infrastructure/Node/NodeLifecycleController.swift
+    pattern-regex: 'do shell script'
+
+  - id: quilnode.no-world-writable-permissions
+    message: Do not create application or privileged-service files with world-writable modes.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/**
+        - /scripts/**
+    pattern-regex: '(?:(?:chmod|fchmod)\s*\([^\n,]+,|permissions\s*:|mode\s*:)\s*0o?(?:666|667|676|677|766|767|776|777)\b'
+
+  - id: quilnode.no-piped-remote-installer
+    message: Never pipe remotely downloaded bytes into a shell.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /scripts/**
+    pattern-regex: '(?:curl|wget)[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z)?sh\b'
+
+  - id: quilnode.no-plain-http-remote-endpoints
+    message: Remote application endpoints must use HTTPS. Local router discovery is separately reviewed.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /Sources/**
+      exclude:
+        - /Sources/QuilNodeApp/Infrastructure/Networking/RouterAccessDiscovery.swift
+    pattern-regex: 'http://'
