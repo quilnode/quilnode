@@ -5,11 +5,7 @@ struct PrivacySettingsPane: View {
     @Environment(\.quilTheme) private var theme
 
     var body: some View {
-        SettingsPaneContainer(
-            title: "Privacy",
-            subtitle: "Control which local and operational values QuilNode reveals on screen.",
-            systemImage: "eye.slash.fill"
-        ) {
+        SettingsPaneContainer {
             SettingsCard(tint: theme.colors.privacy) {
                 Toggle(isOn: $privacyMode.isEnabled) {
                     HStack(alignment: .center, spacing: 13) {
@@ -52,30 +48,39 @@ struct PrivacySettingsPane: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("VALUES PROTECTED ON SCREEN")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .tracking(1.2)
-                    .foregroundStyle(theme.colors.secondaryText)
+                SettingsSectionHeader(
+                    title: "Classified value groups",
+                    trailing: privacyMode.isEnabled ? "Masked on screen" : "Visible on screen"
+                )
 
                 SettingsCard {
                     PrivacyScopeRow(
                         systemImage: "person.text.rectangle",
                         title: "Identity and wallet",
                         detail:
-                            "Peer and prover identifiers, recovery metadata, seniority, addresses, and QUIL balance."
+                            "Peer and prover IDs, recovery metadata, seniority, addresses, and QUIL balance.",
+                        stateTitle: stateTitle,
+                        stateSystemImage: stateSystemImage,
+                        stateTint: stateTint
                     )
                     SettingsDivider()
                     PrivacyScopeRow(
                         systemImage: "cpu",
                         title: "Node and hardware",
-                        detail: "Uptime, allocation and shard counts, hardware profile, and local activity history."
+                        detail: "Uptime, allocation and shard counts, hardware profile, and local activity history.",
+                        stateTitle: stateTitle,
+                        stateSystemImage: stateSystemImage,
+                        stateTint: stateTint
                     )
                     SettingsDivider()
                     PrivacyScopeRow(
                         systemImage: "network",
                         title: "Network and local context",
                         detail:
-                            "Gateway and LAN identifiers, active ports, traffic details, usernames, and local timestamps."
+                            "Gateway and LAN IDs, active ports, traffic details, usernames, and local timestamps.",
+                        stateTitle: stateTitle,
+                        stateSystemImage: stateSystemImage,
+                        stateTint: stateTint
                     )
                 }
             }
@@ -88,13 +93,22 @@ struct PrivacySettingsPane: View {
                 tint: theme.colors.info
             )
 
-            HStack(spacing: 6) {
-                Image(systemName: "command")
-                Text("Toggle Privacy Mode anywhere with Shift–Command–P.")
-            }
-            .font(.caption2)
-            .foregroundStyle(theme.colors.secondaryText)
-            .padding(.horizontal, 2)
+            SettingsFooterNote(
+                systemImage: "command",
+                text: "Toggle Privacy Mode anywhere with Shift–Command–P."
+            )
         }
+    }
+
+    private var stateTitle: String {
+        privacyMode.isEnabled ? "Masked" : "Visible"
+    }
+
+    private var stateSystemImage: String {
+        privacyMode.isEnabled ? "eye.slash.fill" : "eye.fill"
+    }
+
+    private var stateTint: Color {
+        privacyMode.isEnabled ? theme.colors.privacy : theme.colors.warning
     }
 }

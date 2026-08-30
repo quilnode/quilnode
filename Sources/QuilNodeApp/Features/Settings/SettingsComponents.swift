@@ -11,7 +11,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .appearance: "Appearance"
         case .privacy: "Privacy"
-        case .updates: "Updates"
+        case .updates: "App Updates"
         }
     }
 
@@ -22,6 +22,14 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .updates: "arrow.down.app.fill"
         }
     }
+
+    var windowHeight: CGFloat {
+        switch self {
+        case .appearance: 510
+        case .privacy: 520
+        case .updates: 650
+        }
+    }
 }
 
 /// Shared geometry and hierarchy for settings panes. Pane content remains
@@ -29,44 +37,18 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 struct SettingsPaneContainer<Content: View>: View {
     @Environment(\.quilTheme) private var theme
 
-    let title: String
-    let subtitle: String
-    let systemImage: String
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20 * theme.metrics.spacingScale) {
-                header
+            VStack(alignment: .leading, spacing: 16 * theme.metrics.spacingScale) {
                 content()
             }
-            .padding(28)
+            .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollIndicators(.never)
         .background { ThemeCanvasBackground().ignoresSafeArea() }
-    }
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: 14) {
-            DashboardCircleIcon(
-                systemImage: systemImage,
-                tint: theme.colors.accent,
-                size: 46
-            )
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(
-                        .system(
-                            size: 24 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign))
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(theme.colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -176,6 +158,9 @@ struct PrivacyScopeRow: View {
     let systemImage: String
     let title: String
     let detail: String
+    let stateTitle: String
+    let stateSystemImage: String
+    let stateTint: Color
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -197,9 +182,72 @@ struct PrivacyScopeRow: View {
                     .foregroundStyle(theme.colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 16)
+            Label(stateTitle, systemImage: stateSystemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(stateTint)
+                .fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+struct SettingsSectionHeader: View {
+    @Environment(\.quilTheme) private var theme
+
+    let title: String
+    var trailing: String? = nil
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.2)
+            Spacer()
+            if let trailing {
+                Text(trailing.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .tracking(0.8)
+            }
+        }
+        .foregroundStyle(theme.colors.secondaryText)
+        .padding(.horizontal, 2)
+    }
+}
+
+struct SettingsFooterNote: View {
+    @Environment(\.quilTheme) private var theme
+
+    let systemImage: String
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption)
+            .foregroundStyle(theme.colors.secondaryText)
+            .padding(.horizontal, 2)
+            .accessibilityElement(children: .combine)
+    }
+}
+
+struct SettingsValueLabel: View {
+    @Environment(\.quilTheme) private var theme
+
+    let text: String
+    var tint: Color? = nil
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold).monospacedDigit())
+            .foregroundStyle(tint ?? theme.colors.primaryText)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                (tint ?? theme.colors.selection).opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .textSelection(.enabled)
     }
 }
 

@@ -28,7 +28,11 @@ struct QuilNodeSettingsView: View {
                 }
                 .tag(SettingsPane.updates.rawValue)
         }
-        .frame(width: 650, height: selectedPane == SettingsPane.appearance.rawValue ? 380 : 500)
+        .frame(width: 700, height: selectedSettingsPane.windowHeight)
         .accessibilityIdentifier("quilnode-settings-tabs")
+    }
+
+    private var selectedSettingsPane: SettingsPane {
+        SettingsPane(rawValue: selectedPane) ?? .appearance
     }
 }
