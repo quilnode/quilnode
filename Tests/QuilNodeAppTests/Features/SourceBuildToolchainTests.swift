@@ -8,27 +8,13 @@ final class SourceBuildToolchainTests: XCTestCase {
         XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 1), 1)
         XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 4), 3)
         XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 10), 8)
-        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 32), 12)
-        XCTAssertEqual(
-            SourceBuildToolchain.recommendedParallelJobs(
-                availableProcessors: 10,
-                physicalMemoryBytes: 8 * 1_024 * 1_024 * 1_024
-            ),
-            3
-        )
+        XCTAssertEqual(SourceBuildToolchain.recommendedParallelJobs(availableProcessors: 32), 30)
         XCTAssertEqual(
             SourceBuildToolchain.recommendedParallelJobs(
                 availableProcessors: 10,
                 thermalState: .serious
             ),
-            4
-        )
-        XCTAssertEqual(
-            SourceBuildToolchain.recommendedParallelJobs(
-                availableProcessors: 10,
-                lowPowerMode: true
-            ),
-            4
+            1
         )
     }
 

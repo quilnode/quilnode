@@ -76,36 +76,26 @@ struct SourceBuildToolchain: Sendable {
             macOSSDK: sdk,
             parallelJobs: recommendedParallelJobs(
                 availableProcessors: processInfo.activeProcessorCount,
-                physicalMemoryBytes: processInfo.physicalMemory,
-                thermalState: processInfo.thermalState,
-                lowPowerMode: processInfo.isLowPowerModeEnabled
+                thermalState: processInfo.thermalState
             )
         )
     }
 
-    /// Preserve two processors for the live node and UI, while giving Cargo
-    /// enough jobserver tokens for parallel native compilation. The upper bound
-    /// avoids memory spikes on unusually large hosts.
+    /// Preserve two active processors for the live node and UI on capable Macs,
+    /// or one on smaller systems. At serious/critical thermal pressure, Apple's
+    /// guidance is to reduce CPU use, so source compilation falls back to one
+    /// job rather than applying an invented per-model performance table.
     static func recommendedParallelJobs(
         availableProcessors: Int,
-        physicalMemoryBytes: UInt64 = 32 * 1_024 * 1_024 * 1_024,
-        thermalState: ProcessInfo.ThermalState = .nominal,
-        lowPowerMode: Bool = false
+        thermalState: ProcessInfo.ThermalState = .nominal
     ) -> Int {
         let processors = max(availableProcessors, 1)
-        let processorLimit = processors <= 4 ? max(processors - 1, 1) : processors - 2
-        let memoryGiB = Double(physicalMemoryBytes) / 1_073_741_824
-        let memoryLimit = max(Int((max(memoryGiB - 4, 1) / 1.25).rounded(.down)), 1)
-        var jobs = min(processorLimit, memoryLimit, 12)
-        if lowPowerMode { jobs = max(jobs / 2, 1) }
+        let balancedJobs = max(processors - min(processors > 4 ? 2 : 1, processors - 1), 1)
         switch thermalState {
-        case .nominal: break
-        case .fair: jobs = max(Int((Double(jobs) * 0.75).rounded(.down)), 1)
-        case .serious: jobs = max(jobs / 2, 1)
-        case .critical: jobs = 1
-        @unknown default: jobs = max(jobs / 2, 1)
+        case .nominal, .fair: return balancedJobs
+        case .serious, .critical: return 1
+        @unknown default: return 1
         }
-        return jobs
     }
 
     static func dependencyRoot(
