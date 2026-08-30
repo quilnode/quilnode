@@ -38,7 +38,7 @@ rules:
       exclude:
         - /Sources/QuilNodeCore/Infrastructure/Process/BoundedCommandRunner.swift
         - /Sources/QuilNodeApp/Features/Updates/Infrastructure/BoundedProcessExecution.swift
-        - /Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildStaging.swift
+        - /Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildCompilationStaging.swift
         - /Sources/QuilNodeHelperKit/Infrastructure/CommandExecution.swift
     pattern-regex: '/bin/(?:ba|z)?sh'
 
