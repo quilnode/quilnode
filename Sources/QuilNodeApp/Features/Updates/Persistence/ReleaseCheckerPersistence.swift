@@ -22,6 +22,7 @@ extension ReleaseChecker {
 
         let restoredLogURL = Self.validatedRestoredLogURL(journal.logPath)
         let workflow = Self.workflow(for: journal.channel)
+        let restoredStep = journal.step ?? NodeUpdateStep.classify(phase: journal.phase, workflow: workflow)
 
         // Keep a recent successful operation visible after an app relaunch.
         // A build/install belongs to the application-level coordinator, not
@@ -33,7 +34,7 @@ extension ReleaseChecker {
             progress = NodeUpdateProgress(
                 status: .succeeded,
                 workflow: workflow,
-                step: .healthGate,
+                step: workflow == .qclient ? .switchRuntime : .healthGate,
                 phase: "Update complete",
                 detail: journal.detail,
                 fraction: 1,
@@ -74,16 +75,35 @@ extension ReleaseChecker {
             return
         }
 
+        if journal.status == .failed || journal.status == .interrupted {
+            progress = NodeUpdateProgress(
+                status: .failed,
+                workflow: workflow,
+                step: restoredStep,
+                phase: journal.phase,
+                detail: journal.detail,
+                fraction: journal.fraction,
+                startedAt: journal.startedAt,
+                updatedAt: journal.updatedAt,
+                isEstimate: false,
+                logURL: restoredLogURL
+            )
+            lastMessage = journal.detail
+            return
+        }
+
         guard journal.status == .running || journal.status == .staged else { return }
+        let interruptedStep = restoredStep
         journal.status = .interrupted
         journal.phase = "Build interrupted safely"
         journal.detail = "The app exited before activation. The installed node and its stores were not changed."
+        journal.step = interruptedStep
         journal.updatedAt = Date()
         operationJournal = journal
         progress = NodeUpdateProgress(
             status: .failed,
             workflow: workflow,
-            step: NodeUpdateStep.classify(phase: journal.phase, workflow: workflow),
+            step: interruptedStep,
             phase: journal.phase,
             detail: journal.detail,
             fraction: journal.fraction,

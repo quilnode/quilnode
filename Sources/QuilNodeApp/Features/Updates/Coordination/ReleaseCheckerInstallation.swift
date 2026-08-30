@@ -31,11 +31,16 @@ extension ReleaseChecker {
         do {
             let baseURL = releaseBase
             let report = progressReporter()
-            let manifestURL = try await Task.detached(priority: .utility) {
+            let worker = Task.detached(priority: .utility) {
                 try Self.stageSignedRelease(
                     release, baseURL: baseURL, startedAt: startedAt, progress: report
                 )
-            }.value
+            }
+            let manifestURL = try await withTaskCancellationHandler {
+                try await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
             guard !Task.isCancelled else {
                 operation = .idle
                 rememberStagedUpdate(manifestURL)
@@ -43,6 +48,8 @@ extension ReleaseChecker {
                 return
             }
             try await activate(manifestURL: manifestURL)
+        } catch is CancellationError {
+            handleOperationCancellation(channel: "signed", version: release.version)
         } catch {
             handleOperationFailure(error, channel: "signed", version: release.version)
         }
@@ -64,11 +71,16 @@ extension ReleaseChecker {
         do {
             let report = progressReporter()
             let baseURL = releaseBase
-            let manifest = try await Task.detached(priority: .utility) {
+            let worker = Task.detached(priority: .utility) {
                 try Self.stageQClientRelease(
                     release, baseURL: baseURL, startedAt: startedAt, progress: report
                 )
-            }.value
+            }
+            let manifest = try await withTaskCancellationHandler {
+                try await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
             operation = .activating
             let result = await Task.detached(priority: .userInitiated) {
                 Self.runAuthorizedHelper(
@@ -91,6 +103,8 @@ extension ReleaseChecker {
             )
             lastMessage = result.output
             shouldCheckAfterOperation = true
+        } catch is CancellationError {
+            handleOperationCancellation(channel: "qclient", version: release.releaseVersion)
         } catch {
             operation = .idle
             progress = NodeUpdateProgress(
@@ -134,7 +148,7 @@ extension ReleaseChecker {
             let repository = repositoryURL
             let existingQClient = PrivilegedServiceClient.readQClientStatus(timeout: 8).status
             let report = progressReporter()
-            let manifestURL = try await Task.detached(priority: .userInitiated) {
+            let worker = Task.detached(priority: .userInitiated) {
                 try Self.stageSourceBuild(
                     head: head, repositoryURL: repository,
                     startedAt: startedAt,
@@ -143,7 +157,12 @@ extension ReleaseChecker {
                     existingQClient: existingQClient,
                     progress: report
                 )
-            }.value
+            }
+            let manifestURL = try await withTaskCancellationHandler {
+                try await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
             guard !Task.isCancelled else {
                 operation = .idle
                 rememberStagedUpdate(manifestURL)
@@ -151,6 +170,13 @@ extension ReleaseChecker {
                 return
             }
             try await activate(manifestURL: manifestURL)
+        } catch is CancellationError {
+            handleOperationCancellation(
+                channel: channel,
+                version: version,
+                branch: head.name,
+                commit: head.commit
+            )
         } catch {
             handleOperationFailure(
                 error,

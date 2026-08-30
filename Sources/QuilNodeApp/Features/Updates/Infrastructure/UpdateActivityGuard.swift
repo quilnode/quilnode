@@ -14,9 +14,20 @@ import Foundation
 final class UpdateActivityGuard {
     static let shared = UpdateActivityGuard()
     private(set) var isInstalling = false
+    private var terminationHandler: (@MainActor () async -> Void)?
 
-    func setInstalling(_ value: Bool) {
-        isInstalling = value
+    func beginInstalling(terminationHandler: @escaping @MainActor () async -> Void) {
+        isInstalling = true
+        self.terminationHandler = terminationHandler
+    }
+
+    func finishInstalling() {
+        isInstalling = false
+        terminationHandler = nil
+    }
+
+    func stopAtSafePointForTermination() async {
+        await terminationHandler?()
     }
 }
 

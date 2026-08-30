@@ -78,7 +78,7 @@ enum NodeUpdateWorkflow: String, Sendable {
     }
 }
 
-enum NodeUpdateStep: String, CaseIterable, Identifiable, Sendable {
+enum NodeUpdateStep: String, CaseIterable, Codable, Identifiable, Sendable {
     case selectCandidate
     case acquire
     case verifyTrust

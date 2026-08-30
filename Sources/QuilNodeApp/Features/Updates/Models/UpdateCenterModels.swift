@@ -124,6 +124,9 @@ struct UpdateOperationJournal: Codable, Sendable {
     var phase: String
     var detail: String
     var fraction: Double
+    /// Optional for backward compatibility with journals written before the
+    /// detailed workflow became recoverable across app launches.
+    var step: NodeUpdateStep? = nil
     var startedAt: Date
     var updatedAt: Date
     var status: Status

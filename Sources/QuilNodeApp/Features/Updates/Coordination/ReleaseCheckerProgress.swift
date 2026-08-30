@@ -160,6 +160,38 @@ extension ReleaseChecker {
         )
     }
 
+    func handleOperationCancellation(
+        channel: String,
+        version: String,
+        branch: String? = nil,
+        commit: String? = nil
+    ) {
+        operation = .idle
+        activeAutomaticCandidateID = nil
+        stagedUpdate = nil
+        let detail =
+            "Preparation stopped before activation. The installed node, identity, configuration, and stores were not changed. A later retry reuses compatible Cargo artifacts."
+        if var current = progress {
+            current.status = .failed
+            current.phase = "Update interrupted safely"
+            current.detail = detail
+            current.updatedAt = Date()
+            current.isEstimate = false
+            progress = current
+        }
+        lastError = nil
+        lastMessage = detail
+        finishOperationJournal(status: .interrupted, detail: detail)
+        appendEvent(
+            channel: channel,
+            version: version,
+            branch: branch,
+            commit: commit,
+            result: "interrupted",
+            detail: detail
+        )
+    }
+
     func beginOperationJournal(
         channel: String,
         version: String,
@@ -177,6 +209,7 @@ extension ReleaseChecker {
             phase: current?.phase ?? "Preparing update",
             detail: current?.detail ?? "Starting",
             fraction: current?.boundedFraction ?? 0,
+            step: current?.step,
             startedAt: current?.startedAt ?? Date(),
             updatedAt: Date(),
             status: .running,
@@ -191,6 +224,7 @@ extension ReleaseChecker {
         journal.phase = progress.phase
         journal.detail = progress.detail
         journal.fraction = progress.boundedFraction
+        journal.step = progress.step
         journal.updatedAt = Date()
         if let logURL = progress.logURL { journal.logPath = logURL.path }
         operationJournal = journal

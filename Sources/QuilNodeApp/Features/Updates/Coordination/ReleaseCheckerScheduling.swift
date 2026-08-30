@@ -190,12 +190,11 @@ extension ReleaseChecker {
 
     func beginOperation(_ work: @escaping @MainActor () async -> Void) {
         guard operationTask == nil, operation == .idle else { return }
-        UpdateActivityGuard.shared.setInstalling(true)
         operationTask = Task { @MainActor [weak self] in
             await work()
             guard let self else { return }
             self.operationTask = nil
-            UpdateActivityGuard.shared.setInstalling(false)
+            UpdateActivityGuard.shared.finishInstalling()
             // A signal observed during a long build takes precedence over the
             // ordinary post-install refresh. The automatic reconciliation is
             // itself a full refresh and can safely act on a second candidate.
@@ -208,6 +207,20 @@ extension ReleaseChecker {
                 self.beginCheck(origin: .user)
             }
         }
+        UpdateActivityGuard.shared.beginInstalling { [weak self] in
+            await self?.stopOperationForApplicationTermination()
+        }
+    }
+
+    /// A dashboard window is disposable, but the application process owns the
+    /// build worker. A deliberate Quit therefore cancels the worker and waits
+    /// until its process tree reaches a safe point before macOS terminates the
+    /// controller. Activation is already service-owned and is allowed to reach
+    /// its durable result before the app exits.
+    func stopOperationForApplicationTermination() async {
+        guard let operationTask else { return }
+        operationTask.cancel()
+        await operationTask.value
     }
 
     func check(origin: CheckOrigin, generation: UUID) async -> AutomaticCandidate? {

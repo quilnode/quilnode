@@ -160,6 +160,66 @@ final class UpdateCenterPresentationTests: XCTestCase {
         XCTAssertFalse(progress.shouldAutomaticallyRevealLog)
     }
 
+    func testOperationJournalPreservesExactStepAndDecodesLegacyRecords() throws {
+        let journal = UpdateOperationJournal(
+            id: UUID(),
+            channel: "approved-dev",
+            version: "2.1.0.25.59",
+            branch: "v2.1.0.25",
+            commit: approvedCommit,
+            phase: "Compiling node",
+            detail: "Cargo is building the pinned source",
+            fraction: 0.32,
+            step: .compileNode,
+            startedAt: Date(timeIntervalSinceReferenceDate: 100),
+            updatedAt: Date(timeIntervalSinceReferenceDate: 200),
+            status: .running,
+            logPath: "/private/tmp/build.log",
+            manifestPath: nil
+        )
+        let decoder = JSONDecoder()
+        let restored = try decoder.decode(
+            UpdateOperationJournal.self,
+            from: JSONEncoder().encode(journal)
+        )
+        XCTAssertEqual(restored.step, .compileNode)
+
+        let legacy = """
+            {
+              "id": "00000000-0000-0000-0000-000000000001",
+              "channel": "approved-dev",
+              "version": "2.1.0.25.58",
+              "phase": "Compiling node",
+              "detail": "Legacy record",
+              "fraction": 0.32,
+              "startedAt": 100,
+              "updatedAt": 200,
+              "status": "running"
+            }
+            """
+        let legacyRecord = try decoder.decode(
+            UpdateOperationJournal.self,
+            from: Data(legacy.utf8)
+        )
+        XCTAssertNil(legacyRecord.step)
+    }
+
+    @MainActor
+    func testQuitGuardStopsAtRegisteredSafePoint() async {
+        let activityGuard = UpdateActivityGuard.shared
+        var reachedSafePoint = false
+        activityGuard.beginInstalling {
+            reachedSafePoint = true
+        }
+        XCTAssertTrue(activityGuard.isInstalling)
+
+        await activityGuard.stopAtSafePointForTermination()
+
+        XCTAssertTrue(reachedSafePoint)
+        activityGuard.finishInstalling()
+        XCTAssertFalse(activityGuard.isInstalling)
+    }
+
     private let installedCommit = "6471adf100000000000000000000000000000000"
     private let approvedCommit = "89b2c7a300000000000000000000000000000000"
 

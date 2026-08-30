@@ -33,7 +33,14 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         quitInterlockPresenter = presenter
         presenter.present { [weak self, weak sender] shouldQuit in
             self?.quitInterlockPresenter = nil
-            sender?.reply(toApplicationShouldTerminate: shouldQuit)
+            guard shouldQuit else {
+                sender?.reply(toApplicationShouldTerminate: false)
+                return
+            }
+            Task { @MainActor in
+                await UpdateActivityGuard.shared.stopAtSafePointForTermination()
+                sender?.reply(toApplicationShouldTerminate: true)
+            }
         }
         return .terminateLater
     }
