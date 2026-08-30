@@ -74,4 +74,62 @@ extension OperatorInterlockPresentation {
             )
         }
     }
+
+    static func updatePolicy(_ policy: NodeUpdatePolicy) -> OperatorInterlockModel {
+        let channel = updateChannel(for: policy)
+        return OperatorInterlockModel(
+            id: "update-policy-\(policy.rawValue)",
+            eyebrow: "UPDATE TRUST POLICY",
+            title: "Enable \(policy.title) updates",
+            outcome: channel.outcome,
+            symbol: channel.symbol,
+            tone: channel.tone,
+            steps: [
+                .init(
+                    id: "observe", title: "Observe channel", detail: channel.observeDetail,
+                    symbol: "antenna.radiowaves.left.and.right", tone: .information),
+                .init(
+                    id: "verify", title: "Verify candidate", detail: channel.verifyDetail,
+                    symbol: "checkmark.shield.fill", tone: channel.tone),
+                .init(
+                    id: "activate", title: "Guarded activation",
+                    detail: "Stage first, retain rollback, then restart the node.",
+                    symbol: "arrow.triangle.2.circlepath", tone: .success),
+            ],
+            changes: [
+                .init(
+                    id: "policy", title: "Automatic policy",
+                    detail: "The schedule and root-owned activation permission follow only \(channel.scopeDetail).",
+                    symbol: "clock.badge.checkmark"),
+                .init(
+                    id: "runtime", title: "Managed runtime",
+                    detail: "A qualifying candidate may replace the node binary after preparation succeeds.",
+                    symbol: "shippingbox.fill"),
+            ],
+            preserved: standardNodeBoundary + [
+                .init(
+                    id: "rollback", title: "Previous runtime",
+                    detail: "The installed binary remains active until activation and is retained for rollback.",
+                    symbol: "arrow.uturn.backward.circle.fill")
+            ],
+            verification: channel.verification,
+            trustNote: channel.trustNote,
+            decisions: updateDecisions,
+            defaultDecisionID: "now",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    private static let updateDecisions: [OperatorInterlockDecision] = [
+        .init(
+            id: "now", title: "Enable and check now",
+            detail: "Save the policy, then inspect the selected channel immediately.",
+            actionTitle: "Enable & check now", symbol: "bolt.fill", tone: .information,
+            bullets: ["Starts one check now", "Keeps the six-hour schedule"]),
+        .init(
+            id: "later", title: "Enable for later",
+            detail: "Save the policy without starting a foreground check.",
+            actionTitle: "Enable for later", symbol: "clock.fill", tone: .accent,
+            bullets: ["No check starts now", "Runs on the six-hour schedule"]),
+    ]
 }
