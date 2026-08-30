@@ -46,9 +46,17 @@ struct QuilNodeApp: App {
     @StateObject private var commandCenter: DashboardCommandCenter
     @StateObject private var milestoneVisibility: ProtocolMilestoneVisibilityStore
     @StateObject private var appUpdates: AppUpdateController
+    private let designPreviewMode: String?
 
     @MainActor
     init() {
+        #if DEBUG
+            designPreviewMode = ProcessInfo.processInfo.arguments.first { $0.hasPrefix("--design-preview=") }
+                .map { String($0.dropFirst("--design-preview=".count)) }
+        #else
+            designPreviewMode = nil
+        #endif
+
         LegacyPreferencesMigrator.migrateIfNeeded()
         let monitor = NodeMonitor()
         let services = NodeServices()
@@ -79,44 +87,22 @@ struct QuilNodeApp: App {
         // window, neither WindowGroup nor the menu popover necessarily exists.
         // Boot the idempotent coordinators from the App lifetime itself so
         // monitoring and protocol alerts truly survive closed windows.
-        Task { @MainActor in
-            monitor.start()
-            await services.start(monitor: monitor, history: history)
-            await lifecycle.refreshServiceStatus()
-            releaseChecker.start(monitor: monitor, services: services)
-            walletManager.start()
-            installationCoordinator.start()
-            networkReadiness.start(monitor: monitor)
+        if designPreviewMode == nil {
+            Task { @MainActor in
+                monitor.start()
+                await services.start(monitor: monitor, history: history)
+                await lifecycle.refreshServiceStatus()
+                releaseChecker.start(monitor: monitor, services: services)
+                walletManager.start()
+                installationCoordinator.start()
+                networkReadiness.start(monitor: monitor)
+            }
         }
     }
 
     var body: some Scene {
         WindowGroup("QuilNode Dashboard", id: "dashboard") {
-            DashboardView()
-                .environmentObject(monitor)
-                .environmentObject(services)
-                .environmentObject(lifecycle)
-                .environmentObject(history)
-                .environmentObject(releaseChecker)
-                .environmentObject(privacyMode)
-                .environmentObject(themeController)
-                .environmentObject(walletManager)
-                .environmentObject(installationCoordinator)
-                .environmentObject(networkReadiness)
-                .environmentObject(commandCenter)
-                .environmentObject(milestoneVisibility)
-                .environmentObject(appUpdates)
-                .quilThemed(themeController.selectedTheme)
-                .task {
-                    monitor.start()
-                    await services.start(monitor: monitor, history: history)
-                    await lifecycle.refreshServiceStatus()
-                    releaseChecker.start(monitor: monitor, services: services)
-                    walletManager.start()
-                    installationCoordinator.start()
-                    networkReadiness.start(monitor: monitor)
-                }
-                .frame(minWidth: 820, minHeight: 640)
+            primarySceneContent
         }
         .defaultSize(width: 980, height: 760)
         .windowStyle(.hiddenTitleBar)
@@ -155,6 +141,7 @@ struct QuilNodeApp: App {
                 .environmentObject(appUpdates)
                 .quilThemed(themeController.selectedTheme)
                 .task {
+                    guard designPreviewMode == nil else { return }
                     monitor.start()
                     await services.start(monitor: monitor, history: history)
                     await lifecycle.refreshServiceStatus()
@@ -173,6 +160,7 @@ struct QuilNodeApp: App {
             }
             .accessibilityLabel(menuBarAccessibilityStatus)
             .task {
+                guard designPreviewMode == nil else { return }
                 // The menu-bar label exists even when every dashboard window
                 // is closed and the popover has never been opened. Starting
                 // coordinators here keeps monitoring and metadata alerts alive
@@ -186,6 +174,48 @@ struct QuilNodeApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    @ViewBuilder
+    private var primarySceneContent: some View {
+        #if DEBUG
+            if designPreviewMode == "onboarding-identity" {
+                OnboardingDesignPreviewHost()
+                    .frame(minWidth: 900, minHeight: 680)
+            } else {
+                dashboardSceneContent
+            }
+        #else
+            dashboardSceneContent
+        #endif
+    }
+
+    private var dashboardSceneContent: some View {
+        DashboardView()
+            .environmentObject(monitor)
+            .environmentObject(services)
+            .environmentObject(lifecycle)
+            .environmentObject(history)
+            .environmentObject(releaseChecker)
+            .environmentObject(privacyMode)
+            .environmentObject(themeController)
+            .environmentObject(walletManager)
+            .environmentObject(installationCoordinator)
+            .environmentObject(networkReadiness)
+            .environmentObject(commandCenter)
+            .environmentObject(milestoneVisibility)
+            .environmentObject(appUpdates)
+            .quilThemed(themeController.selectedTheme)
+            .task {
+                monitor.start()
+                await services.start(monitor: monitor, history: history)
+                await lifecycle.refreshServiceStatus()
+                releaseChecker.start(monitor: monitor, services: services)
+                walletManager.start()
+                installationCoordinator.start()
+                networkReadiness.start(monitor: monitor)
+            }
+            .frame(minWidth: 820, minHeight: 640)
     }
 
     private var menuBarStatusTint: Color {

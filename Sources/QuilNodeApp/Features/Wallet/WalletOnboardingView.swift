@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 #if canImport(QuilNodeCore)
@@ -9,279 +8,214 @@ struct WalletOnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.quilTheme) private var theme
     @EnvironmentObject private var walletManager: WalletManager
+
+    @State private var selection: IdentityOnboardingChoice?
     @State private var createName = "My Quilibrium identity"
 
+    private var activeIdentity: ManagedKeyset? {
+        walletManager.inventory.activeKeyset
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                HStack(spacing: 9) {
-                    ZStack {
-                        ThemeAccentShape(shape: RoundedRectangle(cornerRadius: 9))
-                        Text("Q").font(.headline.weight(.black)).foregroundStyle(.white)
-                    }
-                    .frame(width: 34, height: 34)
-                    Text("QuilNode setup").font(.headline)
+        OnboardingShell(
+            stage: .identity,
+            secondaryActionTitle: activeIdentity == nil ? nil : "Do this later",
+            secondaryAction: deferOnboarding
+        ) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    heading
+                    choiceCards
+                    operationState
+                    OnboardingTrustStrip(items: trustItems)
                 }
-                Spacer()
-                if walletManager.inventory.activeKeyset != nil {
-                    Button("Do this later") {
-                        walletManager.dismissOnboarding()
-                        dismiss()
-                    }.buttonStyle(.plain).foregroundStyle(.secondary)
-                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
             }
-            .padding(18)
-            Divider()
-
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Your node identity, safely managed")
-                        .font(
-                            .system(
-                                size: 31 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign
-                            ))
-                    Text(
-                        "QuilNode can create a new identity or import an older keyset, detect its format, preserve the Ed448 seniority root, let the official .25 node perform migration, and roll back automatically if validation fails."
-                    )
-                    .font(.subheadline).foregroundStyle(theme.colors.secondaryText).fixedSize(
-                        horizontal: false, vertical: true)
-                    VStack(alignment: .leading, spacing: 10) {
-                        OnboardingPromise(
-                            icon: "eye.slash", title: "Interface cannot read secrets",
-                            text:
-                                "The GUI passes only your intent and selected folder; the signed local service validates keysets without returning private bytes."
-                        )
-                        OnboardingPromise(
-                            icon: "checkmark.shield", title: "Backup before mutation",
-                            text: "Every activation starts with a root-protected, hash-verified recovery copy.")
-                        OnboardingPromise(
-                            icon: "arrow.uturn.backward", title: "Atomic recovery",
-                            text: "A failed migration or startup restores the previous pair and restarts it.")
-                    }
-                    Spacer()
-                }
-                .padding(30)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 13) {
-                    if let active = walletManager.inventory.activeKeyset {
-                        Text("Existing identity detected").font(.title3.bold())
-                        Text("\(active.format.label) · \(active.keyCount) key entries")
-                            .font(.caption.monospaced()).foregroundStyle(theme.colors.secondaryText)
-                        Button {
-                            Task { if await walletManager.adoptActive() { dismiss() } }
-                        } label: {
-                            Label("Keep & protect this identity", systemImage: "checkmark.shield.fill").frame(
-                                maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent).controlSize(.large)
-                    } else {
-                        Text("Choose your starting point").font(.title3.bold())
-                    }
-
-                    Button {
-                        walletManager.chooseImportFolder()
-                    } label: {
-                        OnboardingChoice(
-                            icon: "square.and.arrow.down", title: "Import a keyset",
-                            detail: "Auto-detect legacy and .25 formats")
-                    }
-                    .buttonStyle(.plain)
-
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("NEW IDENTITY NAME")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .tracking(1.1)
-                            .foregroundStyle(theme.colors.secondaryText)
-                        TextField("Identity name", text: $createName).textFieldStyle(.roundedBorder)
-                        Button {
-                            Task { if await walletManager.create(named: createName) { dismiss() } }
-                        } label: {
-                            OnboardingChoice(
-                                icon: "plus.circle", title: "Create a new identity",
-                                detail: "Generated locally by the verified official client")
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(createName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-
-                    if walletManager.isWorking {
-                        HStack {
-                            ProgressView()
-                            Text(walletManager.operationTitle ?? "Working…").font(.caption)
-                        }
-                    }
-                    if let error = walletManager.error {
-                        Label(error, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(
-                            theme.colors.danger
-                        ).textSelection(.enabled)
-                        if walletManager.requiresServiceAuthorization {
-                            Button("Review & authorize Identity Recovery") {
-                                Task { await walletManager.authorizeWalletService() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(walletManager.isWorking)
-                        } else {
-                            Button("Retry inspection") { Task { await walletManager.refresh() } }
-                                .buttonStyle(.bordered)
-                                .disabled(walletManager.isRefreshing)
-                        }
-                    }
-                    Spacer()
-                    Text(
-                        "QuilNode never deletes stores during identity onboarding. Stores are preserved and can resynchronize independently of this keyset flow."
-                    )
-                    .font(.caption2).foregroundStyle(theme.colors.secondaryText)
-                }
-                .padding(24)
-                .frame(width: 340)
-                .frame(maxHeight: .infinity, alignment: .topLeading)
-                .background(theme.colors.surface.opacity(0.65))
+        } footer: {
+            HStack(spacing: 16) {
+                Text(footerGuidance)
+                    .font(.caption)
+                    .foregroundStyle(theme.colors.secondaryText)
+                Spacer()
+                primaryAction
             }
         }
-        .frame(width: 820, height: 560)
-        .background { ThemeCanvasBackground().ignoresSafeArea() }
         .sheet(item: $walletManager.pendingImport, onDismiss: walletManager.discardPendingImport) { pending in
-            ImportKeysetSheet(importItem: pending).environmentObject(walletManager).quilThemed(theme)
+            ImportKeysetSheet(importItem: pending)
+                .environmentObject(walletManager)
+                .quilThemed(theme)
         }
+        .onAppear(perform: chooseSafeDefaultIfNeeded)
+        .onChange(of: activeIdentity?.id) { _, _ in chooseSafeDefaultIfNeeded() }
     }
-}
 
-private struct OnboardingPromise: View {
-    let icon: String, title: String, text: String
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon).frame(width: 20).foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(text).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
-private struct OnboardingChoice: View {
-    @Environment(\.quilTheme) private var theme
-    let icon: String, title: String, detail: String
-    var body: some View {
-        HStack(spacing: 11) {
-            Image(systemName: icon).font(.title3).foregroundStyle(theme.colors.accent).frame(width: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(detail).font(.caption2).foregroundStyle(theme.colors.secondaryText)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(theme.colors.secondaryText)
-        }
-        .padding(12).background(
-            theme.colors.surfaceElevated, in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius).strokeBorder(
-                theme.colors.border.opacity(0.5), lineWidth: 0.5))
-    }
-}
-
-struct CreateIdentitySheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var walletManager: WalletManager
-    @State private var name = "My Quilibrium identity"
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Create node identity", systemImage: "person.badge.key.fill").font(.title2.bold())
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            OnboardingSectionLabel(text: "Identity decision")
+            Text("How should this Mac use a node identity?")
+                .font(
+                    .system(
+                        size: 24 * theme.typography.scale,
+                        weight: .bold,
+                        design: theme.typography.displayDesign
+                    ))
             Text(
-                "The signed local service asks the separately managed, verified official qclient to create the configuration, then the installed .25 node generates and validates the full keyset. The interface never opens the files, and a recovery copy is made immediately."
-            ).foregroundStyle(.secondary)
-            TextField("Identity name", text: $name).textFieldStyle(.roundedBorder)
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Create & activate") { Task { if await walletManager.create(named: name) { dismiss() } } }
-                    .buttonStyle(.borderedProminent).disabled(
-                        walletManager.isWorking || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            if walletManager.isWorking { ProgressView(walletManager.operationTitle ?? "Creating…") }
-        }.padding(24).frame(width: 500)
-    }
-}
-
-struct ImportKeysetSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.quilTheme) private var theme
-    @EnvironmentObject private var walletManager: WalletManager
-    let importItem: PendingKeysetImport
-    @State private var name: String
-    @State private var activate = true
-
-    init(importItem: PendingKeysetImport) {
-        self.importItem = importItem
-        _name = State(initialValue: importItem.suggestedName)
+                activeIdentity == nil
+                    ? "No active identity was detected. Import a complete keyset or create a new local identity."
+                    : "An active identity was detected. Keep and protect it, import another complete keyset, or create a new identity."
+            )
+            .font(.subheadline)
+            .foregroundStyle(theme.colors.secondaryText)
+        }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                DashboardCircleIcon(
-                    systemImage: importItem.inspection.requiresMigration
-                        ? "arrow.triangle.2.circlepath" : "checkmark.shield.fill",
-                    tint: importItem.inspection.requiresMigration ? theme.colors.warning : theme.colors.success,
-                    size: 44)
-                VStack(alignment: .leading) {
-                    Text("Keyset recognized").font(.title2.bold())
-                    Text(importItem.inspection.format.label + " · fingerprint " + importItem.inspection.fingerprint)
-                        .font(.caption.monospaced()).foregroundStyle(.secondary)
+    private var choiceCards: some View {
+        VStack(spacing: 8) {
+            if let activeIdentity {
+                OnboardingChoiceCard(
+                    title: IdentityOnboardingChoice.keep.title,
+                    detail: IdentityOnboardingChoice.keep.detail,
+                    systemImage: IdentityOnboardingChoice.keep.systemImage,
+                    isSelected: selection == .keep,
+                    badge: "Recommended",
+                    select: { selection = .keep }
+                ) {
+                    KeepIdentityDetails(identity: activeIdentity)
                 }
             }
-            TextField("Identity name", text: $name).textFieldStyle(.roundedBorder)
-            HStack {
-                KeysetFact(title: "KEY ENTRIES", value: "\(importItem.inspection.keyCount)")
-                KeysetFact(title: "FORMAT", value: importItem.inspection.format.label)
-                KeysetFact(title: "MIGRATION", value: importItem.inspection.requiresMigration ? "Required" : "No")
+
+            OnboardingChoiceCard(
+                title: IdentityOnboardingChoice.importKeyset.title,
+                detail: IdentityOnboardingChoice.importKeyset.detail,
+                systemImage: IdentityOnboardingChoice.importKeyset.systemImage,
+                isSelected: selection == .importKeyset,
+                select: { selection = .importKeyset }
+            ) {
+                ImportIdentityDetails()
             }
-            if importItem.inspection.requiresMigration {
-                Label(
-                    "The old Ed448 peer key remains the seniority root. The official .25 node will preserve legacy entries and create missing Falcon/wallet keys only after a verified pre-migration backup.",
-                    systemImage: "clock.badge.checkmark"
-                )
-                .font(.caption).foregroundStyle(theme.colors.warning).padding(10).background(
-                    theme.colors.warning.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
+
+            OnboardingChoiceCard(
+                title: IdentityOnboardingChoice.create.title,
+                detail: IdentityOnboardingChoice.create.detail,
+                systemImage: IdentityOnboardingChoice.create.systemImage,
+                isSelected: selection == .create,
+                select: { selection = .create }
+            ) {
+                CreateIdentityDetails(name: $createName)
             }
-            ForEach(importItem.inspection.warnings, id: \.self) { warning in
-                Label(warning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(
-                    theme.colors.warning)
-            }
-            Toggle("Activate after import", isOn: $activate)
-            Text(
-                "Activation stops only the Quilibrium node. Stores are preserved. A failed migration restores the prior identity automatically."
-            ).font(.caption2).foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    walletManager.discardPendingImport()
-                    dismiss()
-                }
-                Button("Import\(activate ? " & activate" : "")") {
-                    Task {
-                        await walletManager.importPending(named: name, activateAfterImport: activate)
-                        if walletManager.error == nil { dismiss() }
+        }
+    }
+
+    @ViewBuilder
+    private var operationState: some View {
+        if walletManager.isWorking {
+            QuilLoadingIndicator(
+                label: walletManager.operationTitle ?? "Securing identity",
+                detail: "The local service is validating the requested transaction."
+            )
+            .padding(13)
+            .controlSurface(tint: theme.colors.accent)
+        }
+        if let error = walletManager.error {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(theme.colors.danger)
+                    .textSelection(.enabled)
+                if walletManager.requiresServiceAuthorization {
+                    Button("Review identity authorization") {
+                        Task { await walletManager.authorizeWalletService() }
                     }
-                }.buttonStyle(.borderedProminent).disabled(
-                    walletManager.isWorking || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(walletManager.isWorking)
+                } else {
+                    Button("Retry inspection") { Task { await walletManager.refresh() } }
+                        .buttonStyle(.bordered)
+                        .disabled(walletManager.isRefreshing)
+                }
             }
-            if walletManager.isWorking { ProgressView(walletManager.operationTitle ?? "Importing…") }
-        }.padding(24).frame(width: 620)
+            .padding(13)
+            .controlSurface(tint: theme.colors.danger)
+        }
     }
-}
 
-private struct KeysetFact: View {
-    let title: String, value: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
-            Text(value).font(.caption.weight(.semibold))
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(
-            .quaternary, in: RoundedRectangle(cornerRadius: 9))
+    @ViewBuilder
+    private var primaryAction: some View {
+        if let selection {
+            Button {
+                perform(selection)
+            } label: {
+                Label(selection.primaryActionTitle, systemImage: "arrow.right.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(primaryActionDisabled)
+        } else {
+            Button("Choose an option") {}
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(true)
+        }
+    }
+
+    private var primaryActionDisabled: Bool {
+        walletManager.isWorking
+            || (selection == .create && createName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            || (selection == .keep && activeIdentity == nil)
+    }
+
+    private var footerGuidance: String {
+        switch selection {
+        case .keep: "A verified recovery copy is created before QuilNode begins managing this identity."
+        case .importKeyset: "You will choose a folder next; the GUI never opens its key files."
+        case .create: "The verified local client generates the identity on this Mac."
+        case nil: "Choose one path to continue. Nothing changes until you confirm it."
+        }
+    }
+
+    private var trustItems: [OnboardingTrustStrip.Item] {
+        [
+            .init(
+                systemImage: "eye.slash.fill",
+                title: "GUI never reads key bytes",
+                detail: "Only your intent and selected folder cross the interface boundary."
+            ),
+            .init(
+                systemImage: "icloud.slash.fill",
+                title: "Local-only workflow",
+                detail: "No cloud service or explorer is required for identity management."
+            ),
+            .init(
+                systemImage: "externaldrive.fill.badge.checkmark",
+                title: "Stores are preserved",
+                detail: "Identity transactions never delete or replace node stores."
+            ),
+        ]
+    }
+
+    private func chooseSafeDefaultIfNeeded() {
+        guard selection == nil else { return }
+        selection = IdentityOnboardingChoice.initialChoice(hasActiveIdentity: activeIdentity != nil)
+    }
+
+    private func deferOnboarding() {
+        walletManager.dismissOnboarding()
+        dismiss()
+    }
+
+    private func perform(_ choice: IdentityOnboardingChoice) {
+        switch choice {
+        case .keep:
+            Task {
+                if await walletManager.adoptActive() { dismiss() }
+            }
+        case .importKeyset:
+            walletManager.chooseImportFolder()
+        case .create:
+            Task {
+                if await walletManager.create(named: createName) { dismiss() }
+            }
+        }
     }
 }

@@ -44,6 +44,16 @@ final class WalletManager: ObservableObject {
         onboardingCompleted = defaults.bool(forKey: "walletOnboardingCompleted")
     }
 
+    #if DEBUG
+        /// Deterministic visual-QA fixture. Release builds cannot inject wallet
+        /// state, and this path never starts the privileged service client.
+        init(previewInventory: WalletInventory, defaults: UserDefaults) {
+            self.defaults = defaults
+            inventory = previewInventory
+            onboardingCompleted = false
+        }
+    #endif
+
     func start() {
         guard !started else { return }
         started = true

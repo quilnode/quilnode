@@ -10,25 +10,30 @@ struct NetworkOnboardingView: View {
     @Environment(\.quilTheme) private var theme
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                DashboardCircleIcon(systemImage: "wifi.router.fill", tint: theme.colors.accent, size: 46)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Connect your node to inbound peers").font(.title2.bold())
-                    Text("The node is installed. Your router is the final manual boundary.")
-                        .font(.subheadline).foregroundStyle(theme.colors.secondaryText)
-                }
-                Spacer()
-            }
-            .padding(22)
-            Divider()
-
+        OnboardingShell(stage: .network, height: 720) {
             ScrollView {
-                NetworkReadinessView(compactLayout: true)
-                    .padding(22)
-            }
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        OnboardingSectionLabel(text: "Inbound readiness")
+                        Text("Connect this node to inbound peers")
+                            .font(
+                                .system(
+                                    size: 27 * theme.typography.scale,
+                                    weight: .bold,
+                                    design: theme.typography.displayDesign
+                                ))
+                        Text(
+                            "The runtime and identity are ready. Your router is the remaining manual boundary; QuilNode uses only local evidence to confirm when inbound traffic actually arrives."
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(theme.colors.secondaryText)
+                    }
 
-            Divider()
+                    NetworkReadinessView(compactLayout: true)
+                }
+                .padding(24)
+            }
+        } footer: {
             HStack {
                 Button("Finish later") {
                     network.remindLater()
@@ -40,11 +45,9 @@ struct NetworkOnboardingView: View {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-            .padding(18)
         }
-        .frame(width: 860, height: 700)
-        .background { ThemeCanvasBackground().ignoresSafeArea() }
     }
 }
 

@@ -61,34 +61,6 @@ struct AuthorizationExplanationView: View {
     }
 }
 
-struct SetupStep: View {
-    let index: Int, title: String, active: Bool
-    var body: some View {
-        HStack(spacing: 6) {
-            Text("\(index)").font(.caption2.bold().monospacedDigit())
-                .frame(width: 20, height: 20)
-                .background(active ? Color.accentColor : Color.secondary.opacity(0.15), in: Circle())
-                .foregroundStyle(active ? .white : .secondary)
-            Text(title).font(.caption.weight(active ? .semibold : .regular))
-                .foregroundStyle(active ? .primary : .secondary)
-        }
-    }
-}
-
-struct InstallPromise: View {
-    let icon: String, title: String, detail: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon).foregroundStyle(.tint)
-            Text(title).font(.caption.weight(.semibold))
-            Text(detail).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
 struct InstallCheckRow: View {
     let check: InstallationCheck
     var body: some View {
@@ -116,15 +88,6 @@ struct InstallCheckRow: View {
         case .blocked: .red
         case .notRequired: .secondary
         }
-    }
-}
-
-struct PlanRow: View {
-    let icon: String, text: String
-    var body: some View {
-        Label(text, systemImage: icon)
-            .font(.caption)
-            .foregroundStyle(.secondary)
     }
 }
 
