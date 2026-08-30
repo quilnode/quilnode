@@ -104,10 +104,11 @@ extension DashboardView {
         HStack(spacing: 10) {
             DashboardCircleIcon(systemImage: "app.badge.checkmark", tint: theme.colors.accent, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text("QUILNODE APPLICATION")
+                Text("APP BUILD")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.8)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Text("v\(appUpdates.currentVersion) (\(appUpdates.currentBuild))")
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                     .lineLimit(1)
