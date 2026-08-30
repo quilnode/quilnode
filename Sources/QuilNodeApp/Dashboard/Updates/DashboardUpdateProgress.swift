@@ -15,6 +15,7 @@ extension DashboardView {
                     current: progress.status == .succeeded ? nil : currentStage,
                     completed: completedFlightStages(progress, current: currentStage)
                 )
+                updateDetailedStepRail(progress)
                 updateOperationProgress(
                     progress,
                     elapsed: elapsed
@@ -119,7 +120,7 @@ extension DashboardView {
         HStack(spacing: 12) {
             if progress.status == .running {
                 Label(
-                    "This operation continues when you change pages or close the window.",
+                    "Pages and windows are safe to close; quitting opens a safety confirmation.",
                     systemImage: "menubar.rectangle"
                 )
                 .font(.caption2)
@@ -177,7 +178,7 @@ extension DashboardView {
         }
     }
 
-    private func operationTint(_ progress: NodeUpdateProgress) -> Color {
+    func operationTint(_ progress: NodeUpdateProgress) -> Color {
         switch progress.status {
         case .failed: theme.colors.danger
         case .ready: theme.colors.info
