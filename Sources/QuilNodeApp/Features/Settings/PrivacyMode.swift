@@ -9,6 +9,15 @@ enum PrivacyMode {
     static let defaultsKey = "privacyModeEnabled"
 }
 
+/// Fixed visual density for redacted collections.
+///
+/// Masking text is not enough when one rendered row still corresponds to one
+/// private item. Privacy-aware collection views use this constant instead of
+/// their model count, so layout cannot reveal worker or allocation cardinality.
+enum PrivacyLayoutPolicy {
+    static let collectionPlaceholderCount = 3
+}
+
 /// The single privacy vocabulary used by every dashboard surface.
 ///
 /// A field is classified by what it reveals, not by where it happens to be

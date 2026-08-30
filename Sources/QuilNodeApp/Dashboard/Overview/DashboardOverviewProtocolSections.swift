@@ -4,6 +4,14 @@ import SwiftUI
     import QuilNodeCore
 #endif
 
+private enum ProtocolAllocationLayoutPhase: Hashable {
+    case loading
+    case privacy
+    case aggregate
+    case capacity
+    case allocations
+}
+
 extension DashboardView {
     var protocolAllocationsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -66,51 +74,12 @@ extension DashboardView {
                     .strokeBorder(theme.colors.border.opacity(0.56), lineWidth: max(theme.metrics.borderWidth, 0.5))
             }
 
-            if monitor.snapshot.shardAllocations.isEmpty,
-                monitor.snapshot.totalAllocations > 0
-            {
-                ProtocolAggregateAllocationCell(
-                    active: monitor.snapshot.activeShards,
-                    joining: monitor.snapshot.pendingJoins,
-                    total: monitor.snapshot.totalAllocations
-                )
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
-                    if monitor.snapshot.shardAllocations.isEmpty {
-                        if let capacity = localWorkerCapacity, capacity > 0 {
-                            let visibleWorkers = min(capacity, 7)
-                            ForEach(0..<visibleWorkers, id: \.self) { index in
-                                Button {
-                                    destination = .identity
-                                } label: {
-                                    ProtocolCapacityCell(index: index + 1)
-                                }
-                                .buttonStyle(QuilPressFeedbackButtonStyle())
-                            }
-                            if capacity > visibleWorkers {
-                                ProtocolCapacityOverflowCell(count: capacity - visibleWorkers)
-                            }
-                        } else {
-                            Button {
-                                destination = .identity
-                            } label: {
-                                ProtocolCapacityCell(index: nil)
-                            }
-                            .buttonStyle(QuilPressFeedbackButtonStyle())
-                        }
-                    } else {
-                        ForEach(monitor.snapshot.shardAllocations) { allocation in
-                            Button {
-                                destination = .identity
-                            } label: {
-                                ProtocolAllocationCell(allocation: allocation)
-                            }
-                            .buttonStyle(QuilPressFeedbackButtonStyle())
-                            .accessibilityHint("Opens this allocation in Identity")
-                        }
-                    }
-                }
+            ZStack(alignment: .topLeading) {
+                protocolAllocationLayout
+                    .id(protocolAllocationLayoutPhase)
+                    .transition(motion.revealTransition)
             }
+            .animation(motion.contentReplacement, value: protocolAllocationLayoutPhase)
 
             if let summary = monitor.snapshot.networkShardSummary {
                 HStack(spacing: 6) {
@@ -154,13 +123,15 @@ extension DashboardView {
                         ? theme.colors.privacy
                         : monitor.snapshot.shardAllocations.isEmpty ? theme.colors.warning : theme.colors.success)
                 Text(
-                    privacyModeEnabled
-                        ? "Sensitive allocation values are hidden; labels and controls remain available."
-                        : monitor.snapshot.shardAllocations.isEmpty
-                            ? monitor.snapshot.totalAllocations > 0
-                                ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
-                                : "No shard assignment is present in the local registry yet. Capacity remains visible above."
-                            : "Each worker lane and coverage value comes from the managed node's local read-only RPC."
+                    !nodeObservation.hasLiveTelemetry
+                        ? "Loading worker capacity, shard assignments and coverage from the local node."
+                        : privacyModeEnabled
+                            ? "Allocation layout is hidden behind a fixed placeholder that does not reveal worker or allocation count."
+                            : monitor.snapshot.shardAllocations.isEmpty
+                                ? monitor.snapshot.totalAllocations > 0
+                                    ? "Aggregate registry state is current; detailed local RPC telemetry is temporarily unavailable."
+                                    : "No shard assignment is present in the local registry yet. Capacity remains visible above."
+                                : "Each worker lane and coverage value comes from the managed node's local read-only RPC."
                 )
                 Spacer(minLength: 10)
                 Text("Local node only")
@@ -178,6 +149,69 @@ extension DashboardView {
         if let workers = monitor.snapshot.localWorkerCount, workers > 0 { return workers }
         if monitor.snapshot.allocatedWorkers > 0 { return monitor.snapshot.allocatedWorkers }
         return nil
+    }
+
+    @ViewBuilder
+    private var protocolAllocationLayout: some View {
+        switch protocolAllocationLayoutPhase {
+        case .loading:
+            ProtocolAllocationPlaceholderLayout(mode: .loading)
+        case .privacy:
+            ProtocolAllocationPlaceholderLayout(mode: .privacy)
+        case .aggregate:
+            ProtocolAggregateAllocationCell(
+                active: monitor.snapshot.activeShards,
+                joining: monitor.snapshot.pendingJoins,
+                total: monitor.snapshot.totalAllocations
+            )
+        case .capacity:
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
+                if let capacity = localWorkerCapacity, capacity > 0 {
+                    let visibleWorkers = min(capacity, 7)
+                    ForEach(0..<visibleWorkers, id: \.self) { index in
+                        Button {
+                            destination = .identity
+                        } label: {
+                            ProtocolCapacityCell(index: index + 1)
+                        }
+                        .buttonStyle(QuilPressFeedbackButtonStyle())
+                    }
+                    if capacity > visibleWorkers {
+                        ProtocolCapacityOverflowCell(count: capacity - visibleWorkers)
+                    }
+                } else {
+                    Button {
+                        destination = .identity
+                    } label: {
+                        ProtocolCapacityCell(index: nil)
+                    }
+                    .buttonStyle(QuilPressFeedbackButtonStyle())
+                }
+            }
+        case .allocations:
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
+                ForEach(monitor.snapshot.shardAllocations) { allocation in
+                    Button {
+                        destination = .identity
+                    } label: {
+                        ProtocolAllocationCell(allocation: allocation)
+                    }
+                    .buttonStyle(QuilPressFeedbackButtonStyle())
+                    .accessibilityHint("Opens this allocation in Identity")
+                }
+            }
+        }
+    }
+
+    private var protocolAllocationLayoutPhase: ProtocolAllocationLayoutPhase {
+        if !nodeObservation.hasLiveTelemetry { return .loading }
+        if privacyModeEnabled { return .privacy }
+        if monitor.snapshot.shardAllocations.isEmpty,
+            monitor.snapshot.totalAllocations > 0
+        {
+            return .aggregate
+        }
+        return monitor.snapshot.shardAllocations.isEmpty ? .capacity : .allocations
     }
 
     private var localCoverageState: ShardCoverageState? {

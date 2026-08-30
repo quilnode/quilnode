@@ -168,7 +168,13 @@ extension DashboardView {
 
             DisclosureGroup(isExpanded: $allocationsExpanded) {
                 VStack(spacing: 0) {
-                    if monitor.snapshot.shardAllocations.isEmpty {
+                    if !nodeObservation.hasLiveTelemetry {
+                        ProtocolAllocationPlaceholderLayout(mode: .loading)
+                            .padding(16)
+                    } else if privacyModeEnabled {
+                        ProtocolAllocationPlaceholderLayout(mode: .privacy)
+                            .padding(16)
+                    } else if monitor.snapshot.shardAllocations.isEmpty {
                         HStack(spacing: 12) {
                             DashboardCircleIcon(systemImage: "hourglass", tint: theme.colors.warning, size: 38)
                             VStack(alignment: .leading, spacing: 2) {

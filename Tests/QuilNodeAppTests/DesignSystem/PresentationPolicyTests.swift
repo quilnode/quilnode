@@ -11,6 +11,10 @@ final class PresentationPolicyTests: XCTestCase {
         XCTAssertEqual(Set(PrivacyField.allCases.map(\.accessibilityName)).count, PrivacyField.allCases.count)
     }
 
+    func testPrivacyCollectionPlaceholderHasFixedDensity() {
+        XCTAssertEqual(PrivacyLayoutPolicy.collectionPlaceholderCount, 3)
+    }
+
     func testEpochEstimateWaitsForCrediblePaceEvidence() {
         XCTAssertEqual(EpochEstimateFormatter.compact(framesRemaining: 720, framesPerMinute: nil), "ETA learning")
         XCTAssertEqual(

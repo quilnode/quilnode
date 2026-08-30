@@ -36,6 +36,10 @@ struct QuilMotion {
     var liveValue: Animation? { curve(duration: 0.16) }
     var progress: Animation? { curve(duration: 0.22) }
 
+    /// A brief fade when a stable loading placeholder is replaced by content.
+    /// It never slides or scales, and becomes immediate with Reduce Motion.
+    var contentReplacement: Animation? { curve(duration: 0.14) }
+
     /// Very slow compositor-only movement for decorative atmosphere. It never
     /// changes layout and disappears entirely when Reduce Motion is enabled.
     var atmosphere: Animation? {

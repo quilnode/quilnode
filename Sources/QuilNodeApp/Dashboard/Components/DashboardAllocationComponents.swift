@@ -90,6 +90,135 @@ struct ProtocolCapacityOverflowCell: View {
     }
 }
 
+enum ProtocolAllocationPlaceholderMode: Hashable {
+    case loading
+    case privacy
+}
+
+/// A fixed-density replacement for worker and allocation cards before live
+/// telemetry arrives and while Privacy Mode is active. It deliberately reuses
+/// the live card geometry without using any real record count or state.
+struct ProtocolAllocationPlaceholderLayout: View {
+    @Environment(\.quilTheme) private var theme
+
+    let mode: ProtocolAllocationPlaceholderMode
+
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: 8),
+        count: PrivacyLayoutPolicy.collectionPlaceholderCount
+    )
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 0) {
+            ForEach(0..<PrivacyLayoutPolicy.collectionPlaceholderCount, id: \.self) { _ in
+                HStack(alignment: .top, spacing: 9) {
+                    leadingIndicator
+                    VStack(alignment: .leading, spacing: 2) {
+                        placeholderTitle
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(theme.colors.primaryText)
+                        placeholderDetail
+                            .font(.system(size: 9.5, design: .monospaced))
+                            .foregroundStyle(theme.colors.secondaryText)
+                            .lineLimit(1)
+                        placeholderMetadata
+                            .font(.system(size: 8.7, weight: .medium, design: .monospaced))
+                            .foregroundStyle(theme.colors.secondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .protocolAllocationCardSurface(
+                    theme: theme,
+                    borderColor: tint.opacity(0.60),
+                    emphasized: mode == .privacy
+                )
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .help(helpText)
+    }
+
+    @ViewBuilder
+    private var leadingIndicator: some View {
+        if mode == .loading {
+            ProgressView()
+                .controlSize(.small)
+                .tint(theme.colors.info)
+                .frame(width: 8, height: 8)
+                .padding(.top, 2)
+        } else {
+            Circle()
+                .fill(theme.colors.privacy)
+                .frame(width: 8, height: 8)
+                .padding(.top, 3)
+        }
+    }
+
+    @ViewBuilder
+    private var placeholderTitle: some View {
+        if mode == .loading {
+            Text("Worker —")
+        } else {
+            maskedPhrase(label: "Worker", mask: .compact)
+        }
+    }
+
+    @ViewBuilder
+    private var placeholderDetail: some View {
+        if mode == .loading {
+            Text("Shard —")
+        } else {
+            maskedPhrase(label: "Shard", mask: .identifier)
+        }
+    }
+
+    @ViewBuilder
+    private var placeholderMetadata: some View {
+        if mode == .loading {
+            Text("Ring — · — provers · Coverage —")
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text("Ring ")
+                Text(PrivacyMaskStyle.compact.text)
+                Text(" · ")
+                Text(PrivacyMaskStyle.compact.text)
+                Text(" provers · Coverage ")
+                Text(PrivacyMaskStyle.identifier.text)
+            }
+        }
+    }
+
+    private func maskedPhrase(label: String, mask: PrivacyMaskStyle) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text("\(label) ")
+            Text(mask.text)
+                .tracking(1)
+        }
+    }
+
+    private var tint: Color {
+        mode == .loading ? theme.colors.info : theme.colors.privacy
+    }
+
+    private var accessibilityLabel: String {
+        switch mode {
+        case .loading:
+            "Loading worker, shard assignment, and coverage telemetry."
+        case .privacy:
+            "Worker and allocation layout hidden by Privacy Mode. The three placeholders are decorative and do not reveal a count."
+        }
+    }
+
+    private var helpText: String {
+        mode == .loading
+            ? "Loading local allocation telemetry"
+            : "Fixed privacy placeholder — does not represent the worker or allocation count"
+    }
+}
+
 struct ProtocolAggregateAllocationCell: View {
     @Environment(\.quilTheme) private var theme
     let active: Int
@@ -152,11 +281,18 @@ struct ProtocolAllocationCell: View {
             || allocation.status.localizedCaseInsensitiveContains("active")
     }
 
-    private var title: String {
+    private var titlePrefix: String {
+        allocation.worker?.isEmpty == false ? "Worker " : "Allocation "
+    }
+
+    private var titleValue: String {
         guard let worker = allocation.worker, !worker.isEmpty else {
-            return "Allocation \(allocation.index + 1)"
+            return String(allocation.index + 1)
         }
-        return worker.localizedCaseInsensitiveContains("worker") ? worker : "Worker \(worker)"
+        let prefix = "worker "
+        return worker.lowercased().hasPrefix(prefix)
+            ? String(worker.dropFirst(prefix.count))
+            : worker
     }
 
     private var coverageTint: Color {
@@ -176,17 +312,25 @@ struct ProtocolAllocationCell: View {
                 .shadow(color: isActive ? coverageTint.opacity(0.58) : .clear, radius: 4)
                 .padding(.top, 3)
             VStack(alignment: .leading, spacing: 3) {
-                PrivacyProtectedText(
-                    value: title,
+                PrivacyProtectedPhrase(
+                    prefix: titlePrefix,
+                    value: titleValue,
                     field: .shardAllocation
                 )
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(isActive ? theme.colors.primaryText : theme.colors.secondaryText)
 
-                PrivacyProtectedText(
-                    value: allocation.filter.isEmpty ? "Global allocation" : allocation.filter.compactIdentifier,
-                    field: .shardAllocation
-                )
+                Group {
+                    if allocation.filter.isEmpty {
+                        Text("Global allocation")
+                    } else {
+                        PrivacyProtectedPhrase(
+                            prefix: "Shard ",
+                            value: allocation.filter.compactIdentifier,
+                            field: .shardAllocation
+                        )
+                    }
+                }
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundStyle(theme.colors.secondaryText)
                 .lineLimit(1)
@@ -214,20 +358,13 @@ struct ProtocolAllocationCell: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-        .background(theme.colors.surface.opacity(isActive ? 0.78 : 0.48))
-        .overlay {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .strokeBorder(
-                    (allocation.coverageState == nil
-                        ? (isActive ? theme.colors.info : theme.colors.border)
-                        : coverageTint).opacity(0.60),
-                    lineWidth: max(theme.metrics.borderWidth, 0.5)
-                )
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .protocolAllocationCardSurface(
+            theme: theme,
+            borderColor: allocation.coverageState == nil
+                ? (isActive ? theme.colors.info : theme.colors.border).opacity(0.60)
+                : coverageTint.opacity(0.60),
+            emphasized: isActive
+        )
     }
 }
 
@@ -246,6 +383,25 @@ extension View {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(
                         borderColor ?? theme.colors.border.opacity(0.48),
+                        lineWidth: max(theme.metrics.borderWidth, 0.5)
+                    )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+    }
+
+    fileprivate func protocolAllocationCardSurface(
+        theme: QuilTheme,
+        borderColor: Color,
+        emphasized: Bool
+    ) -> some View {
+        padding(.horizontal, 11)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .background(theme.colors.surface.opacity(emphasized ? 0.78 : 0.48))
+            .overlay {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(
+                        borderColor,
                         lineWidth: max(theme.metrics.borderWidth, 0.5)
                     )
             }
