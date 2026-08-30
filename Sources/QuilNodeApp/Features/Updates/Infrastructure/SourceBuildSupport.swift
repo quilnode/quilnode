@@ -11,20 +11,124 @@ import Foundation
 #endif
 
 extension ReleaseChecker {
+    nonisolated private static var seniorityDatasetRelativePath: String {
+        "node/execution/intrinsics/global/compat/mainnet_244200_seniority.json"
+    }
+
     nonisolated static func branchCacheURL() throws -> URL {
         try applicationSupportDirectory().appendingPathComponent("BranchCache.git", isDirectory: true)
     }
 
-    nonisolated static func newSourceBuildWorkspace(prefix: String) throws -> URL {
-        // Some upstream native build scripts reject any prefix containing spaces.
-        // The final activation bundle remains in Application Support; only compilation
-        // occurs in this disposable, no-space temporary workspace.
-        let root = FileManager.default.homeDirectoryForCurrentUser
+    nonisolated static func sourceBuildWorkspace(
+        cacheDomain: String,
+        legacyCommit: String? = nil,
+        root overrideRoot: URL? = nil
+    ) throws -> URL {
+        // Native build scripts persist absolute source paths. A new workspace
+        // for every commit therefore defeats Cargo's cache and has previously
+        // left generated protobuf paths pointing at deleted directories. Keep
+        // one stable, isolated path per trust domain instead: approved builds
+        // never consume artifacts produced by the raw-development channel.
+        guard ["approved", "raw"].contains(cacheDomain) else {
+            throw UpdateCenterError.sourceCacheInvalid
+        }
+        let fm = FileManager.default
+        let root =
+            overrideRoot
+            ?? fm.homeDirectoryForCurrentUser
             .appendingPathComponent(".local/share/QuilNode/BuildWorkspaces", isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let directory = root.appendingPathComponent("source-\(prefix)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path)
+
+        let marker = root.appendingPathComponent(".\(cacheDomain)-workspace-v1")
+        if let selected = try selectedSourceBuildWorkspace(
+            from: marker,
+            root: root,
+            legacyCommit: cacheDomain == "approved" ? legacyCommit : nil,
+            fileManager: fm
+        ) {
+            return selected
+        }
+
+        let canonical = root.appendingPathComponent("\(cacheDomain)-source-v1", isDirectory: true)
+        try fm.createDirectory(at: canonical, withIntermediateDirectories: true)
+        try rememberSourceBuildWorkspace(canonical, marker: marker)
+        return canonical
+    }
+
+    /// Adopt a healthy legacy per-commit workspace once so an existing operator
+    /// does not pay for another cold native build during this cache migration.
+    /// New installations always start at the neutral canonical path above.
+    nonisolated private static func selectedSourceBuildWorkspace(
+        from marker: URL,
+        root: URL,
+        legacyCommit: String?,
+        fileManager fm: FileManager
+    ) throws -> URL? {
+        if let data = try? BoundedLocalData.read(from: marker, maximumBytes: 256) {
+            let name = String(decoding: data, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isSafeWorkspaceName(name) else { throw UpdateCenterError.sourceCacheInvalid }
+            let selected = root.appendingPathComponent(name, isDirectory: true)
+            guard isSafeWorkspaceDirectory(selected) else { throw UpdateCenterError.sourceCacheInvalid }
+            return selected
+        }
+
+        guard let legacyCommit else { return nil }
+        let legacy = try fm.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+        .filter { $0.lastPathComponent.hasPrefix("source-") && isSafeWorkspaceDirectory($0) }
+        .filter { candidate in
+            let repository = candidate.appendingPathComponent("repo", isDirectory: true)
+            let recordedPath = candidate.appendingPathComponent(".repository-path")
+            let gitHead = repository.appendingPathComponent(".git/HEAD")
+            guard fm.fileExists(atPath: repository.appendingPathComponent(".git").path),
+                fm.fileExists(atPath: repository.appendingPathComponent("target").path),
+                let data = try? BoundedLocalData.read(from: recordedPath, maximumBytes: 8_192),
+                let headData = try? BoundedLocalData.read(from: gitHead, maximumBytes: 256)
+            else { return false }
+            let recordedRepository = String(decoding: data, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let detachedHead = String(decoding: headData, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return recordedRepository == repository.standardizedFileURL.path
+                && detachedHead == legacyCommit
+        }
+        .max { first, second in
+            let firstDate =
+                (try? first.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            let secondDate =
+                (try? second.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            return firstDate < secondDate
+        }
+
+        if let legacy {
+            try rememberSourceBuildWorkspace(legacy, marker: marker)
+        }
+        return legacy
+    }
+
+    nonisolated private static func rememberSourceBuildWorkspace(_ workspace: URL, marker: URL) throws {
+        try Data((workspace.lastPathComponent + "\n").utf8).write(to: marker, options: [.atomic])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: marker.path)
+    }
+
+    nonisolated private static func isSafeWorkspaceName(_ name: String) -> Bool {
+        !name.isEmpty && name.count <= 80
+            && name.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
+    }
+
+    nonisolated private static func isSafeWorkspaceDirectory(_ url: URL) -> Bool {
+        var metadata = stat()
+        return lstat(url.path, &metadata) == 0
+            && metadata.st_mode & S_IFMT == S_IFDIR
+            && metadata.st_uid == getuid()
+            && metadata.st_mode & 0o022 == 0
     }
 
     nonisolated static func prepareSourceBuildSandbox(
@@ -35,18 +139,7 @@ extension ReleaseChecker {
         guard fm.isExecutableFile(atPath: SourceBuildSandbox.executable) else {
             throw UpdateCenterError.sourceSandboxUnavailable
         }
-        let operatorHome = fm.homeDirectoryForCurrentUser
-        let cargoExecutable = operatorHome.appendingPathComponent(".cargo/bin/cargo").path
-        let rustupHome = operatorHome.appendingPathComponent(".rustup", isDirectory: true)
-        let cargoBin = operatorHome.appendingPathComponent(".cargo/bin", isDirectory: true)
-        let flint = operatorHome.appendingPathComponent(
-            ".local/share/QuilNode/Toolchains/flint-3.6.0",
-            isDirectory: true
-        )
-        guard fm.isExecutableFile(atPath: cargoExecutable),
-            fm.fileExists(atPath: rustupHome.path),
-            fm.fileExists(atPath: flint.path)
-        else { throw UpdateCenterError.sourceToolMissing("isolated Rust/Flint toolchain") }
+        let toolchain = try SourceBuildToolchain.discover(fileManager: fm)
 
         let sandboxRoot = workspace.appendingPathComponent("sandbox", isDirectory: true)
         let cargoHome = sandboxRoot.appendingPathComponent("cargo-home", isDirectory: true)
@@ -62,9 +155,14 @@ extension ReleaseChecker {
             cargoHome: cargoHome,
             isolatedHome: isolatedHome,
             temporaryDirectory: temporary,
-            rustupHome: rustupHome,
-            cargoBin: cargoBin,
-            flintDirectory: flint
+            rustupHome: toolchain.rustupHome,
+            cargoBin: toolchain.cargoBin,
+            flintDirectory: toolchain.flintDirectory,
+            gmpDirectory: toolchain.gmpDirectory,
+            mpfrDirectory: toolchain.mpfrDirectory,
+            opensslDirectory: toolchain.opensslDirectory,
+            macOSSDK: toolchain.macOSSDK,
+            parallelJobs: toolchain.parallelJobs
         )
         let fetchProfile = sandboxRoot.appendingPathComponent("dependency-fetch.sb")
         let compileProfile = sandboxRoot.appendingPathComponent("compile-no-network.sb")
@@ -99,7 +197,7 @@ extension ReleaseChecker {
         return PreparedSourceBuildSandbox(
             fetchProfile: fetchProfile,
             compileProfile: compileProfile,
-            cargoExecutable: cargoExecutable,
+            cargoExecutable: toolchain.cargoExecutable.path,
             environment: environment
         )
     }
@@ -226,7 +324,7 @@ extension ReleaseChecker {
     /// transports are tried. The object is accepted only when its size and
     /// SHA-256 match the pointer committed by upstream.
     nonisolated static func prepareSeniorityDataset(in repository: URL) throws -> GitLFSPointer {
-        let relativePath = "node/execution/intrinsics/global/compat/mainnet_244200_seniority.json"
+        let relativePath = seniorityDatasetRelativePath
         let destination = repository.appendingPathComponent(relativePath)
         let pointerText = try runChecked(
             gitExecutable, ["-C", repository.path, "show", "HEAD:\(relativePath)"], timeout: 30
@@ -278,18 +376,54 @@ extension ReleaseChecker {
         return pointer
     }
 
-    /// Uses Git's filtered-content comparison rather than porcelain status or
-    /// `diff-index`'s stat-only fast path. A correctly hydrated LFS file is much
-    /// larger than its index pointer and remains stat-dirty, while `git diff
-    /// HEAD` runs the LFS clean filter and proves the content maps byte-for-byte
-    /// to the immutable pointer. Staged and ordinary tracked edits still fail.
-    nonisolated static func verifyPinnedCheckoutIsUnmodified(_ repository: URL) throws {
+    /// Proves that the immutable checkout has no staged changes and that its
+    /// only working-tree difference is the explicitly hydrated seniority LFS
+    /// object. Verification intentionally does not depend on a workstation's
+    /// global Git LFS filter configuration: GUI apps use a sealed Git config,
+    /// and a full LFS object must not be mistaken for a source modification just
+    /// because the system filter is unavailable. The allowed object is instead
+    /// revalidated directly against the size and SHA-256 committed in HEAD.
+    nonisolated static func verifyPinnedCheckoutIsUnmodified(
+        _ repository: URL,
+        hydratedSeniorityDataset pointer: GitLFSPointer
+    ) throws {
         do {
             _ = try runChecked(
                 gitExecutable,
-                ["-C", repository.path, "diff", "--quiet", "--exit-code", "HEAD", "--"],
+                [
+                    "-C", repository.path, "diff", "--cached", "--quiet", "--exit-code",
+                    "--no-ext-diff", "--no-textconv", "HEAD", "--",
+                ],
                 timeout: 60
             )
+
+            let changedPaths = try runChecked(
+                gitExecutable,
+                [
+                    "-C", repository.path, "diff", "--name-only", "--no-renames",
+                    "--no-ext-diff", "--no-textconv", "-z", "--",
+                ],
+                timeout: 60
+            ).split(separator: "\0").map(String.init)
+            guard changedPaths == [seniorityDatasetRelativePath] else {
+                throw UpdateCenterError.sourceCheckoutModified
+            }
+            let untrackedPaths = try runChecked(
+                gitExecutable,
+                ["-C", repository.path, "ls-files", "--others", "--exclude-standard", "-z"],
+                timeout: 60
+            )
+            guard untrackedPaths.isEmpty else { throw UpdateCenterError.sourceCheckoutModified }
+
+            let dataset = repository.appendingPathComponent(seniorityDatasetRelativePath)
+            var metadata = stat()
+            guard lstat(dataset.path, &metadata) == 0,
+                metadata.st_mode & S_IFMT == S_IFREG,
+                metadata.st_nlink == 1,
+                metadata.st_uid == getuid(),
+                metadata.st_size == pointer.size,
+                sha256(of: dataset) == pointer.oid
+            else { throw UpdateCenterError.sourceCheckoutModified }
         } catch {
             throw UpdateCenterError.sourceCheckoutModified
         }

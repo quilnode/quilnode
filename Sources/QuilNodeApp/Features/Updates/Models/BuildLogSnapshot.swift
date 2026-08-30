@@ -1,6 +1,13 @@
 import Foundation
 
 struct BuildLogSnapshot: Equatable, Sendable {
+    enum Availability: Equatable, Sendable {
+        case waiting
+        case available
+        case unavailable
+    }
+
+    let availability: Availability
     let output: String
     let visibleLineCount: Int
     let wasTrimmed: Bool
@@ -10,6 +17,7 @@ struct BuildLogSnapshot: Equatable, Sendable {
     let observedAt: Date?
 
     static let waiting = BuildLogSnapshot(
+        availability: .waiting,
         output: "",
         visibleLineCount: 0,
         wasTrimmed: false,
@@ -20,6 +28,7 @@ struct BuildLogSnapshot: Equatable, Sendable {
     )
 
     static let unavailable = BuildLogSnapshot(
+        availability: .unavailable,
         output: "",
         visibleLineCount: 0,
         wasTrimmed: false,
@@ -30,8 +39,15 @@ struct BuildLogSnapshot: Equatable, Sendable {
     )
 
     var hasOutput: Bool { !output.isEmpty }
-    var displayOutput: String { hasOutput ? output : "Waiting for build output…" }
+    var displayOutput: String {
+        if hasOutput { return output }
+        return switch availability {
+        case .waiting, .available: "Waiting for build output…"
+        case .unavailable: "No build output was retained for this operation."
+        }
+    }
     var activityDetail: String {
+        if availability == .unavailable { return "No retained log file" }
         if !hasOutput { return "Listening locally" }
         return wasTrimmed ? "Bounded log tail" : "Local log tail"
     }
@@ -62,6 +78,7 @@ struct BuildLogSnapshot: Equatable, Sendable {
         let errors = visibleLines.count { diagnosticKind(for: $0) == .error }
 
         return BuildLogSnapshot(
+            availability: text.isEmpty ? .waiting : .available,
             output: output,
             visibleLineCount: text.isEmpty ? 0 : visibleLines.count,
             wasTrimmed: reachedByteLimit || allLines.count > maximumLines,

@@ -25,7 +25,10 @@ extension ReleaseChecker {
             throw UpdateCenterError.sourceToolMissing("Git LFS")
         }
         let directory = try newStagingDirectory(prefix: "source-\(head.commit.prefix(8))")
-        let workspace = try newSourceBuildWorkspace(prefix: String(head.commit.prefix(8)))
+        let workspace = try sourceBuildWorkspace(
+            cacheDomain: channel == "approved-dev" ? "approved" : "raw",
+            legacyCommit: head.commit
+        )
         let repository = workspace.appendingPathComponent("repo", isDirectory: true)
         let gitDirectory = repository.appendingPathComponent(".git", isDirectory: true)
         if FileManager.default.fileExists(atPath: gitDirectory.path) {
@@ -85,6 +88,14 @@ extension ReleaseChecker {
             gitExecutable, ["-C", repository.path, "checkout", "-q", "-f", "--detach", head.commit],
             timeout: 90
         )
+        // Preserve only Cargo's stable artifact cache. Everything else must be
+        // reconstructed from the selected commit so an ignored/generated file
+        // from an older source build cannot influence the next candidate.
+        try runChecked(
+            gitExecutable,
+            ["-C", repository.path, "clean", "-q", "-f", "-f", "-d", "-x", "-e", "target/"],
+            timeout: 90
+        )
         let resolvedCommit = try runChecked(
             gitExecutable, ["-C", repository.path, "rev-parse", "HEAD"]
         ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -120,7 +131,10 @@ extension ReleaseChecker {
                 isEstimate: true
             ))
         let seniorityDataset = try prepareSeniorityDataset(in: repository)
-        try verifyPinnedCheckoutIsUnmodified(repository)
+        try verifyPinnedCheckoutIsUnmodified(
+            repository,
+            hydratedSeniorityDataset: seniorityDataset
+        )
 
         let logURL = directory.appendingPathComponent("build.log")
         let sandbox = try prepareSourceBuildSandbox(
@@ -129,6 +143,31 @@ extension ReleaseChecker {
         )
         let packageCount = cargoPackageCount(in: repository)
         let cachedUnits = cachedCompileUnits(in: repository, maximum: packageCount)
+        progress(
+            NodeUpdateProgress(
+                step: .acquire,
+                phase: "Resolving locked dependencies",
+                detail: "Fetching only the packages pinned by Cargo.lock inside the isolated build home",
+                fraction: 0.14,
+                startedAt: startedAt,
+                isEstimate: true,
+                logURL: logURL
+            ))
+        // Fetching has a bounded log of its own. A successful compile replaces
+        // this short acquisition transcript; a failed fetch leaves the actual
+        // registry, DNS, or TLS cause available in Update Center.
+        try runChecked(
+            SourceBuildSandbox.executable,
+            try SourceBuildSandbox.arguments(
+                profileURL: sandbox.fetchProfile,
+                executable: sandbox.cargoExecutable,
+                arguments: ["fetch", "--locked"]
+            ),
+            currentDirectory: repository,
+            environment: sandbox.environment,
+            timeout: 30 * 60,
+            logURL: logURL
+        )
         progress(
             NodeUpdateProgress(
                 step: .compileNode,
@@ -146,17 +185,6 @@ extension ReleaseChecker {
         // Resolve dependencies with networking enabled but the operator's home
         // still unreadable. Compilation then uses a second deny-network profile
         // so upstream build scripts cannot scan the LAN or exfiltrate data.
-        try runChecked(
-            SourceBuildSandbox.executable,
-            try SourceBuildSandbox.arguments(
-                profileURL: sandbox.fetchProfile,
-                executable: sandbox.cargoExecutable,
-                arguments: ["fetch", "--locked"]
-            ),
-            currentDirectory: repository,
-            environment: sandbox.environment,
-            timeout: 30 * 60
-        )
         try runChecked(
             SourceBuildSandbox.executable,
             try SourceBuildSandbox.arguments(
@@ -186,7 +214,10 @@ extension ReleaseChecker {
                 isEstimate: false
             ))
 
-        try verifyPinnedCheckoutIsUnmodified(repository)
+        try verifyPinnedCheckoutIsUnmodified(
+            repository,
+            hydratedSeniorityDataset: seniorityDataset
+        )
         let built = repository.appendingPathComponent("node/build/arm64_macos/node")
         try validateSourceBuildArtifact(built, maximumBytes: 600_000_000)
         let shortCommit = String(head.commit.prefix(8))
@@ -250,7 +281,10 @@ extension ReleaseChecker {
                 timeout: 3 * 60 * 60,
                 logURL: logURL
             )
-            try verifyPinnedCheckoutIsUnmodified(repository)
+            try verifyPinnedCheckoutIsUnmodified(
+                repository,
+                hydratedSeniorityDataset: seniorityDataset
+            )
             try validateSourceBuildArtifact(builtQClient, maximumBytes: 250_000_000)
             let qclientName = "qclient-\(sourceVersion)-source-\(shortCommit)-darwin-arm64"
             let stagedQClient = directory.appendingPathComponent(qclientName)

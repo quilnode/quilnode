@@ -1,6 +1,10 @@
 import Darwin
 import Foundation
 
+#if canImport(QuilNodeShared)
+    import QuilNodeShared
+#endif
+
 public struct BoundedCommandResult: Sendable {
     public var output: String
     public var exitCode: Int32
@@ -53,15 +57,8 @@ public enum BoundedCommandRunner {
         }
 
         let process = Process()
-        // Polling catches long-running producers; RLIMIT_FSIZE also prevents a
-        // short-lived command from filling the disk before the next poll.
-        let fileBlocks = max((maximumOutputBytes + 511) / 512, 1)
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments =
-            [
-                "-c", "ulimit -f \"$1\" || exit 70; shift; exec \"$@\"",
-                "quilnode-bounded-command", String(fileBlocks), executable,
-            ] + arguments
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
         process.environment =
             environment ?? [
@@ -69,21 +66,25 @@ public enum BoundedCommandRunner {
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
             ]
-        process.standardOutput = handle
-        process.standardError = handle
+        let outputPump = BoundedProcessOutputPump(
+            destinationDescriptor: descriptor,
+            maximumBytes: maximumOutputBytes
+        )
+        process.standardOutput = outputPump.pipe
+        process.standardError = outputPump.pipe
+        outputPump.start()
         do {
             try process.run()
         } catch {
+            outputPump.cancelBeforeLaunch()
+            _ = outputPump.waitUntilDrained()
             return .init(output: error.localizedDescription, exitCode: -1)
         }
 
         let deadline = Date().addingTimeInterval(timeout)
         var exceeded = false
         while process.isRunning && Date() < deadline {
-            var metadata = stat()
-            if fstat(descriptor, &metadata) == 0,
-                metadata.st_size > off_t(maximumOutputBytes)
-            {
+            if outputPump.exceededLimit || outputPump.failedWriting {
                 exceeded = true
                 break
             }
@@ -97,16 +98,15 @@ public enum BoundedCommandRunner {
             if process.isRunning { terminateProcessTree(process.processIdentifier, signal: SIGKILL) }
         }
         process.waitUntilExit()
-        try? handle.synchronize()
+        let drained = outputPump.waitUntilDrained()
         var finalMetadata = stat()
         let finalSize = fstat(descriptor, &finalMetadata) == 0 ? finalMetadata.st_size : 0
-        let outputLimitSignal =
-            process.terminationReason == .uncaughtSignal
-            && process.terminationStatus == SIGXFSZ
         let outputExceeded =
             exceeded
+            || outputPump.exceededLimit
+            || outputPump.failedWriting
+            || !drained
             || finalSize > off_t(maximumOutputBytes)
-            || outputLimitSignal
         try? handle.seek(toOffset: 0)
         let data = (try? handle.read(upToCount: maximumOutputBytes + 1)) ?? Data()
         let output: String

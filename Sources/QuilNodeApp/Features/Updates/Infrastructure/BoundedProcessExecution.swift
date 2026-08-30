@@ -72,13 +72,8 @@ extension ReleaseChecker {
         guard maximumCaptureBytes > 0 else {
             throw UpdateCenterError.commandFailed("Invalid command-output limit.")
         }
-        let fileBlocks = max((Int(maximumCaptureBytes) + 511) / 512, 1)
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments =
-            [
-                "-c", "ulimit -f \"$1\" || exit 70; shift; exec \"$@\"",
-                "quilnode-update-command", String(fileBlocks), executable,
-            ] + arguments
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
         if let environment {
             process.environment = environment
@@ -103,9 +98,20 @@ extension ReleaseChecker {
         }
         let captureDescriptor = try openPrivateCaptureFile(captureURL)
         let logHandle = FileHandle(fileDescriptor: captureDescriptor, closeOnDealloc: true)
-        process.standardOutput = logHandle
-        process.standardError = logHandle
-        try process.run()
+        let outputPump = BoundedProcessOutputPump(
+            destinationDescriptor: captureDescriptor,
+            maximumBytes: Int(maximumCaptureBytes)
+        )
+        process.standardOutput = outputPump.pipe
+        process.standardError = outputPump.pipe
+        outputPump.start()
+        do {
+            try process.run()
+        } catch {
+            outputPump.cancelBeforeLaunch()
+            _ = outputPump.waitUntilDrained()
+            throw error
+        }
         let deadline = Date().addingTimeInterval(timeout)
         var nextProgressRead = Date()
         var wasCancelled = false
@@ -115,10 +121,7 @@ extension ReleaseChecker {
                 wasCancelled = true
                 break
             }
-            var metadata = stat()
-            if fstat(logHandle.fileDescriptor, &metadata) == 0,
-                metadata.st_size > maximumCaptureBytes
-            {
+            if outputPump.exceededLimit || outputPump.failedWriting {
                 exceededOutputLimit = true
                 break
             }
@@ -143,17 +146,17 @@ extension ReleaseChecker {
             }
         }
         process.waitUntilExit()
+        let drained = outputPump.waitUntilDrained()
         var finalMetadata = stat()
         let finalSize =
             fstat(logHandle.fileDescriptor, &finalMetadata) == 0
             ? finalMetadata.st_size : 0
-        let outputLimitSignal =
-            process.terminationReason == .uncaughtSignal
-            && process.terminationStatus == SIGXFSZ
         exceededOutputLimit =
             exceededOutputLimit
+            || outputPump.exceededLimit
+            || outputPump.failedWriting
+            || !drained
             || finalSize > maximumCaptureBytes
-            || outputLimitSignal
         try? logHandle.close()
         let output = readFileTail(captureURL, maximumBytes: 2 * 1_024 * 1_024) ?? ""
         if logURL != nil { logProgress?(output) }

@@ -3,6 +3,15 @@ import XCTest
 @testable import QuilNodeApp
 
 final class BuildLogSnapshotTests: XCTestCase {
+    func testUnavailableReceiptDoesNotPretendToBeWaiting() {
+        XCTAssertEqual(BuildLogSnapshot.unavailable.availability, .unavailable)
+        XCTAssertEqual(
+            BuildLogSnapshot.unavailable.displayOutput,
+            "No build output was retained for this operation."
+        )
+        XCTAssertEqual(BuildLogSnapshot.unavailable.activityDetail, "No retained log file")
+    }
+
     func testParserCountsCompilerDiagnosticsWithoutInventingState() {
         let snapshot = BuildLogSnapshot.parse(
             """

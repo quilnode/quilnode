@@ -14,7 +14,14 @@ final class SecurityBoundaryTests: XCTestCase {
             temporaryDirectory: URL(fileURLWithPath: "/private/tmp/quilnode-security-test/workspace/tmp"),
             rustupHome: URL(fileURLWithPath: "/Users/example/.rustup"),
             cargoBin: URL(fileURLWithPath: "/Users/example/.cargo/bin"),
-            flintDirectory: URL(fileURLWithPath: "/Users/example/.local/share/QuilNode/Toolchains/flint-3.6.0")
+            flintDirectory: URL(fileURLWithPath: "/Users/example/.local/share/QuilNode/Toolchains/flint-3.6.0"),
+            gmpDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/gmp"),
+            mpfrDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/mpfr"),
+            opensslDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/openssl@3"),
+            macOSSDK: URL(
+                fileURLWithPath:
+                    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"),
+            parallelJobs: 8
         )
         if let compilePolicy = try? SourceBuildSandbox.profile(
             layout: sandboxLayout,
@@ -29,6 +36,24 @@ final class SecurityBoundaryTests: XCTestCase {
             expect(compilePolicy.contains("(deny network*)"), "source compilation denies networking")
             expect(fetchPolicy.contains("(allow network-outbound)"), "dependency fetch has a distinct network phase")
             expect(
+                fetchPolicy.contains("(allow file-read* (literal \"/var\"))"),
+                "dependency fetch permits only resolver traversal at the /var mount point")
+            expect(
+                !fetchPolicy.contains("(allow file-read* (subpath \"/var\"))"),
+                "resolver traversal never grants recursive /var access")
+            expect(
+                fetchPolicy.contains("(allow file-read* (literal \"/Users/example\"))"),
+                "source sandbox permits metadata traversal to isolated toolchains")
+            expect(
+                !fetchPolicy.contains("(allow file-read* (subpath \"/Users/example\"))"),
+                "metadata traversal never grants recursive operator-home access")
+            expect(
+                compilePolicy.contains("(allow file-write* (literal \"/dev/null\"))"),
+                "source probes may discard output without gaining device-tree write access")
+            expect(
+                !compilePolicy.contains("(allow file-write* (subpath \"/dev\"))"),
+                "source compilation never receives recursive device write access")
+            expect(
                 !compilePolicy.contains("/Users/example/Documents"), "source sandbox does not expose the operator home")
             let environment = try? SourceBuildSandbox.environment(layout: sandboxLayout)
             expect(
@@ -37,6 +62,11 @@ final class SecurityBoundaryTests: XCTestCase {
             expect(
                 environment?["CARGO_HOME"]?.contains("quilnode-security-test") == true,
                 "source build receives an isolated Cargo home")
+            expect(environment?["GMP_DIR"] == "/opt/homebrew/opt/gmp", "GMP path is pre-resolved")
+            expect(environment?["MPFR_DIR"] == "/opt/homebrew/opt/mpfr", "MPFR path is pre-resolved")
+            expect(environment?["OPENSSL_DIR"] == "/opt/homebrew/opt/openssl@3", "OpenSSL path is pre-resolved")
+            expect(environment?["SDKROOT"]?.contains("MacOSX.sdk") == true, "macOS SDK is pre-resolved")
+            expect(environment?["CARGO_BUILD_JOBS"] == "8", "adaptive parallelism reaches Cargo's jobserver")
         } else {
             XCTFail("source sandbox policy generation")
         }
@@ -77,7 +107,15 @@ final class SecurityBoundaryTests: XCTestCase {
                 temporaryDirectory: temporary,
                 rustupHome: URL(fileURLWithPath: "/Users/example/.rustup"),
                 cargoBin: URL(fileURLWithPath: "/Users/example/.cargo/bin"),
-                flintDirectory: URL(fileURLWithPath: "/Users/example/.local/share/QuilNode/Toolchains/flint-3.6.0")
+                flintDirectory: URL(fileURLWithPath: "/Users/example/.local/share/QuilNode/Toolchains/flint-3.6.0"),
+                gmpDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/gmp"),
+                mpfrDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/mpfr"),
+                opensslDirectory: URL(fileURLWithPath: "/opt/homebrew/opt/openssl@3"),
+                macOSSDK: URL(
+                    fileURLWithPath:
+                        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+                ),
+                parallelJobs: 8
             )
             let policyURL = workspace.appendingPathComponent("policy.sb")
             let livePolicy = try SourceBuildSandbox.profile(layout: liveLayout, allowsNetwork: false)

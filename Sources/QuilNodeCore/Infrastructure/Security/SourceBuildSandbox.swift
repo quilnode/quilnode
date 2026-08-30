@@ -15,6 +15,11 @@ public enum SourceBuildSandbox {
         public var rustupHome: URL
         public var cargoBin: URL
         public var flintDirectory: URL
+        public var gmpDirectory: URL
+        public var mpfrDirectory: URL
+        public var opensslDirectory: URL
+        public var macOSSDK: URL
+        public var parallelJobs: Int
 
         public init(
             workspace: URL,
@@ -24,7 +29,12 @@ public enum SourceBuildSandbox {
             temporaryDirectory: URL,
             rustupHome: URL,
             cargoBin: URL,
-            flintDirectory: URL
+            flintDirectory: URL,
+            gmpDirectory: URL,
+            mpfrDirectory: URL,
+            opensslDirectory: URL,
+            macOSSDK: URL,
+            parallelJobs: Int
         ) {
             self.workspace = workspace
             self.repository = repository
@@ -34,6 +44,11 @@ public enum SourceBuildSandbox {
             self.rustupHome = rustupHome
             self.cargoBin = cargoBin
             self.flintDirectory = flintDirectory
+            self.gmpDirectory = gmpDirectory
+            self.mpfrDirectory = mpfrDirectory
+            self.opensslDirectory = opensslDirectory
+            self.macOSSDK = macOSSDK
+            self.parallelJobs = parallelJobs
         }
     }
 
@@ -45,6 +60,8 @@ public enum SourceBuildSandbox {
             layout.workspace, layout.repository,
             layout.cargoHome, layout.isolatedHome, layout.temporaryDirectory,
             layout.rustupHome, layout.cargoBin, layout.flintDirectory,
+            layout.gmpDirectory, layout.mpfrDirectory,
+            layout.opensslDirectory, layout.macOSSDK,
         ]
         let paths = try controlledRoots.flatMap(validatedPathAliases)
         let systemReadRoots = [
@@ -55,6 +72,15 @@ public enum SourceBuildSandbox {
         let systemPaths = try systemReadRoots.flatMap {
             try validatedPathAliases(URL(fileURLWithPath: $0, isDirectory: true))
         }
+        // Canonicalization traverses every parent before opening an allowed
+        // workspace, toolchain, registry cache, or Darwin resolver socket.
+        // Permit metadata reads for those ancestors only. `literal` deliberately
+        // exposes neither directory contents nor recursive subtrees (including
+        // the operator's home), while avoiding fragile per-machine exceptions.
+        let traversalPaths = Set((systemPaths + paths).flatMap(pathAncestors))
+        let traversalRules = traversalPaths.sorted().map {
+            "(allow file-read* (literal \(sandboxLiteral($0))))"
+        }.joined(separator: "\n")
         let readRules = Array(Set(systemPaths + paths)).sorted().map {
             "(allow file-read* (subpath \(sandboxLiteral($0))))"
         }.joined(separator: "\n")
@@ -65,6 +91,7 @@ public enum SourceBuildSandbox {
         let writeRules = Array(Set(writablePaths)).sorted().map {
             "(allow file-write* (subpath \(sandboxLiteral($0))))"
         }.joined(separator: "\n")
+        let deviceWriteRules = "(allow file-write* (literal \"/dev/null\"))"
         let networkRule = allowsNetwork ? "    (allow network-outbound)" : "    (deny network*)"
 
         return """
@@ -77,8 +104,10 @@ public enum SourceBuildSandbox {
             (allow ipc-posix*)
             \(networkRule)
             (allow file-read* (literal "/"))
+            \(traversalRules)
             \(readRules)
             \(writeRules)
+            \(deviceWriteRules)
             """
     }
 
@@ -88,6 +117,13 @@ public enum SourceBuildSandbox {
         let rustupHome = try validatedPath(layout.rustupHome)
         let temporary = try validatedPath(layout.temporaryDirectory)
         let flint = try validatedPath(layout.flintDirectory)
+        let gmp = try validatedPath(layout.gmpDirectory)
+        let mpfr = try validatedPath(layout.mpfrDirectory)
+        let openssl = try validatedPath(layout.opensslDirectory)
+        let sdk = try validatedPath(layout.macOSSDK)
+        guard (1...64).contains(layout.parallelJobs) else {
+            throw SourceBuildSandboxError.invalidParallelism(layout.parallelJobs)
+        }
         return [
             "PATH": [
                 try validatedPath(layout.cargoBin),
@@ -99,7 +135,11 @@ public enum SourceBuildSandbox {
             "RUSTUP_HOME": rustupHome,
             "TMPDIR": temporary + "/",
             "FLINT_DIR": flint,
-            "CARGO_BUILD_JOBS": "4",
+            "GMP_DIR": gmp,
+            "MPFR_DIR": mpfr,
+            "OPENSSL_DIR": openssl,
+            "SDKROOT": sdk,
+            "CARGO_BUILD_JOBS": String(layout.parallelJobs),
             "GIT_TERMINAL_PROMPT": "0",
             "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_CONFIG_NOSYSTEM": "1",
@@ -148,6 +188,20 @@ public enum SourceBuildSandbox {
         return aliases.sorted()
     }
 
+    private static func pathAncestors(_ path: String) -> [String] {
+        var ancestors: [String] = []
+        var parent = URL(fileURLWithPath: path, isDirectory: true)
+            .deletingLastPathComponent().standardizedFileURL.path
+        while parent != "/" && !parent.isEmpty {
+            ancestors.append(parent)
+            let next = URL(fileURLWithPath: parent, isDirectory: true)
+                .deletingLastPathComponent().standardizedFileURL.path
+            guard next != parent else { break }
+            parent = next
+        }
+        return ancestors
+    }
+
     private static func sandboxLiteral(_ value: String) -> String {
         "\""
             + value
@@ -158,11 +212,14 @@ public enum SourceBuildSandbox {
 
 public enum SourceBuildSandboxError: LocalizedError, Equatable {
     case invalidPath(String)
+    case invalidParallelism(Int)
 
     public var errorDescription: String? {
         switch self {
         case .invalidPath:
             "The source-build sandbox received an unsafe filesystem path."
+        case .invalidParallelism:
+            "The source-build sandbox received an unsafe parallelism limit."
         }
     }
 }

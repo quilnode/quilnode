@@ -238,33 +238,32 @@ extension QuilNodeHelper {
             try? output.close()
             unlink(outputPath)
         }
-        // Keep the polling guard below for prompt termination, and also apply
-        // a kernel-enforced file-size limit so a fast failing subprocess cannot
-        // exhaust disk space between polls. Arguments remain positional; no
-        // caller-controlled value is interpolated into the fixed shell text.
-        let fileBlocks = max((Int(maximumCommandOutputBytes) + 511) / 512, 1)
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments =
-            [
-                "-c", "ulimit -f \"$1\" || exit 70; shift; exec \"$@\"",
-                "quilnode-helper-command", String(fileBlocks), executable.path,
-            ] + arguments
+        process.executableURL = executable
+        process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
         process.environment = [
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
         ]
-        process.standardOutput = output
-        process.standardError = output
-        try process.run()
+        let outputPump = BoundedProcessOutputPump(
+            destinationDescriptor: outputFD,
+            maximumBytes: Int(maximumCommandOutputBytes)
+        )
+        process.standardOutput = outputPump.pipe
+        process.standardError = outputPump.pipe
+        outputPump.start()
+        do {
+            try process.run()
+        } catch {
+            outputPump.cancelBeforeLaunch()
+            _ = outputPump.waitUntilDrained()
+            throw error
+        }
         let deadline = Date().addingTimeInterval(timeout)
         var exceededOutputLimit = false
         while process.isRunning && Date() < deadline {
-            var metadata = stat()
-            if fstat(outputFD, &metadata) == 0,
-                metadata.st_size > maximumCommandOutputBytes
-            {
+            if outputPump.exceededLimit || outputPump.failedWriting {
                 exceededOutputLimit = true
                 terminateProcessTree(rootPID: process.processIdentifier, signal: SIGTERM)
                 break
@@ -280,12 +279,9 @@ extension QuilNodeHelper {
             }
         }
         process.waitUntilExit()
-        try output.synchronize()
+        let drained = outputPump.waitUntilDrained()
         var finalMetadata = stat()
         let finalSize = fstat(outputFD, &finalMetadata) == 0 ? finalMetadata.st_size : 0
-        let outputLimitSignal =
-            process.terminationReason == .uncaughtSignal
-            && process.terminationStatus == SIGXFSZ
         try output.seek(toOffset: 0)
         let text = String(
             decoding: try output.read(upToCount: Int(maximumCommandOutputBytes) + 1) ?? Data(),
@@ -293,7 +289,9 @@ extension QuilNodeHelper {
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !exceededOutputLimit,
-            !outputLimitSignal,
+            !outputPump.exceededLimit,
+            !outputPump.failedWriting,
+            drained,
             finalSize <= maximumCommandOutputBytes,
             text.utf8.count <= Int(maximumCommandOutputBytes)
         else {

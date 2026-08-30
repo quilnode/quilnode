@@ -200,6 +200,20 @@ if ! rg -q 'BoundedCommandRunner\.run' Sources/QuilNodeCore/Infrastructure/Netwo
     failures=$((failures + 1))
 fi
 
+# Output quotas belong on stdout/stderr, never on the entire subprocess. An
+# inherited RLIMIT_FSIZE silently truncates legitimate Git packs and compiler
+# artifacts even when their console output is small.
+if rg -n 'ulimit -f|RLIMIT_FSIZE|setrlimit\(' Sources; then
+    echo "FAIL: a console-output guard applies an inherited process-wide file-size limit" >&2
+    failures=$((failures + 1))
+fi
+if ! rg -q 'BoundedProcessOutputPump' Sources/QuilNodeApp/Features/Updates/Infrastructure/BoundedProcessExecution.swift ||
+   ! rg -q 'BoundedProcessOutputPump' Sources/QuilNodeCore/Infrastructure/Process/BoundedCommandRunner.swift ||
+   ! rg -q 'BoundedProcessOutputPump' Sources/QuilNodeHelperKit/Infrastructure/CommandExecution.swift; then
+    echo "FAIL: subprocess output is not consistently isolated through the bounded pipe pump" >&2
+    failures=$((failures + 1))
+fi
+
 if ! rg -q 'BoundedFileDownloadDelegate' Sources/QuilNodeApp/Features/Updates ||
    ! rg -q 'BoundedDataDownloadDelegate' Sources/QuilNodeApp/Features/Updates ||
    ! rg -q 'totalBytesWritten > maximumBytes' Sources/QuilNodeApp/Features/Updates ||

@@ -126,7 +126,11 @@ extension ReleaseChecker {
             break
         }
         guard let selected else { throw UpdateCenterError.matchingSourceCheckoutUnavailable }
-        try verifyPinnedCheckoutIsUnmodified(selected.repository)
+        let seniorityDataset = try prepareSeniorityDataset(in: selected.repository)
+        try verifyPinnedCheckoutIsUnmodified(
+            selected.repository,
+            hydratedSeniorityDataset: seniorityDataset
+        )
         let clientManifest = selected.repository.appendingPathComponent("crates/quil-client/Cargo.toml")
         guard FileManager.default.fileExists(atPath: clientManifest.path) else {
             throw UpdateCenterError.sourceQClientMissing
@@ -141,8 +145,8 @@ extension ReleaseChecker {
         )
         progress(
             NodeUpdateProgress(
-                step: .client,
-                phase: "Preparing matching qclient",
+                step: .acquire,
+                phase: "Resolving locked qclient dependencies",
                 detail: "Pinned to the installed node commit \(selected.commit.prefix(12))",
                 fraction: 0.08, startedAt: startedAt, isEstimate: true, logURL: logURL
             ))
@@ -155,8 +159,16 @@ extension ReleaseChecker {
             ),
             currentDirectory: selected.repository,
             environment: sandbox.environment,
-            timeout: 30 * 60
+            timeout: 30 * 60,
+            logURL: logURL
         )
+        progress(
+            NodeUpdateProgress(
+                step: .client,
+                phase: "Compiling matching qclient",
+                detail: "Building from the same immutable commit as the installed source node",
+                fraction: 0.16, startedAt: startedAt, isEstimate: true, logURL: logURL
+            ))
         try runChecked(
             SourceBuildSandbox.executable,
             try SourceBuildSandbox.arguments(
@@ -167,7 +179,10 @@ extension ReleaseChecker {
             currentDirectory: selected.repository, environment: sandbox.environment,
             timeout: 3 * 60 * 60, logURL: logURL
         )
-        try verifyPinnedCheckoutIsUnmodified(selected.repository)
+        try verifyPinnedCheckoutIsUnmodified(
+            selected.repository,
+            hydratedSeniorityDataset: seniorityDataset
+        )
         try validateSourceBuildArtifact(built, maximumBytes: 250_000_000)
         let output = try runChecked(
             SourceBuildSandbox.executable,

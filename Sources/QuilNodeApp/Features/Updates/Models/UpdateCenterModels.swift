@@ -97,6 +97,9 @@ struct NodeUpdateProgress: Equatable, Sendable {
     var remainingKnownDuration: TimeInterval = 0
 
     var boundedFraction: Double { min(max(fraction, 0), 1) }
+    var shouldAutomaticallyRevealLog: Bool {
+        logURL != nil && (status == .running || status == .failed)
+    }
 
     func estimatedRemaining(at now: Date = Date()) -> TimeInterval? {
         guard status == .running,

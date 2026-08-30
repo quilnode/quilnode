@@ -37,8 +37,20 @@ extension DashboardView {
             }
             .padding(14)
             .controlSurface(tint: operationTint(progress))
+            .onAppear {
+                if progress.shouldAutomaticallyRevealLog {
+                    buildLogExpanded = true
+                }
+            }
             .onChange(of: progress.status) { _, status in
-                if status == .failed {
+                if status == .failed, progress.logURL != nil {
+                    withAnimation(motion.disclosure) {
+                        buildLogExpanded = true
+                    }
+                }
+            }
+            .onChange(of: progress.logURL) { _, logURL in
+                if logURL != nil, progress.status == .running {
                     withAnimation(motion.disclosure) {
                         buildLogExpanded = true
                     }

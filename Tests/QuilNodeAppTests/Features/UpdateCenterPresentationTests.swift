@@ -61,6 +61,27 @@ final class UpdateCenterPresentationTests: XCTestCase {
         XCTAssertEqual(UpdateFlightStage.stage.section, .preparation)
     }
 
+    func testRunningAndFailedReceiptsRevealAvailableLogs() {
+        let logURL = URL(fileURLWithPath: "/private/tmp/quilnode-build.log")
+        var progress = NodeUpdateProgress(
+            phase: "Compiling",
+            detail: "Building",
+            fraction: 0.4,
+            startedAt: Date(),
+            logURL: logURL
+        )
+        XCTAssertTrue(progress.shouldAutomaticallyRevealLog)
+
+        progress.status = .failed
+        XCTAssertTrue(progress.shouldAutomaticallyRevealLog)
+
+        progress.status = .succeeded
+        XCTAssertFalse(progress.shouldAutomaticallyRevealLog)
+        progress.status = .running
+        progress.logURL = nil
+        XCTAssertFalse(progress.shouldAutomaticallyRevealLog)
+    }
+
     private let installedCommit = "6471adf100000000000000000000000000000000"
     private let approvedCommit = "89b2c7a300000000000000000000000000000000"
 
