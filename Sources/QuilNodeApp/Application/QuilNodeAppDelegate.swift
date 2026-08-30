@@ -50,7 +50,9 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         /// production coordinators.
         private func presentStandaloneDesignPreviewIfRequested() {
             let value = ProcessInfo.processInfo.arguments.first {
-                $0.hasPrefix("--design-preview=network-inbound-")
+                $0 == "--design-preview=menu-bar"
+                    || $0 == "--design-preview=menu-bar-private"
+                    || $0.hasPrefix("--design-preview=network-inbound-")
                     || $0.hasPrefix("--design-preview=identity-transaction-")
                     || $0.hasPrefix("--design-preview=operator-interlock-")
                     || $0 == "--design-preview=theme-library"
@@ -60,8 +62,12 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
 
             let mode = String(value.dropFirst("--design-preview=".count))
             let content = standaloneDesignPreview(mode: mode)
+            let previewSize =
+                mode.hasPrefix("menu-bar")
+                ? NSSize(width: 420, height: 590)
+                : NSSize(width: 980, height: 730)
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 980, height: 730),
+                contentRect: NSRect(origin: .zero, size: previewSize),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -82,12 +88,39 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 }
                 window.makeKeyAndOrderFront(nil)
                 self.designPreviewWindow = window
+                self.captureDesignPreviewIfRequested(window)
+            }
+        }
+
+        /// Captures the exact preview host without requiring macOS Screen
+        /// Recording permission. This exists only in DEBUG builds.
+        private func captureDesignPreviewIfRequested(_ window: NSWindow) {
+            let prefix = "--capture-design-preview="
+            guard
+                let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }),
+                !argument.dropFirst(prefix.count).isEmpty
+            else { return }
+            let destination = URL(fileURLWithPath: String(argument.dropFirst(prefix.count)))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                guard let contentView = window.contentView else { return }
+                contentView.displayIfNeeded()
+                guard let bitmap = contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds) else { return }
+                contentView.cacheDisplay(in: contentView.bounds, to: bitmap)
+                guard let png = bitmap.representation(using: .png, properties: [:]) else { return }
+                try? FileManager.default.createDirectory(
+                    at: destination.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? png.write(to: destination, options: .atomic)
             }
         }
 
         @ViewBuilder
         private func standaloneDesignPreview(mode: String) -> some View {
-            if mode == "theme-library" {
+            if mode == "menu-bar" || mode == "menu-bar-private" {
+                MenuBarDesignPreviewHost(privacyEnabled: mode == "menu-bar-private")
+                    .quilThemed(.quilNode)
+            } else if mode == "theme-library" {
                 ThemeLibraryDesignPreviewHost()
             } else if mode == "build-evidence" {
                 BuildEvidenceDesignPreviewHost()

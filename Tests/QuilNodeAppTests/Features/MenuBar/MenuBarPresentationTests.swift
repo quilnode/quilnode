@@ -20,6 +20,10 @@ final class MenuBarPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation.participationTitle, "Allocations active")
+        XCTAssertEqual(
+            presentation.participationHeadline,
+            .init(lead: "Allocations ", emphasis: "active")
+        )
         XCTAssertEqual(presentation.participationSummary, "Active registry allocations")
         XCTAssertEqual(
             presentation.rewardSummary,

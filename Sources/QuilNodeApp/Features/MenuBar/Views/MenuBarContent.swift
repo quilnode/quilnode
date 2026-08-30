@@ -56,7 +56,7 @@ struct MenuBarContent: View {
             actions
         }
         .frame(width: 420)
-        .background { ThemeCanvasBackground().ignoresSafeArea() }
+        .menuBarThemeSurface()
         .redacted(reason: privacyEnabled ? .privacy : [])
         .accessibilityElement(children: .contain)
     }
@@ -69,7 +69,13 @@ struct MenuBarContent: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("QuilNode")
-                    .font(.headline.weight(.bold))
+                    .font(
+                        .system(
+                            size: 13 * theme.typography.scale,
+                            weight: .bold,
+                            design: theme.typography.displayDesign
+                        )
+                    )
 
                 HStack(spacing: 6) {
                     Circle()
@@ -78,7 +84,13 @@ struct MenuBarContent: View {
                         .accessibilityHidden(true)
                     Text(presentation.headerStatus)
                 }
-                .font(.caption)
+                .font(
+                    .system(
+                        size: 11 * theme.typography.scale,
+                        weight: .medium,
+                        design: theme.typography.displayDesign
+                    )
+                )
                 .foregroundStyle(snapshot.isRunning ? theme.colors.success : theme.colors.secondaryText)
             }
 
@@ -119,14 +131,22 @@ struct MenuBarContent: View {
                         .frame(width: 42, height: 42)
                         .background(
                             participationTint.opacity(0.12),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous)
                         )
                         .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(presentation.participationTitle)
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(participationTint)
+                        (Text(presentation.participationHeadline.lead)
+                            .foregroundStyle(theme.colors.primaryText)
+                            + Text(presentation.participationHeadline.emphasis)
+                            .foregroundStyle(participationTint))
+                            .font(
+                                .system(
+                                    size: 20 * theme.typography.scale,
+                                    weight: .bold,
+                                    design: .monospaced
+                                )
+                            )
                         Text(presentation.participationSummary)
                             .font(.subheadline)
                             .foregroundStyle(theme.colors.secondaryText)
@@ -169,7 +189,7 @@ struct MenuBarContent: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(QuilPressFeedbackButtonStyle())
-        .quilHoverSurface(tint: participationTint, cornerRadius: 13)
+        .quilHoverSurface(tint: participationTint, cornerRadius: theme.metrics.heroCornerRadius)
         .accessibilityLabel("Participation: \(presentation.participationTitle)")
         .accessibilityHint("Opens the local Activity flight recorder")
     }
@@ -265,13 +285,16 @@ struct MenuBarContent: View {
             } label: {
                 Label("Open Dashboard", systemImage: "rectangle.grid.2x2.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(theme.colors.canvas)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(theme.colors.accent, in: RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        theme.colors.accent,
+                        in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
+                    )
             }
             .buttonStyle(QuilPressFeedbackButtonStyle(pressedOpacity: 0.9, pressedScale: 0.99))
-            .quilHoverSurface(tint: theme.colors.accent, cornerRadius: 10)
+            .quilHoverSurface(tint: theme.colors.accent, cornerRadius: theme.metrics.controlCornerRadius)
 
             MenuBarActionTile(
                 title: "Refresh",

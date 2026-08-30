@@ -13,10 +13,10 @@ struct MenuBarSectionSurface<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 (tint ?? theme.colors.surfaceElevated).opacity(tint == nil ? 0.68 : 0.09),
-                in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+                in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous)
                     .strokeBorder(
                         (tint ?? theme.colors.border).opacity(tint == nil ? 0.52 : 0.24),
                         lineWidth: max(theme.metrics.borderWidth, 0.5)
@@ -64,9 +64,12 @@ struct MenuBarEpochRunway: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
-        .background(theme.colors.surfaceElevated.opacity(0.62), in: RoundedRectangle(cornerRadius: 11))
+        .background(
+            theme.colors.surfaceElevated.opacity(0.62),
+            in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
+        )
         .overlay {
-            RoundedRectangle(cornerRadius: 11)
+            RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
                 .strokeBorder(theme.colors.border.opacity(0.42), lineWidth: 0.6)
         }
         .accessibilityElement(children: .combine)
@@ -110,7 +113,10 @@ struct MenuBarEvidenceRow: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(tint)
                     .frame(width: 34, height: 34)
-                    .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        tint.opacity(0.11),
+                        in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
+                    )
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -150,7 +156,7 @@ struct MenuBarEvidenceRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(QuilPressFeedbackButtonStyle())
-        .quilHoverSurface(tint: tint, cornerRadius: 11)
+        .quilHoverSurface(tint: tint, cornerRadius: theme.metrics.controlCornerRadius)
         .accessibilityHint("Opens \(title) in the dashboard")
     }
 }
@@ -170,7 +176,10 @@ struct MenuBarResourceMeter: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 28, height: 28)
-                .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                .background(
+                    tint.opacity(0.10),
+                    in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
+                )
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -197,6 +206,8 @@ struct MenuBarResourceMeter: View {
 /// produced dot-sized meters. Geometry here fills the available row without
 /// introducing timers, layout animation, or a custom drawing loop.
 struct MenuBarProgressTrack: View {
+    @Environment(\.quilTheme) private var theme
+
     let value: Double
     let tint: Color
 
@@ -204,7 +215,7 @@ struct MenuBarProgressTrack: View {
         GeometryReader { geometry in
             let fraction = min(max(value, 0), 1)
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.10))
+                Capsule().fill(theme.colors.border.opacity(0.48))
                 if fraction > 0 {
                     Capsule()
                         .fill(tint)
@@ -272,15 +283,18 @@ struct MenuBarActionTile: View {
             }
             .foregroundStyle(tint ?? theme.colors.secondaryText)
             .frame(width: 46, height: 44)
-            .background(theme.colors.surfaceElevated.opacity(0.74), in: RoundedRectangle(cornerRadius: 10))
+            .background(
+                theme.colors.surfaceElevated.opacity(0.74),
+                in: RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius)
                     .strokeBorder(theme.colors.border.opacity(0.42), lineWidth: 0.6)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(QuilPressFeedbackButtonStyle(pressedOpacity: 0.86, pressedScale: 0.97))
-        .quilHoverSurface(tint: tint ?? theme.colors.accent, cornerRadius: 10)
+        .quilHoverSurface(tint: tint ?? theme.colors.accent, cornerRadius: theme.metrics.controlCornerRadius)
         .disabled(isDisabled)
         .help(title)
         .accessibilityLabel(title)

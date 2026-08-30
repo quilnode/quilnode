@@ -1,5 +1,5 @@
 #if DEBUG
-    import AppKit
+    import Foundation
     import SwiftUI
 
     #if canImport(QuilNodeCore)
@@ -76,17 +76,6 @@
                 onQuit: {}
             )
             .quilThemed(.quilNode)
-            .onAppear {
-                DispatchQueue.main.async {
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    guard let window = NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first else {
-                        return
-                    }
-                    window.setContentSize(NSSize(width: 420, height: 590))
-                    window.center()
-                    window.makeKeyAndOrderFront(nil)
-                }
-            }
         }
     }
 #endif

@@ -9,6 +9,13 @@ import Foundation
 /// Keeping protocol interpretation out of SwiftUI makes the compact panel
 /// easier to review, test, and evolve without duplicating dashboard copy.
 struct MenuBarPresentation {
+    struct Headline: Equatable {
+        let lead: String
+        let emphasis: String
+
+        var combined: String { lead + emphasis }
+    }
+
     let snapshot: NodeSnapshot
     let phase: NodeObservationPhase
 
@@ -57,11 +64,34 @@ struct MenuBarPresentation {
     }
 
     var participationTitle: String {
-        if phase == .checkingProcess { return "Checking Local Node" }
-        if phase == .loadingTelemetry {
-            return snapshot.isRunning ? "Node Detected" : "Node Offline"
+        participationHeadline.combined
+    }
+
+    /// Mirrors the dashboard hero's two-tone status grammar while keeping the
+    /// semantic split out of SwiftUI and independently testable.
+    var participationHeadline: Headline {
+        if phase == .checkingProcess {
+            return Headline(lead: "Checking ", emphasis: "local node")
         }
-        return participationEvidence.title
+        if phase == .loadingTelemetry {
+            return snapshot.isRunning
+                ? Headline(lead: "Node ", emphasis: "detected")
+                : Headline(lead: "Node ", emphasis: "offline")
+        }
+        switch participationEvidence.state {
+        case .offline:
+            return Headline(lead: "Node ", emphasis: "offline")
+        case .networkRecovery:
+            return Headline(lead: "Allocations ", emphasis: "waiting")
+        case .activeAllocations:
+            return Headline(lead: "Allocations ", emphasis: "active")
+        case .joining:
+            return Headline(lead: "Allocations ", emphasis: "joining")
+        case .allocated:
+            return Headline(lead: "Allocations ", emphasis: "waiting")
+        case .awaitingAllocation:
+            return Headline(lead: "Awaiting ", emphasis: "allocation")
+        }
     }
 
     var participationDetail: String {
