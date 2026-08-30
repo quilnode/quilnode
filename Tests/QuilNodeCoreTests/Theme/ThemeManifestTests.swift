@@ -55,9 +55,10 @@ final class ThemeManifestTests: XCTestCase {
                 borderOpacity: 0.3),
             typography: .init(scale: 1, displayDesign: "rounded", dataDesign: "monospaced"),
             effects: .init(
-                backdrop: "spotlight", decoration: "grid", decorationOpacity: 0.04, shadow: "soft", shadowOpacity: 0.12),
+                backdrop: "spotlight", decoration: "grid", decorationOpacity: 0.04, shadow: "soft", shadowOpacity: 0.12,
+                scene: "orbital", sceneOpacity: 0.6),
             composition: .init(
-                pageHeader: "output", sidebarBrand: "wordmark", hero: "terminal", metricStrip: "cells",
+                pageHeader: "output", sidebarBrand: "wordmark", hero: "orbital", metricStrip: "cells",
                 panel: "terminal", badge: "label", dataLabels: "terminal")
         )
         let themeVariants = QuilThemeVariantsDocument(
@@ -66,8 +67,8 @@ final class ThemeManifestTests: XCTestCase {
         )
         let themePack = QuilThemePack(
             metadata: themePackMetadata, colors: themePackPalette, style: themePackStyle, variants: themeVariants)
-        expect(themePack.validationIssues().isEmpty, "valid schema 4 theme family")
-        expect(QuilThemePackMetadata.currentSchemaVersion == 4, "theme pack schema version")
+        expect(themePack.validationIssues().isEmpty, "valid schema 5 theme family")
+        expect(QuilThemePackMetadata.currentSchemaVersion == 5, "theme pack schema version")
         var legacyThemePackMetadata = themePackMetadata
         legacyThemePackMetadata.schemaVersion = 2
         expect(legacyThemePackMetadata.validationIssues().isEmpty, "schema 2 theme pack compatibility")
@@ -92,6 +93,7 @@ final class ThemeManifestTests: XCTestCase {
         {
             expect(decoded == themePackStyle, "theme style round trip")
             expect(decoded.surfaces.borderStyle == "dashed", "theme surface border style round trip")
+            expect(decoded.effects.scene == "orbital", "theme scene round trip")
             expect(decoded.composition.pageHeader == "output", "theme composition recipe round trip")
         } else {
             XCTFail("theme style round trip")
@@ -108,7 +110,9 @@ final class ThemeManifestTests: XCTestCase {
         invalidThemePackStyle.spacing.sidebarCollapsedWidth = 20
         invalidThemePackStyle.surfaces.borderStyle = "scribbled"
         invalidThemePackStyle.composition.hero = "floating-cube"
-        expect(invalidThemePackStyle.validationIssues().count == 4, "invalid component theme tokens")
+        invalidThemePackStyle.effects.scene = "executable"
+        invalidThemePackStyle.effects.sceneOpacity = 2
+        expect(invalidThemePackStyle.validationIssues().count == 6, "invalid component theme tokens")
         let partialStyleJSON =
             #"{"controls":{"ringStyle":"solid"},"effects":{"decoration":"scanlines"},"composition":{"panel":"ruled"}}"#
             .data(using: .utf8)!

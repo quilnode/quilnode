@@ -7,7 +7,7 @@ import SwiftUI
 extension QuilTheme {
     static let builtIns: [QuilTheme] = {
         let themes = [
-            classic, classicLight, graphite, graphiteLight, tokyoNight, tokyoNightLight,
+            quilNode, quilNodeLight, classic, classicLight, graphite, graphiteLight, tokyoNight, tokyoNightLight,
             catppuccin, catppuccinLight, gruvbox, gruvboxLight, nord, nordLight,
             rosePine, rosePineDark, everforest, everforestLight, kanagawa, kanagawaLight,
             matteBlack, matteBlackLight,

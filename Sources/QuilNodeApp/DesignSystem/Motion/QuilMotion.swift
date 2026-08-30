@@ -36,6 +36,14 @@ struct QuilMotion {
     var liveValue: Animation? { curve(duration: 0.16) }
     var progress: Animation? { curve(duration: 0.22) }
 
+    /// Very slow compositor-only movement for decorative atmosphere. It never
+    /// changes layout and disappears entirely when Reduce Motion is enabled.
+    var atmosphere: Animation? {
+        guard !reduceMotion, scale > 0.01 else { return nil }
+        return .timingCurve(0.45, 0, 0.55, 1, duration: 5.2 * scale)
+            .repeatForever(autoreverses: true)
+    }
+
     /// Position-based reveal transitions caused the old double-slide/ghosting
     /// effect. Opacity preserves spatial context and remains acceptable when
     /// Reduce Motion is enabled because no view travels across the screen.

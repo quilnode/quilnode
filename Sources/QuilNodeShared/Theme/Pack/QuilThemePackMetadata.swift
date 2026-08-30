@@ -2,7 +2,7 @@ import Foundation
 
 /// Metadata stored in `<name>.quiltheme/theme.json`.
 public struct QuilThemePackMetadata: Codable, Hashable, Identifiable, Sendable {
-    public static let currentSchemaVersion = 4
+    public static let currentSchemaVersion = 5
     public static let supportedSchemaVersions = 2...currentSchemaVersion
 
     public var schemaVersion: Int

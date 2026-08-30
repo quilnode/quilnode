@@ -42,6 +42,7 @@ final class ThemeController: ObservableObject {
 
     private static let selectionKey = "selectedQuilThemeID"
     private static let appearanceKey = "selectedQuilThemeAppearance"
+    private static let defaultThemeMigrationKey = "didMigrateToQuilNodeDefaultThemeV1"
     private static let maximumThemeDocumentBytes = 512 * 1_024
     private static let maximumThemePackEntries = 32
     private let decoder = JSONDecoder()
@@ -52,7 +53,7 @@ final class ThemeController: ObservableObject {
     let themesDirectory: URL
 
     var selectedTheme: QuilTheme {
-        theme(inFamily: selectedThemeID) ?? .classic
+        theme(inFamily: selectedThemeID) ?? .quilNode
     }
 
     var displayedThemes: [QuilTheme] {
@@ -69,7 +70,7 @@ final class ThemeController: ObservableObject {
             ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         themesDirectory = support.appendingPathComponent("QuilNode", isDirectory: true).appendingPathComponent(
             "Themes", isDirectory: true)
-        selectedThemeID = UserDefaults.standard.string(forKey: Self.selectionKey) ?? QuilTheme.classic.id
+        selectedThemeID = Self.migratedInitialThemeSelection(defaults: .standard)
         appearancePreference =
             ThemeAppearancePreference(rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? "system")
             ?? .system
@@ -135,10 +136,26 @@ final class ThemeController: ObservableObject {
         themes = builtIns + custom
         loadIssues = issues
         if !themes.contains(where: { $0.familyID == selectedThemeID || $0.id == selectedThemeID }) {
-            selectedThemeID = QuilTheme.classic.familyID
+            selectedThemeID = QuilTheme.quilNode.familyID
         } else if let legacy = themes.first(where: { $0.id == selectedThemeID }) {
             selectedThemeID = legacy.familyID
         }
+    }
+
+    /// The pre-alpha build used `quil.classic` for what is now the distinct
+    /// QuilNode palette. Migrate that one historical default exactly once,
+    /// while preserving every explicit third-party or bundled theme choice.
+    static func migratedInitialThemeSelection(defaults: UserDefaults) -> String {
+        let stored = defaults.string(forKey: selectionKey)
+        guard !defaults.bool(forKey: defaultThemeMigrationKey) else {
+            return stored ?? QuilTheme.quilNode.familyID
+        }
+
+        defaults.set(true, forKey: defaultThemeMigrationKey)
+        guard stored == nil || stored == QuilTheme.classic.id || stored == "quil.classic.light" else {
+            return stored ?? QuilTheme.quilNode.familyID
+        }
+        return QuilTheme.quilNode.familyID
     }
 
     func supports(_ appearance: QuilThemeAppearance, inFamily familyID: String) -> Bool {
@@ -334,12 +351,12 @@ final class ThemeController: ObservableObject {
     }
 
     private func writeDocumentationIfNeeded(fileManager: FileManager) throws {
-        let readmeURL = themesDirectory.appendingPathComponent("README-v4.md")
+        let readmeURL = themesDirectory.appendingPathComponent("README-v5.md")
         if !fileManager.fileExists(atPath: readmeURL.path) {
             try Self.themeReadme.write(to: readmeURL, atomically: true, encoding: .utf8)
         }
 
-        let example = themesDirectory.appendingPathComponent("Example-v4.quiltheme.disabled", isDirectory: true)
+        let example = themesDirectory.appendingPathComponent("Example-v5.quiltheme.disabled", isDirectory: true)
         guard !fileManager.fileExists(atPath: example.path) else { return }
         try fileManager.createDirectory(at: example, withIntermediateDirectories: true)
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -363,10 +380,10 @@ final class ThemeController: ObservableObject {
                 borderOpacity: 0.28),
             effects: .init(
                 backdrop: "spotlight", decoration: "dots", decorationOpacity: 0.025, shadow: "soft",
-                shadowOpacity: 0.14, accentTreatment: "gradient"),
+                shadowOpacity: 0.14, accentTreatment: "gradient", scene: "orbital", sceneOpacity: 0.55),
             composition: .init(
-                pageHeader: "native", sidebarBrand: "tile", hero: "card", metricStrip: "band", panel: "card",
-                badge: "capsule", dataLabels: "human")
+                pageHeader: "native", sidebarBrand: "tile", hero: "orbital", metricStrip: "ruled", panel: "card",
+                badge: "label", dataLabels: "human")
         )
         let variants = QuilThemeVariantsDocument(
             light: .init(
@@ -382,9 +399,9 @@ final class ThemeController: ObservableObject {
     }
 
     private static let themeReadme = """
-        # QuilNode theme families (schema 4)
+        # QuilNode theme families (schema 5)
 
-        Duplicate `Example-v4.quiltheme.disabled`, rename it to end in `.quiltheme`, and edit:
+        Duplicate `Example-v5.quiltheme.disabled`, rename it to end in `.quiltheme`, and edit:
 
         - `theme.json`: identity, inheritance, appearance, author, summary, and tags
         - `colors.json`: canonical semantic palette
@@ -393,7 +410,8 @@ final class ThemeController: ObservableObject {
         - `preview.png`: optional artwork for future galleries
 
         QuilNode detects valid changes automatically. Packs are deliberately data-only: scripts,
-        executable hooks, and symbolic links are never loaded. Schema 2 and 3 directory packs and
-        legacy `.quiltheme.json` files remain supported.
+        executable hooks, and symbolic links are never loaded. Schema 2, 3, and 4 directory packs and
+        legacy `.quiltheme.json` files remain supported. Schema 5 adds the bounded orbital scene and hero recipe;
+        older packs inherit their base theme's scene without requiring migration.
         """
 }

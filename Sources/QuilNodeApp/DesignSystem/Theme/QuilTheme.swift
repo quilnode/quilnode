@@ -161,6 +161,7 @@ struct QuilTheme: Identifiable {
         enum SurfaceBorderStyle: String { case solid, dashed }
         enum BackdropStyle: String { case solid, gradient, spotlight }
         enum DecorationStyle: String { case none, grid, dots, scanlines }
+        enum SceneStyle: String { case none, orbital }
         enum ShadowStyle: String { case none, soft, glow }
         enum AccentTreatment: String { case solid, gradient }
 
@@ -181,6 +182,8 @@ struct QuilTheme: Identifiable {
         var borderOpacity: Double
         var heroAccentOpacity: Double
         var decorationOpacity: Double = 0
+        var sceneStyle: SceneStyle = .orbital
+        var sceneOpacity: Double = 0.58
         var shadowOpacity: Double = 0.14
         var motionScale: Double = 1
 
@@ -208,6 +211,8 @@ struct QuilTheme: Identifiable {
             copy.borderOpacity = style.surfaces.borderOpacity ?? borderOpacity
             copy.heroAccentOpacity = style.surfaces.heroAccentOpacity ?? heroAccentOpacity
             copy.decorationOpacity = style.effects.decorationOpacity ?? decorationOpacity
+            copy.sceneStyle = style.effects.scene.flatMap(SceneStyle.init(rawValue:)) ?? sceneStyle
+            copy.sceneOpacity = style.effects.sceneOpacity ?? sceneOpacity
             copy.shadowOpacity = style.effects.shadowOpacity ?? shadowOpacity
             copy.motionScale = style.effects.motionScale ?? motionScale
             return copy
@@ -217,7 +222,7 @@ struct QuilTheme: Identifiable {
     struct Recipes {
         enum PageHeader: String { case native, editorial, output }
         enum SidebarBrand: String { case tile, wordmark, index }
-        enum Hero: String { case card, plate, terminal }
+        enum Hero: String { case card, orbital, topology, plate, terminal }
         enum MetricStrip: String { case band, ruled, cells }
         enum Panel: String { case card, ruled, terminal }
         enum Badge: String { case capsule, label, stamp }

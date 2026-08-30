@@ -20,7 +20,7 @@ struct ThemedWindowChrome<Actions: View>: View {
                 .frame(width: sidebarWidth)
 
             HStack(spacing: 18) {
-                pageIdentity
+                brandIdentity
                     .layoutPriority(1)
 
                 Spacer(minLength: 16)
@@ -32,9 +32,40 @@ struct ThemedWindowChrome<Actions: View>: View {
             .padding(.trailing, theme.metrics.panelPadding + 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(height: 44)
-        .background(theme.colors.canvas)
+        .frame(height: 56)
+        .background(theme.colors.canvas.opacity(0.96))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(theme.colors.border.opacity(0.34))
+                .frame(height: max(theme.metrics.borderWidth, 0.5))
+                .allowsHitTesting(false)
+        }
         .background(WindowChromeConfigurator())
+    }
+
+    private var brandIdentity: some View {
+        HStack(spacing: 9) {
+            ApplicationBrandMark(size: 22, theme: theme)
+            Text("QuilNode")
+                .font(
+                    .system(
+                        size: 14 * theme.typography.scale,
+                        weight: .semibold,
+                        design: theme.typography.displayDesign
+                    )
+                )
+            if theme.recipes.hero == .topology || theme.recipes.hero == .orbital {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(theme.colors.secondaryText)
+            } else {
+                Text("/")
+                    .foregroundStyle(theme.colors.border)
+                pageIdentity
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("QuilNode, \(title)")
     }
 
     @ViewBuilder
@@ -42,16 +73,13 @@ struct ThemedWindowChrome<Actions: View>: View {
         switch theme.recipes.pageHeader {
         case .native:
             HStack(spacing: 10) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.colors.accent)
-                    .frame(width: 20, height: 28)
-
                 Text(title)
                     .font(
                         .system(
-                            size: 14 * theme.typography.scale, weight: .semibold, design: theme.typography.displayDesign
-                        ))
+                            size: 12 * theme.typography.scale, weight: .medium, design: theme.typography.displayDesign
+                        )
+                    )
+                    .foregroundStyle(theme.colors.secondaryText)
             }
 
         case .editorial:

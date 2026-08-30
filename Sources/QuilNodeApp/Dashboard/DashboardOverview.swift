@@ -8,17 +8,22 @@ import SwiftUI
 
 extension DashboardView {
     var overviewSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             overviewHero
             if chainProgress.state == .archiveRecovery {
                 archiveRecoveryCard
+                    .padding(.horizontal, 20)
+                    .padding(.top, 14)
             }
             if networkReadiness.assessment.state == .reviewRouter
                 || networkReadiness.assessment.state == .localConfigurationIssue
             {
                 networkAttentionCard
+                    .padding(.horizontal, 20)
+                    .padding(.top, 14)
             }
             overviewMetricStrip
+            protocolAllocationsSection
             if let selection = overviewMilestoneSelection {
                 ProtocolMilestoneOverviewSpotlight(
                     selection: selection,
@@ -32,31 +37,11 @@ extension DashboardView {
                         }
                     }
                 )
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
                 .transition(motion.revealTransition)
             }
-            HStack(alignment: .top, spacing: 14) {
-                overviewAllocationPanel
-                overviewRuntimePanel
-            }
-            .redacted(reason: nodeObservation.hasLiveTelemetry ? [] : .placeholder)
-            .allowsHitTesting(nodeObservation.hasLiveTelemetry)
-            .accessibilityHidden(!nodeObservation.hasLiveTelemetry)
-            .overlay {
-                if !nodeObservation.hasLiveTelemetry {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Reading participation and runtime telemetry")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(theme.colors.secondaryText)
-                    }
-                    .padding(.horizontal, 12)
-                    .frame(height: 32)
-                    .background(.regularMaterial, in: Capsule())
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Reading participation and runtime telemetry")
-                }
-            }
-            lifecycleSection
+            protocolRewardEvidenceSection
         }
     }
 

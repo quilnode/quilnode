@@ -26,6 +26,12 @@ struct DashboardSidebar: View {
         NodeObservationPresentation(phase: observationPhase, snapshot: snapshot)
     }
 
+    private var railAccent: Color {
+        theme.recipes.hero == .topology || theme.recipes.hero == .orbital
+            ? theme.colors.info
+            : theme.colors.accent
+    }
+
     /// A single invariant for the rail: brand, navigation glyphs, status, and
     /// the collapse control all share this horizontal axis in either state.
     private var railInset: CGFloat {
@@ -175,7 +181,7 @@ struct DashboardSidebar: View {
                     .tracking(1.2)
                 Text(DashboardCopy.Brand.localConsole)
                     .font(.system(size: 8, weight: .medium, design: .monospaced))
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(railAccent)
             }
         case .index:
             VStack(alignment: .leading, spacing: 1) {
@@ -208,7 +214,7 @@ struct DashboardSidebar: View {
                     }
                     .foregroundStyle(
                         destination == item
-                            ? theme.colors.accent
+                            ? railAccent
                             : theme.colors.primaryText.opacity(hoveredDestination == item ? 0.94 : 0.76)
                     )
                     .padding(.horizontal, isCollapsed ? 0 : 11)
@@ -255,7 +261,7 @@ struct DashboardSidebar: View {
                     .fill(theme.colors.selection.opacity(theme.components.selectionFillAlpha))
                     .overlay(
                         shape.strokeBorder(
-                            theme.colors.accent.opacity(0.56), lineWidth: theme.components.selectedBorderWidth))
+                            railAccent.opacity(0.56), lineWidth: theme.components.selectedBorderWidth))
             case .icon:
                 HStack {
                     RoundedRectangle(cornerRadius: theme.metrics.navigationCornerRadius, style: .continuous)
@@ -263,7 +269,7 @@ struct DashboardSidebar: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: theme.metrics.navigationCornerRadius, style: .continuous)
                                 .strokeBorder(
-                                    theme.colors.accent.opacity(0.58), lineWidth: theme.components.selectedBorderWidth)
+                                    railAccent.opacity(0.58), lineWidth: theme.components.selectedBorderWidth)
                         )
                         .frame(width: 40)
                     Spacer(minLength: 0)
@@ -354,7 +360,7 @@ struct DashboardSidebar: View {
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.colors.accent)
+                        .foregroundStyle(railAccent)
                         .opacity(isToggleHovered ? 1 : 0)
                         .scaleEffect(isToggleHovered ? 1 : 0.72)
                 } else {
@@ -367,7 +373,7 @@ struct DashboardSidebar: View {
             .contentShape(Rectangle())
             .background(
                 isCollapsed && isToggleHovered
-                    ? theme.colors.accent.opacity(0.12)
+                    ? railAccent.opacity(0.12)
                     : theme.colors.surfaceElevated,
                 in: RoundedRectangle(cornerRadius: theme.metrics.navigationCornerRadius, style: .continuous)
             )
@@ -435,14 +441,5 @@ struct DashboardSidebar: View {
 
     private var rewardLabel: String {
         snapshot.lastRewardCreditFrame == nil ? "rewards pending" : "rewards credited"
-    }
-}
-
-/// Padding must precede the outer flexible frame. Reversing these modifiers
-/// makes the section wider than the sidebar and visually shifts the rail.
-private extension View {
-    func sidebarSection(inset: CGFloat) -> some View {
-        padding(.horizontal, inset)
-            .frame(maxWidth: .infinity)
     }
 }

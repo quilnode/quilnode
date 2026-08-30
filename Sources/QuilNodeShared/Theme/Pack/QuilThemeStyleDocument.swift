@@ -146,6 +146,8 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
         public var backdrop: String?
         public var decoration: String?
         public var decorationOpacity: Double?
+        public var scene: String?
+        public var sceneOpacity: Double?
         public var shadow: String?
         public var shadowOpacity: Double?
         public var accentTreatment: String?
@@ -158,11 +160,15 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
             shadow: String? = nil,
             shadowOpacity: Double? = nil,
             accentTreatment: String? = nil,
-            motionScale: Double? = nil
+            motionScale: Double? = nil,
+            scene: String? = nil,
+            sceneOpacity: Double? = nil
         ) {
             self.backdrop = backdrop
             self.decoration = decoration
             self.decorationOpacity = decorationOpacity
+            self.scene = scene
+            self.sceneOpacity = sceneOpacity
             self.shadow = shadow
             self.shadowOpacity = shadowOpacity
             self.accentTreatment = accentTreatment
@@ -277,6 +283,12 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
         if let value = effects.decorationOpacity, !(0...0.25).contains(value) {
             issues.append("style.effects.decorationOpacity must be between 0 and 0.25.")
         }
+        if let value = effects.scene, !["none", "orbital"].contains(value) {
+            issues.append("style.effects.scene must be none or orbital.")
+        }
+        if let value = effects.sceneOpacity, !(0...1).contains(value) {
+            issues.append("style.effects.sceneOpacity must be between 0 and 1.")
+        }
         if let value = effects.shadow, !["none", "soft", "glow"].contains(value) {
             issues.append("style.effects.shadow must be none, soft, or glow.")
         }
@@ -295,8 +307,8 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
         if let value = composition.sidebarBrand, !["tile", "wordmark", "index"].contains(value) {
             issues.append("style.composition.sidebarBrand must be tile, wordmark, or index.")
         }
-        if let value = composition.hero, !["card", "plate", "terminal"].contains(value) {
-            issues.append("style.composition.hero must be card, plate, or terminal.")
+        if let value = composition.hero, !["card", "orbital", "topology", "plate", "terminal"].contains(value) {
+            issues.append("style.composition.hero must be card, orbital, topology, plate, or terminal.")
         }
         if let value = composition.metricStrip, !["band", "ruled", "cells"].contains(value) {
             issues.append("style.composition.metricStrip must be band, ruled, or cells.")

@@ -5,7 +5,7 @@ import SwiftUI
 #endif
 
 private struct QuilThemeEnvironmentKey: EnvironmentKey {
-    static let defaultValue = QuilTheme.classic
+    static let defaultValue = QuilTheme.quilNode
 }
 
 extension EnvironmentValues {

@@ -66,17 +66,24 @@ struct DashboardView: View {
                     onSelectDestination: handleDestinationSelection
                 )
                 Divider()
-                ZStack {
-                    ThemeCanvasBackground()
-                        .ignoresSafeArea()
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: theme.metrics.panelGap * theme.metrics.spacingScale) {
-                            destinationContent
+                VStack(spacing: 0) {
+                    ZStack {
+                        ThemeCanvasBackground()
+                            .ignoresSafeArea()
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: theme.metrics.panelGap * theme.metrics.spacingScale) {
+                                destinationContent
+                            }
+                            .padding(.horizontal, destination == .overview ? 0 : theme.metrics.panelPadding + 8)
+                            .padding(.top, destination == .overview ? 0 : theme.metrics.panelPadding + 4)
+                            .padding(.bottom, destination == .overview ? 0 : theme.metrics.panelPadding + 12)
                         }
-                        .padding(.horizontal, theme.metrics.panelPadding + 8)
-                        .padding(.top, theme.metrics.panelPadding + 4)
-                        .padding(.bottom, theme.metrics.panelPadding + 12)
                     }
+                    DashboardStatusFooter(
+                        snapshot: monitor.snapshot,
+                        observationPhase: monitor.observationPhase,
+                        onOpenDiagnostics: { destination = .diagnostics }
+                    )
                 }
             }
         }
