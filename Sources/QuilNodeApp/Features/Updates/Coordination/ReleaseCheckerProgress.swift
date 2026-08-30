@@ -168,7 +168,12 @@ extension ReleaseChecker {
     ) {
         operation = .idle
         activeAutomaticCandidateID = nil
-        stagedUpdate = nil
+        let ownsNodeOperationJournal =
+            operationJournal?.channel == channel
+            && (operationJournal?.status == .running || operationJournal?.status == .staged)
+        if ownsNodeOperationJournal {
+            stagedUpdate = nil
+        }
         let detail =
             "Preparation stopped before activation. The installed node, identity, configuration, and stores were not changed. A later retry reuses compatible Cargo artifacts."
         if var current = progress {
@@ -181,7 +186,9 @@ extension ReleaseChecker {
         }
         lastError = nil
         lastMessage = detail
-        finishOperationJournal(status: .interrupted, detail: detail)
+        if ownsNodeOperationJournal {
+            finishOperationJournal(status: .interrupted, detail: detail)
+        }
         appendEvent(
             channel: channel,
             version: version,
