@@ -63,4 +63,27 @@ final class NodeActivityTests: XCTestCase {
         expect(activityEvents.contains { $0.kind == .rewardCredited }, "activity reward event")
 
     }
+
+    func testRecoveryEvidenceFlappingDoesNotFloodJournal() {
+        let start = Date(timeIntervalSince1970: 2_000_000_000)
+        let states: [ChainProgressState] = [
+            .advancing, .archiveRecovery, .advancing, .archiveRecovery, .advancing, .archiveRecovery,
+        ]
+        let samples = states.enumerated().map { index, state in
+            NodeActivitySample(
+                timestamp: start.addingTimeInterval(Double(index * 30)),
+                frame: 100,
+                peers: 20,
+                pendingJoins: 0,
+                activeShards: 0,
+                totalAllocations: 0,
+                isRunning: true,
+                chainProgressState: state
+            )
+        }
+
+        let events = NodeActivityAnalyzer.events(from: samples)
+        XCTAssertEqual(events.filter { $0.kind == .archiveRecoveryStarted }.count, 1)
+        XCTAssertEqual(events.filter { $0.kind == .archiveRecoveryEnded }.count, 1)
+    }
 }

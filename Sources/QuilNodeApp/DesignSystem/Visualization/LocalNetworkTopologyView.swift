@@ -14,6 +14,7 @@ struct LocalNetworkTopologyView: View {
 
     let snapshot: NodeSnapshot
     let hasLiveTelemetry: Bool
+    var compact = false
 
     private var hidesSensitiveValues: Bool {
         redactionReasons.contains(.privacy)
@@ -28,13 +29,13 @@ struct LocalNetworkTopologyView: View {
             topologyCanvas
 
             VStack(spacing: 4) {
-                ApplicationBrandMark(size: 50, theme: theme)
+                ApplicationBrandMark(size: compact ? 28 : 50, theme: theme)
                 Text(hasLiveTelemetry && snapshot.isRunning ? "LOCAL NODE" : "READING NODE")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .tracking(1.2)
+                    .font(.system(size: compact ? 6 : 8, weight: .bold, design: .monospaced))
+                    .tracking(compact ? 0.7 : 1.2)
                     .foregroundStyle(theme.colors.primaryText)
             }
-            .padding(10)
+            .padding(compact ? 6 : 10)
             .background(theme.colors.canvas.opacity(0.88), in: Circle())
             .overlay {
                 Circle()
@@ -44,21 +45,23 @@ struct LocalNetworkTopologyView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("LOCAL TOPOLOGY")
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .font(.system(size: compact ? 7 : 8.5, weight: .bold, design: .monospaced))
                     .tracking(1.35)
                     .foregroundStyle(theme.colors.info)
-                Text("Observed relationships · not a global map")
-                    .font(.system(size: 9.5))
-                    .foregroundStyle(theme.colors.secondaryText)
+                if !compact {
+                    Text("Observed relationships · not a global map")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(theme.colors.secondaryText)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.top, 18)
-            .padding(.leading, 16)
+            .padding(.top, compact ? 9 : 18)
+            .padding(.leading, compact ? 10 : 16)
 
             topologyLegend
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.horizontal, 12)
-                .padding(.bottom, 15)
+                .padding(.bottom, compact ? 8 : 15)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)

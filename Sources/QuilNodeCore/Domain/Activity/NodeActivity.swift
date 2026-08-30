@@ -63,7 +63,7 @@ public enum NodeActivityCategory: String, CaseIterable, Codable, Sendable {
     case identity
 }
 
-public enum NodeActivityEventKind: String, Codable, Sendable {
+public enum NodeActivityEventKind: String, Codable, Hashable, Sendable {
     case nodeStarted
     case nodeStopped
     case versionChanged
@@ -332,7 +332,34 @@ public enum NodeActivityAnalyzer {
             }
         }
 
-        return output.sorted { $0.timestamp > $1.timestamp }
+        return coalesced(output).sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// Recovery and transport evidence may flicker at the collector boundary
+    /// while the underlying network condition is unchanged. Preserve the first
+    /// transition in each short window instead of flooding the operator journal
+    /// with alternating observations that imply more incidents than occurred.
+    private static func coalesced(_ events: [NodeActivityEvent]) -> [NodeActivityEvent] {
+        let minimumSpacingByKind: [NodeActivityEventKind: TimeInterval] = [
+            .archiveRecoveryStarted: 10 * 60,
+            .archiveRecoveryEnded: 10 * 60,
+            .peerMeshChanged: 5 * 60,
+            .routerDropsIncreased: 5 * 60,
+        ]
+        var lastTimestampByKind: [NodeActivityEventKind: Date] = [:]
+        var result: [NodeActivityEvent] = []
+
+        for event in events.sorted(by: { $0.timestamp < $1.timestamp }) {
+            if let minimumSpacing = minimumSpacingByKind[event.kind],
+                let previousTimestamp = lastTimestampByKind[event.kind],
+                event.timestamp.timeIntervalSince(previousTimestamp) < minimumSpacing
+            {
+                continue
+            }
+            result.append(event)
+            lastTimestampByKind[event.kind] = event.timestamp
+        }
+        return result
     }
 
     private static func appendCountChange(
