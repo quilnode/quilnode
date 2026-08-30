@@ -4,6 +4,16 @@ import XCTest
 @testable import QuilNodeCore
 
 final class UpdateCenterPresentationTests: XCTestCase {
+    func testAutomaticPoliciesMapToNarrowPrivilegedCapabilities() {
+        XCTAssertEqual(NodeUpdatePolicy.manual.privilegedAutomaticPolicy, .signedStable)
+        XCTAssertEqual(NodeUpdatePolicy.signedStable.privilegedAutomaticPolicy, .signedStable)
+        XCTAssertEqual(
+            NodeUpdatePolicy.approvedDevelopment.privilegedAutomaticPolicy,
+            .approvedDevelopment
+        )
+        XCTAssertEqual(NodeUpdatePolicy.bleedingEdge.privilegedAutomaticPolicy, .bleedingEdge)
+    }
+
     func testChannelsPreserveAssuranceOrder() {
         let channels = UpdateChannelPresentation.make(
             snapshot: makeSnapshot(),

@@ -55,6 +55,7 @@ final class ReleaseChecker: ObservableObject {
     @Published var nextProtocolCheck: Date?
     @Published var policy: NodeUpdatePolicy
     @Published var stagedUpdate: StagedNodeUpdate?
+    @Published var automaticAuthorizationState: AutomaticUpdateAuthorizationState = .inactive
 
     let defaults = UserDefaults.standard
     let checkInterval = UpdateDiscoveryPolicy.fullReconciliationInterval
@@ -70,6 +71,8 @@ final class ReleaseChecker: ObservableObject {
     var checkTask: Task<Void, Never>?
     var checkGeneration = UUID()
     var operationTask: Task<Void, Never>?
+    var policySynchronizationTask: Task<Void, Never>?
+    var policySynchronizationGeneration = UUID()
     var operationJournal: UpdateOperationJournal?
     var shouldCheckAfterOperation = false
     var automaticCheckPending = false
@@ -89,6 +92,9 @@ final class ReleaseChecker: ObservableObject {
         policy =
             defaults.string(forKey: "node-update-policy")
             .flatMap(NodeUpdatePolicy.init(rawValue:)) ?? .manual
+        if policy != .manual {
+            automaticAuthorizationState = .synchronizing
+        }
         loadHistory()
         loadProtocolMilestones()
         recoverOperationJournal()
@@ -104,6 +110,7 @@ final class ReleaseChecker: ObservableObject {
         protocolRefreshTask?.cancel()
         checkTask?.cancel()
         operationTask?.cancel()
+        policySynchronizationTask?.cancel()
     }
 
     var isChecking: Bool { checkTask != nil || state == .checking }
@@ -125,24 +132,21 @@ final class ReleaseChecker: ObservableObject {
                 lastCheckedAt: lastCheck,
                 freshnessInterval: checkInterval
             )
-        rescheduleAutomaticChecks(runImmediately: automaticCheckIsDue)
         scheduleProtocolChecks()
+        synchronizeAutomaticUpdateAuthorization(runImmediately: automaticCheckIsDue)
     }
 
     func setPolicy(_ newPolicy: NodeUpdatePolicy, updateNow: Bool = false) {
         policy = newPolicy
         defaults.set(newPolicy.rawValue, forKey: "node-update-policy")
-        if newPolicy == .manual {
-            rescheduleAutomaticChecks(runImmediately: false)
-            return
-        }
+        rescheduleAutomaticChecks(runImmediately: false)
 
-        // "For later" establishes the six-hour schedule from this decision.
-        // "Update now" is explicit permission to check and install immediately.
-        // Keeping this timestamp separate from read-only release refreshes means
-        // opening Update Center can never postpone or trigger automation.
-        defaults.set(Date(), forKey: automaticAttemptKey)
-        rescheduleAutomaticChecks(runImmediately: updateNow)
+        if newPolicy != .manual {
+            // "For later" establishes the six-hour schedule from this decision.
+            // "Update now" is explicit permission to check and install immediately.
+            defaults.set(Date(), forKey: automaticAttemptKey)
+        }
+        synchronizeAutomaticUpdateAuthorization(runImmediately: updateNow)
     }
 
     func dismissOperationResult() {

@@ -150,11 +150,20 @@ if ! rg -q 'authorizationRequired\(' Sources/QuilNodeHelperKit ||
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'currentServiceBuild = 112' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+if ! rg -q 'currentServiceBuild = 113' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'minimumSupportedServiceBuild = 112' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'PrivilegedServiceProtocol\.minimumSupportedServiceBuild' Sources/QuilNodeCore/Infrastructure/IPC/PrivilegedServiceClient.swift ||
    [[ "$(rg -o 'serviceBuild: verifierReady \? PrivilegedServiceProtocol\.currentServiceBuild : nil' Sources/QuilNodeHelperKit | wc -l | tr -d ' ')" -ne 1 ]]; then
     echo "FAIL: privileged service compatibility floor is inconsistent" >&2
+    failures=$((failures + 1))
+fi
+
+if ! rg -q 'nodeUpdatePolicyURL' Sources/QuilNodeHelperKit ||
+   ! rg -q 'requiredOwner: 0' Sources/QuilNodeHelperKit/Node/AutomaticNodeUpdateAuthorization.swift ||
+   ! rg -q 'mode: 0o600' Sources/QuilNodeHelperKit/Node/AutomaticNodeUpdateAuthorization.swift ||
+   ! rg -q 'permitsPasswordlessActivation' Sources/QuilNodeShared/Release/AutomaticNodeUpdatePolicy.swift ||
+   ! rg -q 'allowsInteractiveAuthorization: false' Sources/QuilNodeApp/Features/Updates/Coordination/ReleaseCheckerInstallation.swift; then
+    echo "FAIL: channel-scoped automatic update authorization is incomplete" >&2
     failures=$((failures + 1))
 fi
 

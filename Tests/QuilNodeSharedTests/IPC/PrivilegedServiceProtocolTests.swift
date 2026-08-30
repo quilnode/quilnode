@@ -8,7 +8,8 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
             let request = PrivilegedServiceRequest(
                 action: action,
                 manifestPath: "/private/tmp/candidate.json",
-                operationID: "operation-id"
+                operationID: "operation-id",
+                nodeUpdatePolicy: .approvedDevelopment
             )
             let encoded = try JSONEncoder().encode(request)
             let decoded = try JSONDecoder().decode(
@@ -20,6 +21,7 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
             XCTAssertEqual(decoded.action, action)
             XCTAssertEqual(decoded.manifestPath, request.manifestPath)
             XCTAssertEqual(decoded.operationID, request.operationID)
+            XCTAssertEqual(decoded.nodeUpdatePolicy, .approvedDevelopment)
             XCTAssertLessThan(encoded.count, PrivilegedServiceProtocol.maximumRequestBytes)
         }
     }
@@ -32,7 +34,8 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
             operationID: "operation-id",
             operationState: "failed",
             serviceBuild: PrivilegedServiceProtocol.currentServiceBuild,
-            authorizationRequired: true
+            authorizationRequired: true,
+            nodeUpdatePolicy: .signedStable
         )
 
         let encoded = try JSONEncoder().encode(response)
@@ -51,6 +54,30 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
             PrivilegedServiceProtocol.currentServiceBuild
         )
         XCTAssertEqual(decoded.authorizationRequired, true)
+        XCTAssertEqual(decoded.nodeUpdatePolicy, .signedStable)
         XCTAssertLessThan(encoded.count, PrivilegedServiceProtocol.maximumResponseBytes)
+    }
+
+    func testAutomaticUpdatePoliciesPermitOnlyTheirExplicitChannels() {
+        XCTAssertTrue(AutomaticNodeUpdatePolicy.signedStable.permitsPasswordlessActivation(channel: "signed"))
+        XCTAssertFalse(
+            AutomaticNodeUpdatePolicy.signedStable.permitsPasswordlessActivation(channel: "approved-dev")
+        )
+
+        XCTAssertTrue(
+            AutomaticNodeUpdatePolicy.approvedDevelopment.permitsPasswordlessActivation(
+                channel: "approved-dev"
+            )
+        )
+        XCTAssertFalse(
+            AutomaticNodeUpdatePolicy.approvedDevelopment.permitsPasswordlessActivation(channel: "raw-dev")
+        )
+
+        XCTAssertTrue(
+            AutomaticNodeUpdatePolicy.bleedingEdge.permitsPasswordlessActivation(channel: "raw-dev")
+        )
+        XCTAssertFalse(
+            AutomaticNodeUpdatePolicy.bleedingEdge.permitsPasswordlessActivation(channel: "source")
+        )
     }
 }

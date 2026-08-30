@@ -34,6 +34,9 @@ public enum QuilNodeHelper {
     static let firewallRecordURL = URL(
         fileURLWithPath: "/Library/Application Support/QuilNodeService/firewall.json"
     )
+    static let nodeUpdatePolicyURL = URL(
+        fileURLWithPath: "/Library/Application Support/QuilNodeService/node-update-policy.json"
+    )
     static let operatorSocket = "/var/run/quilnode-operator.sock"
     static let permanentAppIdentifier = "com.quilnode.app"
     static let legacyAppIdentifier = "local.quilnode.operator"

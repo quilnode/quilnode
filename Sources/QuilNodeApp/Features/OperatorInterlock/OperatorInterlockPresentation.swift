@@ -67,7 +67,8 @@ enum OperatorInterlockPresentation {
                 .init(
                     id: "policy",
                     title: "Automatic policy",
-                    detail: "The six-hour schedule follows only \(channel.scopeDetail).",
+                    detail:
+                        "The schedule and root-owned activation permission follow only \(channel.scopeDetail).",
                     symbol: "clock.badge.checkmark"
                 ),
                 .init(
@@ -357,68 +358,6 @@ enum OperatorInterlockPresentation {
         )
     }
 
-    private struct UpdateChannelCopy {
-        let outcome: String
-        let symbol: String
-        let tone: OperatorInterlockTone
-        let observeDetail: String
-        let verifyDetail: String
-        let scopeDetail: String
-        let verification: [String]
-        let trustNote: String
-    }
-
-    private static func updateChannel(for policy: NodeUpdatePolicy) -> UpdateChannelCopy {
-        switch policy {
-        case .manual:
-            return .init(
-                outcome: "Keep all node runtime updates under explicit operator control.",
-                symbol: "hand.raised.fill",
-                tone: .accent,
-                observeDetail: "No automatic channel is polled.",
-                verifyDetail: "Every future install stays manual.",
-                scopeDetail: "explicit operator requests",
-                verification: ["Automatic schedule disabled", "Current runtime retained"],
-                trustNote: "This setting changes scheduling only; it never changes node data."
-            )
-        case .signedStable:
-            return .init(
-                outcome: "Follow only strictly newer official releases that pass digest and Ed448 quorum verification.",
-                symbol: "checkmark.seal.fill",
-                tone: .success,
-                observeDetail: "Read the official signed release channel.",
-                verifyDetail: "Require SHA3-256 and the seven-signature quorum.",
-                scopeDetail: "strictly newer signed releases",
-                verification: ["Release is newer", "Digest matches", "Signature quorum passes", "Rollback retained"],
-                trustNote: "A signed stable policy never automatically downgrades the installed .25 runtime."
-            )
-        case .approvedDevelopment:
-            return .init(
-                outcome: "Follow only the exact commit approved by the subpatch marker on the highest version branch.",
-                symbol: "checkmark.shield.fill",
-                tone: .information,
-                observeDetail: "Track the highest official version branch.",
-                verifyDetail: "Bind the root subpatch marker to one exact commit.",
-                scopeDetail: "marker-approved development commits",
-                verification: [
-                    "Highest version branch", "Marker commit bound", "Source build verified", "Rollback retained",
-                ],
-                trustNote: "Later unmarked commits are excluded even when they exist on the same branch."
-            )
-        case .bleedingEdge:
-            return .init(
-                outcome:
-                    "Follow the newest raw commit across official branches, including potentially unfinished work.",
-                symbol: "exclamationmark.triangle.fill",
-                tone: .warning,
-                observeDetail: "Track the newest official repository commit.",
-                verifyDetail: "Build the exact commit locally; no approval marker is required.",
-                scopeDetail: "the newest raw official commit",
-                verification: ["Commit resolved", "Local build succeeds", "Artifact staged", "Rollback retained"],
-                trustNote: "Raw development is intentionally high risk and may fail to build or run."
-            )
-        }
-    }
 }
 
 private extension OperatorInterlockModel {

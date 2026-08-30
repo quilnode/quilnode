@@ -17,10 +17,10 @@ extension QuilNodeHelper {
         return Int32(output[range])
     }
 
-    /// Source candidates are intentionally outside the passwordless trust
-    /// boundary. An exact commit is useful provenance, but it is not equivalent
-    /// to Quilibrium's release-signature quorum and must therefore retain an
-    /// explicit macOS user-presence gate.
+    /// Source candidates remain outside the default passwordless boundary.
+    /// The authenticated app may persist one explicit, root-owned automatic
+    /// channel policy; every other source channel still requires fresh macOS
+    /// user presence.
     static func nodeActivationRequiresAuthorization(
         manifestPath: String
     ) throws -> Bool {
@@ -32,7 +32,7 @@ extension QuilNodeHelper {
             ActivationManifest.self,
             from: readSecureRegularFile(manifestURL, maximumBytes: 64_000)
         )
-        return manifest.channel != "signed"
+        return !automaticNodeUpdatePolicyPermits(channel: manifest.channel)
     }
 
     static func qclientInstallRequiresAuthorization(

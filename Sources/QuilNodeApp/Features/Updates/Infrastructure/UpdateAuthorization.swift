@@ -11,16 +11,21 @@ import Foundation
 #endif
 
 extension ReleaseChecker {
-    nonisolated static func runAuthorizedActivation(manifestURL: URL) -> (output: String, exitCode: Int32) {
+    nonisolated static func runAuthorizedActivation(
+        manifestURL: URL,
+        allowsInteractiveAuthorization: Bool = true
+    ) -> (output: String, exitCode: Int32) {
         runAuthorizedHelper(
             arguments: ["activate", manifestURL.path],
-            durableOperation: true
+            durableOperation: true,
+            allowsInteractiveAuthorization: allowsInteractiveAuthorization
         )
     }
 
     nonisolated static func runAuthorizedHelper(
         arguments: [String],
-        durableOperation: Bool = false
+        durableOperation: Bool = false,
+        allowsInteractiveAuthorization: Bool = true
     ) -> (output: String, exitCode: Int32) {
         if let actionName = arguments.first,
             let action = privilegedServiceAction(named: actionName)
@@ -39,6 +44,9 @@ extension ReleaseChecker {
                     timeout: 120
                 )
             if serviceResult.exitCode != 69 && serviceResult.exitCode != 77 {
+                return serviceResult
+            }
+            if !allowsInteractiveAuthorization {
                 return serviceResult
             }
         }

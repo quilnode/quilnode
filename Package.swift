@@ -13,7 +13,7 @@ let package = Package(
         .library(name: "QuilNodeHelperKit", targets: ["QuilNodeHelperKit"]),
         .executable(name: "QuilNode", targets: ["QuilNodeApp"]),
         .executable(name: "QuilNodeHelper", targets: ["QuilNodeHelperCLI"]),
-        .executable(name: "quilnode-probe", targets: ["QuilNodeProbe"])
+        .executable(name: "quilnode-probe", targets: ["QuilNodeProbe"]),
     ],
     dependencies: [
         .package(
@@ -29,7 +29,7 @@ let package = Package(
             dependencies: [
                 "QuilNodeCore",
                 "QuilNodeShared",
-                .product(name: "Sparkle", package: "Sparkle")
+                .product(name: "Sparkle", package: "Sparkle"),
             ]
         ),
         .target(name: "QuilNodeHelperKit", dependencies: ["QuilNodeShared"]),
@@ -47,6 +47,6 @@ let package = Package(
             dependencies: ["QuilNodeApp", "QuilNodeCore", "QuilNodeShared"]
         ),
         .testTarget(name: "QuilNodeSharedTests", dependencies: ["QuilNodeShared"]),
-        .testTarget(name: "QuilNodeHelperKitTests", dependencies: ["QuilNodeHelperKit"])
+        .testTarget(name: "QuilNodeHelperKitTests", dependencies: ["QuilNodeHelperKit", "QuilNodeShared"]),
     ]
 )

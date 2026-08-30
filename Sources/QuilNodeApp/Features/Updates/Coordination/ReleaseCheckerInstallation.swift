@@ -199,9 +199,32 @@ extension ReleaseChecker {
             fraction: 0.97,
             isEstimate: false
         )
-        let result = await Task.detached(priority: .userInitiated) {
-            Self.runAuthorizedActivation(manifestURL: manifestURL)
+        let isAutomaticActivation = activeAutomaticCandidateID != nil
+        var result = await Task.detached(priority: .userInitiated) {
+            Self.runAuthorizedActivation(
+                manifestURL: manifestURL,
+                allowsInteractiveAuthorization: !isAutomaticActivation
+            )
         }.value
+        if isAutomaticActivation, [Int32(69), Int32(77)].contains(result.exitCode) {
+            let selectedPolicy = policy.privilegedAutomaticPolicy
+            let synchronization = await Task.detached(priority: .utility) {
+                PrivilegedServiceClient.configureAutomaticNodeUpdatePolicy(selectedPolicy)
+            }.value
+            if synchronization.policy == selectedPolicy {
+                automaticAuthorizationState = .ready
+                result = await Task.detached(priority: .userInitiated) {
+                    Self.runAuthorizedActivation(
+                        manifestURL: manifestURL,
+                        allowsInteractiveAuthorization: false
+                    )
+                }.value
+            } else {
+                automaticAuthorizationState = .failed(
+                    synchronization.error ?? "Automatic activation authorization could not be repaired."
+                )
+            }
+        }
         if result.exitCode == -128 {
             operation = .idle
             activeAutomaticCandidateID = nil
@@ -264,13 +287,13 @@ extension ReleaseChecker {
         )
         lastMessage = "Installed \(manifest.version). Node health check passed."
         if let candidateID = activeAutomaticCandidateID {
-            clearAutomaticFailureSuppression()
             services?.announceAutomaticUpdateSucceeded(
                 candidateID: candidateID,
                 version: manifest.version
             )
             activeAutomaticCandidateID = nil
         }
+        clearAutomaticFailureSuppression()
         stagedUpdate = nil
         finishOperationJournal(status: .installed, detail: lastMessage ?? "Installed")
         if var current = progress {

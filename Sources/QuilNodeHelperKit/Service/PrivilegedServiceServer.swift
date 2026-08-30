@@ -107,7 +107,7 @@ extension QuilNodeHelper {
                 response = PrivilegedServiceResponse(
                     success: verifierReady,
                     message: verifierReady
-                        ? "capability-wallet-v2; signed-first-install-v3; durable-operations-v1; self-upgrade-v1; root-release-verification-v1; application-firewall-v1; managed-qclient-v1; local-prover-telemetry-v1; permanent-app-identity-v1"
+                        ? "capability-wallet-v2; signed-first-install-v3; durable-operations-v1; self-upgrade-v1; root-release-verification-v1; application-firewall-v1; managed-qclient-v1; local-prover-telemetry-v1; permanent-app-identity-v1; automatic-node-update-policy-v1"
                         : "The root-owned release verifier is missing; service repair is required.",
                     nodePID: currentNodePID(),
                     serviceBuild: verifierReady ? PrivilegedServiceProtocol.currentServiceBuild : nil
@@ -204,6 +204,23 @@ extension QuilNodeHelper {
                     nodePID: currentNodePID(),
                     operationID: operation.id,
                     operationState: operation.state.rawValue
+                )
+            case .nodeUpdatePolicyStatus:
+                let policy = try loadAutomaticNodeUpdatePolicy()
+                response = PrivilegedServiceResponse(
+                    success: true,
+                    message: "Automatic node-update authorization is \(policy.rawValue).",
+                    nodePID: currentNodePID(),
+                    nodeUpdatePolicy: policy
+                )
+            case .nodeUpdatePolicyConfigure:
+                guard let policy = request.nodeUpdatePolicy else { throw HelperFailure.usage }
+                try withMutationLock { try configureAutomaticNodeUpdatePolicy(policy) }
+                response = PrivilegedServiceResponse(
+                    success: true,
+                    message: "Automatic node-update authorization is \(policy.rawValue).",
+                    nodePID: currentNodePID(),
+                    nodeUpdatePolicy: policy
                 )
             case .walletInventory:
                 guard !serviceOperations.isRunning else {

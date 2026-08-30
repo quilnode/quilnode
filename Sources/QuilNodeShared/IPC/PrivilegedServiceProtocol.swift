@@ -5,7 +5,7 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 112
+    public static let currentServiceBuild = 113
     public static let minimumSupportedServiceBuild = 112
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
@@ -33,6 +33,8 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
     case firewallConfigure
     case qclientStatus
     case qclientInstall
+    case nodeUpdatePolicyStatus
+    case nodeUpdatePolicyConfigure
 }
 
 /// Bounded output from two fixed, read-only qclient commands. The privileged
@@ -55,15 +57,18 @@ public struct PrivilegedServiceRequest: Codable, Sendable {
     public var action: PrivilegedServiceAction
     public var manifestPath: String?
     public var operationID: String?
+    public var nodeUpdatePolicy: AutomaticNodeUpdatePolicy?
 
     public init(
         action: PrivilegedServiceAction,
         manifestPath: String? = nil,
-        operationID: String? = nil
+        operationID: String? = nil,
+        nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil
     ) {
         self.action = action
         self.manifestPath = manifestPath
         self.operationID = operationID
+        self.nodeUpdatePolicy = nodeUpdatePolicy
     }
 }
 
@@ -86,6 +91,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     /// Set only when the authenticated service deliberately refuses a
     /// passwordless high-risk operation and requires fresh macOS user presence.
     public var authorizationRequired: Bool?
+    public var nodeUpdatePolicy: AutomaticNodeUpdatePolicy?
 
     public init(
         success: Bool,
@@ -102,7 +108,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         operationID: String? = nil,
         operationState: String? = nil,
         serviceBuild: Int? = nil,
-        authorizationRequired: Bool? = nil
+        authorizationRequired: Bool? = nil,
+        nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil
     ) {
         self.success = success
         self.message = message
@@ -119,5 +126,6 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.operationState = operationState
         self.serviceBuild = serviceBuild
         self.authorizationRequired = authorizationRequired
+        self.nodeUpdatePolicy = nodeUpdatePolicy
     }
 }

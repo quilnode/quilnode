@@ -21,6 +21,54 @@ public enum PrivilegedServiceClient {
         return (result.response?.message ?? result.error, result.exitCode)
     }
 
+    /// Synchronizes the narrow root-owned authorization used by unattended
+    /// node updates. An existing service upgrades itself from the same signed
+    /// app certificate before accepting the new policy, so this migration does
+    /// not request or retain an administrator password.
+    public static func configureAutomaticNodeUpdatePolicy(
+        _ policy: AutomaticNodeUpdatePolicy,
+        timeout: TimeInterval = 20
+    ) -> (policy: AutomaticNodeUpdatePolicy?, error: String?) {
+        let requiredBuild = PrivilegedServiceProtocol.currentServiceBuild
+        if (installedServiceBuild(timeout: 5) ?? 0) < requiredBuild {
+            let upgrade = request(.upgradeService, timeout: 60)
+            guard upgrade.exitCode == 0 else {
+                return (nil, upgrade.output)
+            }
+
+            let deadline = Date().addingTimeInterval(timeout)
+            while Date() < deadline {
+                if (installedServiceBuild(timeout: 2) ?? 0) >= requiredBuild {
+                    break
+                }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+        }
+
+        guard (installedServiceBuild(timeout: 5) ?? 0) >= requiredBuild else {
+            return (nil, "The secure local service did not finish its passwordless upgrade.")
+        }
+        let result = response(
+            .nodeUpdatePolicyConfigure,
+            nodeUpdatePolicy: policy,
+            timeout: timeout
+        )
+        guard result.exitCode == 0, result.response?.nodeUpdatePolicy == policy else {
+            return (nil, result.response?.message ?? result.error)
+        }
+        return (policy, nil)
+    }
+
+    public static func readAutomaticNodeUpdatePolicy(
+        timeout: TimeInterval = 8
+    ) -> (policy: AutomaticNodeUpdatePolicy?, error: String?) {
+        let result = response(.nodeUpdatePolicyStatus, timeout: timeout)
+        guard result.exitCode == 0 else {
+            return (nil, result.response?.message ?? result.error)
+        }
+        return (result.response?.nodeUpdatePolicy, nil)
+    }
+
     /// Starts a daemon-owned privileged operation and follows its durable
     /// status. The service acknowledges immediately, so a slow node startup
     /// never depends on keeping one socket (or the dashboard window) alive.
@@ -203,6 +251,7 @@ public enum PrivilegedServiceClient {
         _ action: PrivilegedServiceAction,
         manifestPath: String? = nil,
         operationID: String? = nil,
+        nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil,
         timeout: TimeInterval
     ) -> (response: PrivilegedServiceResponse?, error: String, exitCode: Int32) {
         var socketInfo = stat()
@@ -251,7 +300,8 @@ public enum PrivilegedServiceClient {
                 PrivilegedServiceRequest(
                     action: action,
                     manifestPath: manifestPath,
-                    operationID: operationID
+                    operationID: operationID,
+                    nodeUpdatePolicy: nodeUpdatePolicy
                 )
             )
             payload.append(0x0a)

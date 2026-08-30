@@ -74,15 +74,27 @@ extension DashboardView {
         case .manual:
             "Manual installs. Opening Update Center reuses metadata for up to five minutes; protocol milestones keep their separate 30-minute monitor. No node artifact is built or installed automatically."
         case .signedStable:
-            "While QuilNode is running, a conditional release signal runs about every five minutes with jitter, plus a full six-hour reconciliation. Only a strictly newer signed release can activate—never an automatic downgrade. SHA3-256 and at least 7 valid Ed448 signatures are verified first."
+            "Discovery, verification, guarded activation, rollback retention, and the health check run automatically while QuilNode is open. Only a strictly newer signed release can activate—never a downgrade. SHA3-256 and at least 7 valid Ed448 signatures are verified first."
         case .approvedDevelopment:
-            "While QuilNode is running, official version-branch refs are sampled about every five minutes with jitter, plus a full six-hour reconciliation. Only the exact commit that changes the subpatch marker can activate; later unmarked commits are excluded."
+            "Discovery, local build, guarded activation, rollback retention, and the health check run automatically while QuilNode is open. The authorized local service can activate only the exact commit that changes the subpatch marker without another password; later unmarked commits are excluded."
         case .bleedingEdge:
-            "While QuilNode is running, official branch refs are sampled about every five minutes with jitter, plus a full six-hour reconciliation. The newest raw commit can activate. This is intentionally high risk; keys, config, and stores remain excluded."
+            "Discovery, local build, guarded activation, rollback retention, and the health check run automatically while QuilNode is open. The newest raw official commit can activate without another password. This is intentionally high risk; identity and store operations remain outside this permission."
         }
     }
 
     var automaticScheduleDescription: String {
+        if releaseChecker.policy != .manual {
+            switch releaseChecker.automaticAuthorizationState {
+            case .synchronizing:
+                return "Preparing passwordless automatic activation"
+            case .failed:
+                return "Automatic install paused · secure service setup needs attention"
+            case .inactive:
+                return "Automatic install is not authorized"
+            case .ready:
+                break
+            }
+        }
         if releaseChecker.isChecking {
             return "Checking the selected channel now"
         }
@@ -99,7 +111,7 @@ extension DashboardView {
         guard !schedule.isEmpty else {
             return "Preparing the automatic schedule"
         }
-        return "Next \(schedule)"
+        return "Automatic install ready · next \(schedule)"
     }
 
 }

@@ -87,7 +87,7 @@ if ! rg -q '\.target\(name: "QuilNodeShared"' Package.swift ||
    ! rg -q '\.executableTarget\(name: "QuilNodeHelperCLI", dependencies: \["QuilNodeHelperKit"\]\)' Package.swift ||
    ! rg -q 'name: "QuilNodeAppTests"' Package.swift ||
    ! rg -q '\.testTarget\(name: "QuilNodeSharedTests"' Package.swift ||
-   ! rg -q '\.testTarget\(name: "QuilNodeHelperKitTests"' Package.swift; then
+   ! rg -q 'name: "QuilNodeHelperKitTests"' Package.swift; then
     fail "Swift Package module or XCTest boundaries are incomplete"
 fi
 if ! rg -q '^  QuilNodeShared:' project.yml ||

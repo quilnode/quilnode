@@ -58,7 +58,17 @@ extension DashboardView {
             }
             Label(automaticScheduleDescription, systemImage: "clock.badge.checkmark")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(automaticAuthorizationTint)
+                .help(automaticAuthorizationHelp)
+            if case .failed = releaseChecker.automaticAuthorizationState,
+                releaseChecker.policy != .manual
+            {
+                Button("Retry automatic setup") {
+                    releaseChecker.retryAutomaticUpdateAuthorization()
+                }
+                .buttonStyle(.link)
+                .font(.caption2.weight(.semibold))
+            }
         }
     }
 
@@ -214,6 +224,21 @@ extension DashboardView {
         case .approvedDevelopment: theme.colors.info
         case .bleedingEdge: theme.colors.warning
         }
+    }
+
+    private var automaticAuthorizationTint: Color {
+        switch releaseChecker.automaticAuthorizationState {
+        case .failed: theme.colors.warning
+        case .ready: theme.colors.success
+        case .inactive, .synchronizing: .secondary
+        }
+    }
+
+    private var automaticAuthorizationHelp: String {
+        if case let .failed(message) = releaseChecker.automaticAuthorizationState {
+            return message
+        }
+        return automaticScheduleDescription
     }
 
     func shortCommit(_ value: String) -> String {

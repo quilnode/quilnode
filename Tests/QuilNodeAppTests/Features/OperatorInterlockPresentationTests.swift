@@ -39,6 +39,7 @@ final class OperatorInterlockPresentationTests: XCTestCase {
         XCTAssertEqual(model.defaultDecisionID, "now")
         XCTAssertTrue(model.outcome.localizedCaseInsensitiveContains("exact commit"))
         XCTAssertTrue(model.trustNote.localizedCaseInsensitiveContains("unmarked"))
+        XCTAssertTrue(model.trustNote.localizedCaseInsensitiveContains("without asking macOS again"))
         XCTAssertTrue(model.preserved.contains { $0.id == "identity" })
         XCTAssertTrue(model.preserved.contains { $0.id == "rollback" })
     }
