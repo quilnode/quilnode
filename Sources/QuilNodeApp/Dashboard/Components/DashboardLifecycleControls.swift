@@ -103,22 +103,16 @@ struct LifecycleControlBar: View {
         }
         .padding(compact ? 10 : 14)
         .controlSurface()
-        .alert(item: $pendingConfirmation) { action in
-            Alert(
-                title: Text("\(action.label) Quilibrium node?"),
-                message: Text(
-                    action == .stop
-                        ? "This unloads only com.quilibrium.node. Your keys and stores are untouched."
-                        : "This restarts only com.quilibrium.node. Your keys and stores are untouched."),
-                primaryButton: action == .stop
-                    ? .destructive(Text("Stop")) {
-                        Task { await lifecycle.perform(action, monitor: monitor) }
-                    }
-                    : .default(Text("Restart")) {
-                        Task { await lifecycle.perform(action, monitor: monitor) }
-                    },
-                secondaryButton: .cancel()
+        .sheet(item: $pendingConfirmation) { action in
+            OperatorInterlockView(
+                model: OperatorInterlockPresentation.lifecycle(action),
+                onCancel: { pendingConfirmation = nil },
+                onConfirm: { _ in
+                    pendingConfirmation = nil
+                    Task { await lifecycle.perform(action, monitor: monitor) }
+                }
             )
+            .quilThemed(theme)
         }
     }
 

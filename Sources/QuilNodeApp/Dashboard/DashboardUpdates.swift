@@ -30,27 +30,16 @@ extension DashboardView {
             updateMessageStrip
             updateHistoryStrip
         }
-        .alert(
-            "Enable \(pendingUpdatePolicy?.title ?? "") updates?",
-            isPresented: Binding(
-                get: { pendingUpdatePolicy != nil },
-                set: { if !$0 { pendingUpdatePolicy = nil } }
-            ),
-            presenting: pendingUpdatePolicy
-        ) { policy in
-            Button("Enable & update now") {
-                pendingUpdatePolicy = nil
-                releaseChecker.setPolicy(policy, updateNow: true)
-            }
-            Button("Enable for later") {
-                pendingUpdatePolicy = nil
-                releaseChecker.setPolicy(policy, updateNow: false)
-            }
-            Button("Cancel", role: .cancel) {
-                pendingUpdatePolicy = nil
-            }
-        } message: { policy in
-            Text(updatePolicyConfirmationMessage(policy))
+        .sheet(item: $pendingUpdatePolicy) { policy in
+            OperatorInterlockView(
+                model: OperatorInterlockPresentation.updatePolicy(policy),
+                onCancel: { pendingUpdatePolicy = nil },
+                onConfirm: { decision in
+                    pendingUpdatePolicy = nil
+                    releaseChecker.setPolicy(policy, updateNow: decision.id == "now")
+                }
+            )
+            .quilThemed(theme)
         }
     }
 

@@ -8,6 +8,8 @@ import SwiftUI
 
 @MainActor
 private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
+    private var quitInterlockPresenter: ApplicationQuitInterlockPresenter?
+
     #if DEBUG
         private var designPreviewWindow: NSWindow?
     #endif
@@ -25,15 +27,15 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard UpdateActivityGuard.shared.isInstalling else { return .terminateNow }
-        sender.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "An update is still running"
-        alert.informativeText =
-            "QuilNode can keep working with every dashboard window closed. Quitting now interrupts the build before activation; the currently installed node remains unchanged."
-        alert.addButton(withTitle: "Keep Running")
-        alert.addButton(withTitle: "Quit Anyway")
-        return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
+        guard quitInterlockPresenter == nil else { return .terminateLater }
+
+        let presenter = ApplicationQuitInterlockPresenter()
+        quitInterlockPresenter = presenter
+        presenter.present { [weak self, weak sender] shouldQuit in
+            self?.quitInterlockPresenter = nil
+            sender?.reply(toApplicationShouldTerminate: shouldQuit)
+        }
+        return .terminateLater
     }
 
     #if DEBUG
@@ -45,6 +47,7 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
             let value = ProcessInfo.processInfo.arguments.first {
                 $0.hasPrefix("--design-preview=network-inbound-")
                     || $0.hasPrefix("--design-preview=identity-transaction-")
+                    || $0.hasPrefix("--design-preview=operator-interlock-")
             }
             guard let value else { return }
 
@@ -56,7 +59,7 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "QuilNode Inbound Setup Preview"
+            window.title = "QuilNode Design Preview"
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
@@ -65,11 +68,29 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             designPreviewWindow = window
             NSApp.activate(ignoringOtherApps: true)
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let self, let window else { return }
+                for candidate in NSApp.windows where candidate !== window {
+                    candidate.orderOut(nil)
+                }
+                window.makeKeyAndOrderFront(nil)
+                self.designPreviewWindow = window
+            }
         }
 
         @ViewBuilder
         private func standaloneDesignPreview(mode: String) -> some View {
-            if mode.hasPrefix("identity-transaction-") {
+            if mode.hasPrefix("operator-interlock-") {
+                let previewMode: OperatorInterlockPreviewMode =
+                    switch mode {
+                    case "operator-interlock-firewall": .firewall
+                    case "operator-interlock-updates": .updates
+                    case "operator-interlock-quit": .quit
+                    default: .restart
+                    }
+                OperatorInterlockDesignPreviewHost(mode: previewMode)
+                    .quilThemed(.quilNode)
+            } else if mode.hasPrefix("identity-transaction-") {
                 let previewMode: IdentityTransactionPreviewMode =
                     switch mode {
                     case "identity-transaction-create": .create
@@ -279,6 +300,14 @@ struct QuilNodeApp: App {
                 IdentityTransactionDesignPreviewHost(mode: .activate)
             } else if designPreviewMode == "identity-transaction-private" {
                 IdentityTransactionDesignPreviewHost(mode: .importKeyset, privacyEnabled: true)
+            } else if designPreviewMode == "operator-interlock-restart" {
+                OperatorInterlockDesignPreviewHost(mode: .restart)
+            } else if designPreviewMode == "operator-interlock-firewall" {
+                OperatorInterlockDesignPreviewHost(mode: .firewall)
+            } else if designPreviewMode == "operator-interlock-updates" {
+                OperatorInterlockDesignPreviewHost(mode: .updates)
+            } else if designPreviewMode == "operator-interlock-quit" {
+                OperatorInterlockDesignPreviewHost(mode: .quit)
             } else {
                 dashboardSceneContent
             }

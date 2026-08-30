@@ -95,19 +95,4 @@ extension DashboardView {
         return "Next check \(nextCheck.formatted(date: .abbreviated, time: .shortened))"
     }
 
-    func updatePolicyConfirmationMessage(_ policy: NodeUpdatePolicy) -> String {
-        switch policy {
-        case .manual:
-            return "Automatic node updates will be disabled."
-        case .signedStable:
-            return
-                "Only a strictly newer signed release can install after SHA3-256 and the seven-signature Ed448 quorum pass. QuilNode never automatically downgrades this .25 node to .24."
-        case .approvedDevelopment:
-            return
-                "QuilNode follows only the highest version branch and the exact commit that changes its root subpatch approval marker. Later unmarked commits are excluded. Choose whether to check, build, and install now or start the six-hour schedule."
-        case .bleedingEdge:
-            return
-                "QuilNode follows the newest commit across every official branch, including potentially unfinished work. Choose whether to check, build, and install now or start the six-hour schedule."
-        }
-    }
 }

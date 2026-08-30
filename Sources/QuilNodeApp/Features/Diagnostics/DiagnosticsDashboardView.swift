@@ -76,15 +76,16 @@ struct DiagnosticsDashboardView: View {
                 await runFullScan()
             }
         }
-        .alert(item: $pendingConfirmation) { repair in
-            Alert(
-                title: Text(confirmationTitle(for: repair)),
-                message: Text(confirmationMessage(for: repair)),
-                primaryButton: .default(Text(confirmationButton(for: repair))) {
+        .sheet(item: $pendingConfirmation) { repair in
+            OperatorInterlockView(
+                model: OperatorInterlockPresentation.diagnostic(repair),
+                onCancel: { pendingConfirmation = nil },
+                onConfirm: { _ in
+                    pendingConfirmation = nil
                     Task { await executeConfirmed(repair) }
-                },
-                secondaryButton: .cancel()
+                }
             )
+            .quilThemed(theme)
         }
     }
 
@@ -272,30 +273,4 @@ struct DiagnosticsDashboardView: View {
         repairMessage = "Copied a privacy-safe summary without identifiers, ports, counts, paths, or raw logs."
     }
 
-    private func confirmationTitle(for repair: NodeDiagnosticRepair) -> String {
-        switch repair {
-        case .restartNode: "Restart the node?"
-        case .configureFirewall: "Configure macOS Firewall?"
-        default: "Run this repair?"
-        }
-    }
-
-    private func confirmationMessage(for repair: NodeDiagnosticRepair) -> String {
-        switch repair {
-        case .restartNode:
-            "The process will stop briefly and resume with the same node configuration and keyset. Stores are not deleted."
-        case .configureFirewall:
-            "QuilNode will add and verify only the installed node executable, keep the firewall enabled, and disable block-all mode if necessary. Router settings are not changed."
-        default:
-            "QuilNode will run the scoped local repair shown by this check."
-        }
-    }
-
-    private func confirmationButton(for repair: NodeDiagnosticRepair) -> String {
-        switch repair {
-        case .restartNode: "Restart"
-        case .configureFirewall: "Configure"
-        default: "Continue"
-        }
-    }
 }
