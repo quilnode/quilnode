@@ -18,7 +18,7 @@ struct DiagnosticsEvidenceInspector: View {
                 if let check {
                     Text("— \(check.title)")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(diagnosticTint(check.state, theme: theme))
+                        .foregroundStyle(DiagnosticVisuals.tint(check.state, theme: theme))
                 }
                 Spacer()
                 Label("Privacy-safe", systemImage: "lock.shield.fill")
@@ -64,9 +64,9 @@ struct DiagnosticsEvidenceInspector: View {
 
                 Divider()
                 HStack(spacing: 14) {
-                    Text(diagnosticStateLabel(check.state))
+                    Text(DiagnosticVisuals.stateLabel(check.state))
                         .font(.caption2.bold())
-                        .foregroundStyle(diagnosticTint(check.state, theme: theme))
+                        .foregroundStyle(DiagnosticVisuals.tint(check.state, theme: theme))
                     if let observedAt = check.observedAt {
                         HStack(spacing: 0) {
                             Text("Observed ")
@@ -92,7 +92,7 @@ struct DiagnosticsEvidenceInspector: View {
                 .frame(maxWidth: .infinity, minHeight: 140)
             }
         }
-        .controlSurface(tint: check.map { diagnosticTint($0.state, theme: theme) } ?? theme.colors.info)
+        .controlSurface(tint: check.map { DiagnosticVisuals.tint($0.state, theme: theme) } ?? theme.colors.info)
     }
 
     private func evidenceCell(_ title: String, value: String, systemImage: String) -> some View {
