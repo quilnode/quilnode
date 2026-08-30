@@ -66,6 +66,16 @@ final class NetworkReadinessTests: XCTestCase {
             XCTFail("node status JSON parsing")
         }
 
+        let archiveLog = """
+            2030-01-02T03:04:01Z\tinfo\tframe_sync.rs:112\tarchive endpoint added\t{"total":1}
+            2030-01-02T03:04:02Z\tinfo\tframe_sync.rs:112\tarchive endpoint added\t{"total":5}
+            2030-01-02T03:09:02Z\twarn\tarchive_sync.rs:2752\treconcile: no reachable peer holds the finalized prover root this round — will retry next cycle\t{"peers":5}
+            """
+        expect(
+            ArchiveEndpointLogParser.latestCount(in: archiveLog) == 5,
+            "archive endpoint parsing stays separate from PeerInfo discovery"
+        )
+
         let nodeInfoOutput = """
             signature check passed
             Peer ID: QmExamplePeer

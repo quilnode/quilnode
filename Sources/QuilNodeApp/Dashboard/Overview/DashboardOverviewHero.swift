@@ -261,9 +261,9 @@ extension DashboardView {
             )
             protocolMetricDivider
             ProtocolMetricCell(
-                title: "Archives reachable",
-                value: nodeObservation.value(String(monitor.snapshot.archivePeers)),
-                detail: nodeObservation.detail("Sync sources"),
+                title: "Archive sources",
+                value: nodeObservation.value(monitor.snapshot.archiveSourceValue),
+                detail: nodeObservation.detail(monitor.snapshot.archiveSourceDetail),
                 tint: protocolSignal,
                 privacyField: nil
             )

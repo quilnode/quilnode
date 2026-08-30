@@ -6,6 +6,8 @@ import Foundation
 public struct ChainProgressEvidence: Codable, Equatable, Sendable {
     public var observedAt: Date
     public var archiveConnections: Int
+    public var archiveRPCStandby: Int
+    public var archiveConnectionFailures: Int
     public var archiveAtLocalHead: Int
     public var archiveAheadOfLocalHead: Int
     public var zeroShardSizeResponses: Int
@@ -17,6 +19,8 @@ public struct ChainProgressEvidence: Codable, Equatable, Sendable {
     public init(
         observedAt: Date,
         archiveConnections: Int = 0,
+        archiveRPCStandby: Int = 0,
+        archiveConnectionFailures: Int = 0,
         archiveAtLocalHead: Int = 0,
         archiveAheadOfLocalHead: Int = 0,
         zeroShardSizeResponses: Int = 0,
@@ -27,6 +31,8 @@ public struct ChainProgressEvidence: Codable, Equatable, Sendable {
     ) {
         self.observedAt = observedAt
         self.archiveConnections = archiveConnections
+        self.archiveRPCStandby = archiveRPCStandby
+        self.archiveConnectionFailures = archiveConnectionFailures
         self.archiveAtLocalHead = archiveAtLocalHead
         self.archiveAheadOfLocalHead = archiveAheadOfLocalHead
         self.zeroShardSizeResponses = zeroShardSizeResponses
@@ -41,6 +47,35 @@ public struct ChainProgressEvidence: Codable, Equatable, Sendable {
             + finalizedRootUnavailable
             + vertexRootMismatches
             + archiveAnchorRejections
+    }
+}
+
+/// Reads the size of the node's archive RPC pool from its own structured log.
+/// This remains separate from `archive_peers`, which counts PeerInfo
+/// advertisements and says nothing about current RPC reachability.
+public enum ArchiveEndpointLogParser {
+    public static func latestCount(in text: String) -> Int? {
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
+            let line = String(rawLine)
+            if line.contains("reconcile: no reachable peer holds the finalized prover root"),
+                let count = integer(named: "peers", in: line)
+            {
+                return count
+            }
+            if line.contains("archive endpoint added"),
+                let count = integer(named: "total", in: line)
+            {
+                return count
+            }
+        }
+        return nil
+    }
+
+    private static func integer(named name: String, in line: String) -> Int? {
+        let marker = "\"\(name)\":"
+        guard let markerRange = line.range(of: marker) else { return nil }
+        let digits = line[markerRange.upperBound...].prefix(while: { $0.isNumber })
+        return Int(digits)
     }
 }
 
@@ -66,6 +101,18 @@ public enum ChainProgressLogParser {
 
             if line.contains("archive poller connected") {
                 evidence.archiveConnections += 1
+                lineMatched = true
+                matched = true
+            }
+
+            if line.contains("archive poller: gossip is carrying the head") {
+                evidence.archiveRPCStandby += 1
+                lineMatched = true
+                matched = true
+            }
+
+            if line.contains("connect_mtls failed (full chain)") {
+                evidence.archiveConnectionFailures += 1
                 lineMatched = true
                 matched = true
             }
@@ -193,9 +240,13 @@ public enum ChainProgressEvaluator {
         let evidence = snapshot.chainProgressEvidence
         let evidenceIsFresh =
             evidence.map { now.timeIntervalSince($0.observedAt) <= ChainProgressLogParser.observationWindow } == true
+        let hasArchiveSource =
+            (snapshot.archiveEndpointCount ?? 0) > 0
+            || snapshot.archivePeers > 0
+            || (evidence?.archiveConnections ?? 0) > 0
         let transportIsHealthy =
             snapshot.peers >= 3
-            && snapshot.archivePeers > 0
+            && hasArchiveSource
             && snapshot.isLogFresh(at: now)
 
         if evidenceIsFresh, transportIsHealthy, let evidence {

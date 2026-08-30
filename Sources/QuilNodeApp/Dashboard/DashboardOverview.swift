@@ -72,7 +72,7 @@ extension DashboardView {
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .tracking(0.8)
                         .foregroundStyle(theme.colors.info)
-                    Text("\(monitor.snapshot.archivePeers) archive · \(monitor.snapshot.peers) peers")
+                    Text("\(monitor.snapshot.archiveSourceValue) sources · \(monitor.snapshot.peers) peers")
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(theme.colors.secondaryText)
                 }

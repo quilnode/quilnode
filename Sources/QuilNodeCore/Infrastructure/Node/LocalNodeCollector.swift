@@ -83,6 +83,14 @@ public struct LocalNodeCollector: Sendable {
             logChanged
             ? ChainProgressLogParser.parse(logText, now: now)
             : cachedSnapshot?.chainProgressEvidence
+        let liveArchiveEndpointCount =
+            logChanged
+            ? ArchiveEndpointLogParser.latestCount(in: logText)
+            : nil
+        let archiveEndpointCount =
+            liveArchiveEndpointCount
+            ?? cachedSnapshot?.archiveEndpointCount
+            ?? (recoverHistoricalEvidence ? readLatestArchiveEndpointCount(paths.errorLog) : nil)
         let rewardCredit =
             recentRewardCredit
             // Historical recovery is intentionally a cold-start operation.
@@ -196,6 +204,7 @@ public struct LocalNodeCollector: Sendable {
             outboundConnectionsEstablished: outboundConnections ?? cachedSnapshot?.outboundConnectionsEstablished,
             localWorkerCount: localWorkerCount ?? cachedSnapshot?.localWorkerCount,
             archivePeers: statusInt("archive_peers", fallback: cachedSnapshot?.archivePeers ?? 0),
+            archiveEndpointCount: archiveEndpointCount,
             pendingJoins: statusInt("pending_joins", fallback: cachedSnapshot?.pendingJoins ?? 0),
             activeShards: statusInt("active_shards", fallback: cachedSnapshot?.activeShards ?? 0),
             totalAllocations: statusInt(
@@ -360,6 +369,17 @@ public struct LocalNodeCollector: Sendable {
             chunkBytes: 8 * 1_024 * 1_024
         ) { data in
             latestRewardCredit(in: String(decoding: data, as: UTF8.self))
+        }
+    }
+
+    private func readLatestArchiveEndpointCount(_ url: URL) -> Int? {
+        return try? BoundedLocalData.firstMatchInReverseTail(
+            from: url,
+            maximumFileBytes: .max,
+            maximumScanBytes: 8 * 1_024 * 1_024,
+            chunkBytes: 1 * 1_024 * 1_024
+        ) { data in
+            ArchiveEndpointLogParser.latestCount(in: String(decoding: data, as: UTF8.self))
         }
     }
 

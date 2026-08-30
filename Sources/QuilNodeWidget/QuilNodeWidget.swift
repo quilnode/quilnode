@@ -96,7 +96,11 @@ private struct QuilNodeWidgetView: View {
 
             LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 12) {
                 WidgetMetric(systemImage: "network", value: "\(entry.snapshot.peers)", label: "Peers")
-                WidgetMetric(systemImage: "archivebox.fill", value: "\(entry.snapshot.archivePeers)", label: "Archive")
+                WidgetMetric(
+                    systemImage: "archivebox.fill",
+                    value: "\(entry.snapshot.archivePeers)",
+                    label: "Archive IDs"
+                )
                 WidgetMetric(
                     systemImage: "square.grid.3x3.fill", value: "\(entry.snapshot.totalAllocations)",
                     label: "Allocations")

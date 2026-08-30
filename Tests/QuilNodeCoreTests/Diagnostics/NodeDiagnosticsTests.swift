@@ -10,6 +10,7 @@ final class NodeDiagnosticsTests: XCTestCase {
         let diagnosticTimestamp = diagnosticNow.ISO8601Format()
         let archiveRecoveryLog = """
             \(diagnosticTimestamp)\tinfo\tquil_rpc/src/frame_sync.rs:580\tarchive poller connected\t{"addr":"redacted:8340","coreId":0}
+            \(diagnosticTimestamp)\tinfo\tquil_rpc/src/frame_sync.rs:554\tarchive poller: gossip is carrying the head — RPC head-poll paused\t{"gossip_head":758358,"local_frame":758358}
             \(diagnosticTimestamp)\tinfo\tquil_rpc/src/frame_sync.rs:645\tarchive poller: not advancing — current endpoint is not ahead of us\t{"endpoint_head":758358,"local_frame":758358}
             \(diagnosticTimestamp)\tinfo\tquil_rpc/src/frame_sync.rs:645\tarchive poller: not advancing — current endpoint is not ahead of us\t{"endpoint_head":758358,"local_frame":758358}
             \(diagnosticTimestamp)\twarn\tquil_node/master_node/archive_sync.rs:2856\tshard_info refresh failed (will retry)\t{"error":"all archive endpoints failed; last error: endpoint returned only zero shard sizes"}
@@ -19,6 +20,7 @@ final class NodeDiagnosticsTests: XCTestCase {
         let parsedRecoveryEvidence = ChainProgressLogParser.parse(archiveRecoveryLog, now: diagnosticNow)
         expect(
             parsedRecoveryEvidence?.archiveConnections == 1, "archive recovery parser counts live archive connections")
+        expect(parsedRecoveryEvidence?.archiveRPCStandby == 1, "archive parser recognizes intentional RPC standby")
         expect(
             parsedRecoveryEvidence?.archiveAtLocalHead == 2,
             "archive recovery parser recognizes equal archive and local heads")
@@ -121,7 +123,8 @@ final class NodeDiagnosticsTests: XCTestCase {
 
         var recoveryDiagnosticSnapshot = healthyDiagnosticSnapshot
         recoveryDiagnosticSnapshot.frame = 758_358
-        recoveryDiagnosticSnapshot.archivePeers = 3
+        recoveryDiagnosticSnapshot.archivePeers = 0
+        recoveryDiagnosticSnapshot.archiveEndpointCount = 3
         recoveryDiagnosticSnapshot.frameLastAdvancedAt = diagnosticNow.addingTimeInterval(-900)
         recoveryDiagnosticSnapshot.chainProgressEvidence = parsedRecoveryEvidence
         recoveryDiagnosticSnapshot.recentWarnings = [

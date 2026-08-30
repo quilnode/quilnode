@@ -28,6 +28,65 @@ extension String {
 }
 
 extension NodeSnapshot {
+    var archiveSourceValue: String {
+        archiveEndpointCount.map(String.init) ?? "—"
+    }
+
+    var archiveServiceValue: String {
+        guard isRunning else { return "Offline" }
+        guard archiveEndpointCount != nil else { return "Checking" }
+        guard let evidence = freshArchiveEvidence else { return "Checking" }
+        if evidence.archiveRPCStandby > 0 { return "Not needed" }
+        if evidence.archiveConnections > 0 { return "Connected" }
+        if evidence.archiveConnectionFailures >= max(archiveEndpointCount ?? 0, 1) { return "Unavailable" }
+        return "Checking"
+    }
+
+    var archiveServiceDetail: String {
+        let sources = archiveEndpointCount.map(String.init) ?? "Unknown"
+        switch archiveServiceValue {
+        case "Not needed": return "\(sources) known · gossip healthy"
+        case "Connected": return "\(sources) known · archive link active"
+        case "Unavailable": return "\(sources) known · connection failed"
+        case "Offline": return "Node is stopped"
+        default: return "\(sources) known · checking archive access"
+        }
+    }
+
+    var archiveSourceDetail: String {
+        switch archiveServiceValue {
+        case "Not needed": "Known · gossip healthy"
+        case "Connected": "Known · archive link active"
+        case "Unavailable": "Known · access unavailable"
+        case "Offline": "Node is stopped"
+        default: "Known · checking access"
+        }
+    }
+
+    var archiveProverStateValue: String {
+        guard let evidence = chainProgressEvidence,
+            Date().timeIntervalSince(evidence.observedAt) <= ChainProgressLogParser.observationWindow
+        else {
+            return "Monitoring"
+        }
+        return evidence.recoverySignalCount > 0 ? "Waiting" : "Monitoring"
+    }
+
+    var archiveProverStateDetail: String {
+        archiveProverStateValue == "Waiting"
+            ? "No source currently matches the required root"
+            : "No current incompatibility reported"
+    }
+
+    private var freshArchiveEvidence: ChainProgressEvidence? {
+        guard let evidence = chainProgressEvidence,
+            Date().timeIntervalSince(evidence.observedAt) <= ChainProgressLogParser.observationWindow
+        else {
+            return nil
+        }
+        return evidence
+    }
+
     var workDetail: String {
         if !isRunning { return "The local node process is stopped" }
         if ChainProgressEvaluator.evaluate(self).state == .archiveRecovery {

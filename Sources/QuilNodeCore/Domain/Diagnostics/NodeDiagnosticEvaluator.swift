@@ -155,13 +155,13 @@ public enum NodeDiagnosticEvaluator {
         }
         let progress = ChainProgressEvaluator.evaluate(snapshot, now: context.now)
         if progress.state == .archiveRecovery, snapshot.frameLastAdvancedAt == nil {
-            let archiveCount = snapshot.archivePeers
+            let archiveCount = snapshot.archiveEndpointCount ?? 0
             return check(
                 id: "frame-progress", category: .progress, state: .waiting,
                 title: "Archive recovery",
                 summary: "The network head is waiting for archive state to converge.",
                 evidence:
-                    "Frame \(snapshot.frame) matches reachable archive heads; \(archiveCount) archive peer\(archiveCount == 1 ? "" : "s") are connected and local recovery retries remain fresh. Keep the node running—no restart or store wipe is recommended.",
+                    "Frame \(snapshot.frame) matches archive head evidence; \(archiveCount) archive source\(archiveCount == 1 ? " is" : "s are") available to the local sync pool and recovery retries remain fresh. Keep the node running—no restart or store wipe is recommended.",
                 observedAt: progress.evidence?.observedAt
             )
         }
@@ -185,13 +185,13 @@ public enum NodeDiagnosticEvaluator {
                 evidence: "Frame \(snapshot.frame) · \(rateEvidence).", observedAt: advancedAt
             )
         case .archiveRecovery:
-            let archiveCount = snapshot.archivePeers
+            let archiveCount = snapshot.archiveEndpointCount ?? 0
             return check(
                 id: "frame-progress", category: .progress, state: .waiting,
                 title: "Archive recovery",
                 summary: "The network head is waiting for archive state to converge.",
                 evidence:
-                    "Frame \(snapshot.frame) has been unchanged for \(ageDescription(age)); \(archiveCount) archive peer\(archiveCount == 1 ? "" : "s") are connected, reachable archives report this same head, and local recovery retries remain fresh. Keep the node running—no restart or store wipe is recommended.",
+                    "Frame \(snapshot.frame) has been unchanged for \(ageDescription(age)); \(archiveCount) archive source\(archiveCount == 1 ? " is" : "s are") available, archive head evidence agrees with this frame, and local recovery retries remain fresh. Keep the node running—no restart or store wipe is recommended.",
                 observedAt: progress.evidence?.observedAt
             )
         case .localLag:

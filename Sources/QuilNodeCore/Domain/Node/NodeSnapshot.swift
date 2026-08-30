@@ -85,7 +85,13 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// value is used only to explain capacity; it is not required for master
     /// port forwarding because thread workers do not open worker ports.
     public var localWorkerCount: Int?
+    /// Signed, allowlisted archive identities announced through PeerInfo since
+    /// the current node process started. This is a discovery counter, not a
+    /// reachability probe.
     public var archivePeers: Int
+    /// Archive RPC endpoints currently known by the node's local sync pool.
+    /// `nil` means the installed node has not emitted enough evidence yet.
+    public var archiveEndpointCount: Int?
     public var pendingJoins: Int
     public var activeShards: Int
     public var totalAllocations: Int
@@ -153,6 +159,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         outboundConnectionsEstablished: UInt64? = nil,
         localWorkerCount: Int? = nil,
         archivePeers: Int = 0,
+        archiveEndpointCount: Int? = nil,
         pendingJoins: Int = 0,
         activeShards: Int = 0,
         totalAllocations: Int = 0,
@@ -211,6 +218,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.outboundConnectionsEstablished = outboundConnectionsEstablished
         self.localWorkerCount = localWorkerCount
         self.archivePeers = archivePeers
+        self.archiveEndpointCount = archiveEndpointCount
         self.pendingJoins = pendingJoins
         self.activeShards = activeShards
         self.totalAllocations = totalAllocations

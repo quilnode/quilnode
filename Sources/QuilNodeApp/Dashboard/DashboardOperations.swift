@@ -21,11 +21,21 @@ extension DashboardView {
                     privacyField: nil
                 )
                 DashboardMetricControl(
-                    title: "Archive peers",
-                    value: "\(monitor.snapshot.archivePeers)",
-                    detail: DashboardCopy.Activity.syncSources,
+                    title: "Archive access",
+                    value: monitor.snapshot.archiveServiceValue,
+                    detail: monitor.snapshot.archiveServiceDetail,
                     systemImage: "externaldrive.connected.to.line.below",
                     tint: theme.colors.info,
+                    privacyField: nil
+                )
+                DashboardMetricControl(
+                    title: "Prover-state sync",
+                    value: monitor.snapshot.archiveProverStateValue,
+                    detail: monitor.snapshot.archiveProverStateDetail,
+                    systemImage: monitor.snapshot.archiveProverStateValue == "Waiting"
+                        ? "clock.badge.exclamationmark" : "checkmark.arrow.trianglehead.counterclockwise",
+                    tint: monitor.snapshot.archiveProverStateValue == "Waiting"
+                        ? theme.colors.warning : theme.colors.info,
                     privacyField: nil
                 )
                 DashboardMetricControl(

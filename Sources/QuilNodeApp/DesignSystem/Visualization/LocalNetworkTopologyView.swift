@@ -24,6 +24,10 @@ struct LocalNetworkTopologyView: View {
         hidesSensitiveValues ? 0 : min(snapshot.shardAllocations.count, 12)
     }
 
+    private var archiveSourceCount: Int {
+        snapshot.archiveEndpointCount ?? 0
+    }
+
     var body: some View {
         ZStack {
             topologyCanvas
@@ -92,7 +96,7 @@ struct LocalNetworkTopologyView: View {
                 )
             }
 
-            let archiveSamples = hasLiveTelemetry ? min(snapshot.archivePeers, 10) : 0
+            let archiveSamples = hasLiveTelemetry ? min(archiveSourceCount, 10) : 0
             for index in 0..<archiveSamples {
                 let point = point(on: archiveRect, index: index, count: max(archiveSamples, 1), offset: 0.39)
                 var link = Path()
@@ -144,8 +148,8 @@ struct LocalNetworkTopologyView: View {
         )
         TopologyLegendItem(
             color: theme.colors.success,
-            value: hasLiveTelemetry ? String(snapshot.archivePeers) : "—",
-            label: "archives",
+            value: hasLiveTelemetry ? snapshot.archiveEndpointCount.map(String.init) ?? "—" : "—",
+            label: "sources",
             shape: .square
         )
         HStack(spacing: 5) {
@@ -167,7 +171,7 @@ struct LocalNetworkTopologyView: View {
         guard hasLiveTelemetry else { return "Reading local network topology" }
         let allocationSummary = hidesSensitiveValues ? "Allocation state hidden." : "Local allocation state shown."
         return
-            "Local topology: \(snapshot.peers) peers and \(snapshot.archivePeers) archives. \(allocationSummary) This is not a global network map."
+            "Local topology: \(snapshot.peers) peers and \(archiveSourceCount) archive sources. \(allocationSummary) This is not a global network map."
     }
 
     private func topologyRect(center: CGPoint, width: CGFloat, height: CGFloat) -> CGRect {
