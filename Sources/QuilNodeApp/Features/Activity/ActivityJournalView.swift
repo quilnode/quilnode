@@ -5,6 +5,8 @@ import SwiftUI
 #endif
 
 struct ActivityJournalWorkspace: View {
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
+
     let events: [NodeActivityEvent]
     let allEventCount: Int
     @Binding var filter: ActivityFilter
@@ -14,23 +16,38 @@ struct ActivityJournalWorkspace: View {
     let hasLiveTelemetry: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ActivityChangeJournal(
-                events: events,
-                allEventCount: allEventCount,
-                filter: $filter,
-                selectedEventID: $selectedEventID
-            )
-            .frame(maxWidth: .infinity)
-            .layoutPriority(1)
-
-            ActivityEvidenceInspector(
-                event: selectedEvent,
-                snapshot: snapshot,
-                hasLiveTelemetry: hasLiveTelemetry
-            )
-            .frame(width: 330)
+        Group {
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 12) {
+                    journal
+                    inspector
+                }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    journal
+                    inspector.frame(width: 330)
+                }
+            }
         }
+    }
+
+    private var journal: some View {
+        ActivityChangeJournal(
+            events: events,
+            allEventCount: allEventCount,
+            filter: $filter,
+            selectedEventID: $selectedEventID
+        )
+        .frame(maxWidth: .infinity)
+        .layoutPriority(1)
+    }
+
+    private var inspector: some View {
+        ActivityEvidenceInspector(
+            event: selectedEvent,
+            snapshot: snapshot,
+            hasLiveTelemetry: hasLiveTelemetry
+        )
     }
 }
 

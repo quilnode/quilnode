@@ -6,6 +6,7 @@ import SwiftUI
 
 struct DiagnosticsSummaryBand: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
     let report: NodeDiagnosticReport
     let presentation: DiagnosticsPresentation
     let isScanning: Bool
@@ -13,58 +14,86 @@ struct DiagnosticsSummaryBand: View {
     let lastScanAt: Date?
 
     var body: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(overallTint.opacity(0.13))
-                    if isScanning {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: overallIcon)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(overallTint)
+        Group {
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 0) {
+                    overallSummary
+                        .padding(.vertical, 11)
+                    Divider()
+                    HStack(spacing: 0) {
+                        count("Passed", presentation.passedCount, theme.colors.success)
+                        count("Waiting", presentation.waitingCount, theme.colors.info)
+                        count("Review", presentation.reviewCount, theme.colors.warning)
+                        count("Action", presentation.failedCount, theme.colors.danger)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    Divider()
+                    scanSummary
+                        .padding(.vertical, 11)
                 }
-                .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(overallTitle).font(.headline)
-                    Text(overallDetail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+            } else {
+                HStack(spacing: 0) {
+                    overallSummary
+                    divider
+                    count("Passed", presentation.passedCount, theme.colors.success)
+                    count("Waiting", presentation.waitingCount, theme.colors.info)
+                    count("Review", presentation.reviewCount, theme.colors.warning)
+                    count("Action", presentation.failedCount, theme.colors.danger)
+                    divider
+                    scanSummary
+                        .frame(width: 210, alignment: .leading)
                 }
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, dashboardLayoutClass.isCompact ? 0 : 11)
+        .controlSurface(tint: overallTint)
+    }
 
-            divider
-            count("Passed", presentation.passedCount, theme.colors.success)
-            count("Waiting", presentation.waitingCount, theme.colors.info)
-            count("Review", presentation.reviewCount, theme.colors.warning)
-            count("Action", presentation.failedCount, theme.colors.danger)
-            divider
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(isScanning ? "SCAN IN PROGRESS" : "LAST FULL CHECK")
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(0.7)
-                    .foregroundStyle(.secondary)
-                Text(isScanning ? scanStage : (lastScanAt?.formatted(date: .omitted, time: .standard) ?? "Not run"))
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
+    private var overallSummary: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(overallTint.opacity(0.13))
                 if isScanning {
                     ProgressView().controlSize(.small)
                 } else {
-                    Text("Current local evidence")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: overallIcon)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(overallTint)
                 }
             }
-            .padding(.horizontal, 14)
-            .frame(width: 210, alignment: .leading)
+            .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(overallTitle).font(.headline)
+                Text(overallDetail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .padding(.vertical, 11)
-        .controlSurface(tint: overallTint)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var scanSummary: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(isScanning ? "SCAN IN PROGRESS" : "LAST FULL CHECK")
+                .font(.system(size: 9, weight: .bold))
+                .tracking(0.7)
+                .foregroundStyle(.secondary)
+            Text(isScanning ? scanStage : (lastScanAt?.formatted(date: .omitted, time: .standard) ?? "Not run"))
+                .font(.caption.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            if isScanning {
+                ProgressView().controlSize(.small)
+            } else {
+                Text("Current local evidence")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func count(_ title: String, _ value: Int, _ tint: Color) -> some View {
@@ -126,6 +155,7 @@ struct DiagnosticsFindingsQueue: View {
     @Environment(\.quilTheme) private var theme
     let findings: [NodeDiagnosticCheck]
     let selectedID: String?
+    var fillsWidth = false
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -162,7 +192,8 @@ struct DiagnosticsFindingsQueue: View {
                             Text(check.summary)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(2)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
                             if let observedAt = check.observedAt {
                                 Text(observedAt.formatted(.relative(presentation: .named)))
                                     .font(.caption2.monospacedDigit())
@@ -182,7 +213,8 @@ struct DiagnosticsFindingsQueue: View {
                 }
             }
         }
-        .frame(width: 278, alignment: .top)
+        .frame(width: fillsWidth ? nil : 278, alignment: .top)
+        .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .top)
         .frame(minHeight: 286, alignment: .top)
         .controlSurface(tint: findings.isEmpty ? theme.colors.success : theme.colors.warning)
     }
@@ -192,56 +224,75 @@ struct DiagnosticsProofMatrix: View {
     @Environment(\.quilTheme) private var theme
     let categories: [DiagnosticCategoryPresentation]
     let selectedID: String?
+    var compactLayout = false
     let onSelect: (String) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            ForEach(categories) { category in
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text(categoryTitle(category.category))
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                        Spacer()
-                        Text("\(category.passedCount)/\(category.checks.count)")
-                            .font(.caption2.bold().monospacedDigit())
-                            .foregroundStyle(category.failedCount > 0 ? theme.colors.danger : theme.colors.success)
+        Group {
+            if compactLayout {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: 2),
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+                    ForEach(categories) { category in
+                        categoryCard(category)
                     }
-                    .padding(10)
-                    Divider()
-                    ForEach(category.checks) { check in
-                        Button {
-                            onSelect(check.id)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: diagnosticIcon(check.state))
-                                    .foregroundStyle(diagnosticTint(check.state, theme: theme))
-                                Text(check.title)
-                                    .font(.caption2.weight(.medium))
-                                    .lineLimit(2)
-                                Spacer(minLength: 2)
-                            }
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(selectedID == check.id ? theme.colors.info.opacity(0.08) : Color.clear)
-                        }
-                        .buttonStyle(QuilPressFeedbackButtonStyle())
-                    }
-                    Spacer(minLength: 0)
-                    Divider()
-                    HStack(spacing: 6) {
-                        Text("\(category.reviewCount) review")
-                        Text("\(category.failedCount) failed")
-                    }
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(9)
                 }
-                .frame(maxWidth: .infinity, minHeight: 286, alignment: .top)
-                .controlSurface()
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(categories) { category in
+                        categoryCard(category)
+                    }
+                }
             }
         }
+    }
+
+    private func categoryCard(_ category: DiagnosticCategoryPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(categoryTitle(category.category))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Spacer()
+                Text("\(category.passedCount)/\(category.checks.count)")
+                    .font(.caption2.bold().monospacedDigit())
+                    .foregroundStyle(category.failedCount > 0 ? theme.colors.danger : theme.colors.success)
+            }
+            .padding(10)
+            Divider()
+            ForEach(category.checks) { check in
+                Button {
+                    onSelect(check.id)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: diagnosticIcon(check.state))
+                            .foregroundStyle(diagnosticTint(check.state, theme: theme))
+                        Text(check.title)
+                            .font(.caption2.weight(.medium))
+                            .lineLimit(2)
+                        Spacer(minLength: 2)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(selectedID == check.id ? theme.colors.info.opacity(0.08) : Color.clear)
+                }
+                .buttonStyle(QuilPressFeedbackButtonStyle())
+            }
+            Spacer(minLength: 0)
+            Divider()
+            HStack(spacing: 6) {
+                Text("\(category.reviewCount) review")
+                Text("\(category.failedCount) failed")
+            }
+            .font(.system(size: 8, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(9)
+        }
+        .frame(maxWidth: .infinity, minHeight: 286, alignment: .top)
+        .controlSurface()
     }
 
     private func categoryTitle(_ category: NodeDiagnosticCategory) -> String {

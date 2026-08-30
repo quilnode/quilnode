@@ -6,41 +6,59 @@ import SwiftUI
 
 extension DashboardView {
     var updateCenterHeader: some View {
-        HStack(alignment: .center, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("NODE OPERATIONS")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.5)
-                    .foregroundStyle(theme.colors.accent)
-                Text("Node Update Center")
-                    .font(.largeTitle.weight(.bold))
-                Text("Choose a trust channel, prepare without downtime, then activate behind a rollback guard.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 16)
-            VStack(alignment: .trailing, spacing: 7) {
-                HStack(spacing: 8) {
-                    policyPicker
-                    Button {
-                        if releaseChecker.isChecking {
-                            releaseChecker.cancelCheck()
-                        } else {
-                            releaseChecker.requestCheck()
-                        }
-                    } label: {
-                        Label(
-                            releaseChecker.isChecking ? "Cancel" : "Refresh",
-                            systemImage: releaseChecker.isChecking ? "xmark" : "arrow.clockwise"
-                        )
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(releaseChecker.isInstalling)
+        Group {
+            if !dashboardLayoutClass.isWide {
+                VStack(alignment: .leading, spacing: 12) {
+                    updateCenterTitleBlock
+                    updateCenterControls
                 }
-                Label(automaticScheduleDescription, systemImage: "clock.badge.checkmark")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            } else {
+                HStack(alignment: .center, spacing: 18) {
+                    updateCenterTitleBlock
+                    Spacer(minLength: 16)
+                    updateCenterControls
+                }
             }
+        }
+    }
+
+    private var updateCenterTitleBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("NODE OPERATIONS")
+                .font(.caption2.weight(.bold))
+                .tracking(1.5)
+                .foregroundStyle(theme.colors.accent)
+            Text("Node Update Center")
+                .font(.largeTitle.weight(.bold))
+            Text("Choose a trust channel, prepare without downtime, then activate behind a rollback guard.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var updateCenterControls: some View {
+        VStack(alignment: dashboardLayoutClass.isWide ? .trailing : .leading, spacing: 7) {
+            HStack(spacing: 8) {
+                policyPicker
+                Button {
+                    if releaseChecker.isChecking {
+                        releaseChecker.cancelCheck()
+                    } else {
+                        releaseChecker.requestCheck()
+                    }
+                } label: {
+                    Label(
+                        releaseChecker.isChecking ? "Cancel" : "Refresh",
+                        systemImage: releaseChecker.isChecking ? "xmark" : "arrow.clockwise"
+                    )
+                }
+                .buttonStyle(.bordered)
+                .disabled(releaseChecker.isInstalling)
+            }
+            Label(automaticScheduleDescription, systemImage: "clock.badge.checkmark")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -69,35 +87,54 @@ extension DashboardView {
     }
 
     func updateSummaryBand(_ snapshot: UpdateCenterSnapshot?) -> some View {
-        HStack(spacing: 0) {
-            updateSummaryCell(
-                systemImage: "internaldrive.fill",
-                tint: theme.colors.success,
-                eyebrow: "INSTALLED RUNTIME",
-                value: snapshot?.installed.build.version ?? monitor.snapshot.version ?? "Detecting…",
-                detail: snapshot?.installed.build.commit.map(shortCommit) ?? "Local managed node"
-            )
-            summaryDivider
-            updateSummaryCell(
-                systemImage: "checkmark.shield.fill",
-                tint: policyTint,
-                eyebrow: "AUTOMATIC POLICY",
-                value: releaseChecker.policy.title,
-                detail: releaseChecker.policy == .manual ? "Manual installs" : automaticScheduleDescription
-            )
-            summaryDivider
-            appUpdateSummaryCell
-            summaryDivider
-            updateSummaryCell(
-                systemImage: releaseChecker.canRollback ? "arrow.uturn.backward.circle.fill" : "lock.shield",
-                tint: releaseChecker.canRollback ? theme.colors.warning : theme.colors.success,
-                eyebrow: "ROLLBACK GUARD",
-                value: releaseChecker.canRollback ? "Available" : "Created at activation",
-                detail: releaseChecker.canRollback ? "Previous runtime retained" : "No dormant rollback claimed"
-            )
+        Group {
+            if !dashboardLayoutClass.isWide {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 2),
+                    spacing: 0
+                ) {
+                    updateSummaryCells(snapshot)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    updateSummaryCells(snapshot, includeDividers: true)
+                }
+            }
         }
         .padding(.vertical, 12)
         .controlSurface(tint: theme.colors.info)
+    }
+
+    @ViewBuilder
+    private func updateSummaryCells(
+        _ snapshot: UpdateCenterSnapshot?,
+        includeDividers: Bool = false
+    ) -> some View {
+        updateSummaryCell(
+            systemImage: "internaldrive.fill",
+            tint: theme.colors.success,
+            eyebrow: "INSTALLED RUNTIME",
+            value: snapshot?.installed.build.version ?? monitor.snapshot.version ?? "Detecting…",
+            detail: snapshot?.installed.build.commit.map(shortCommit) ?? "Local managed node"
+        )
+        if includeDividers { summaryDivider }
+        updateSummaryCell(
+            systemImage: "checkmark.shield.fill",
+            tint: policyTint,
+            eyebrow: "AUTOMATIC POLICY",
+            value: releaseChecker.policy.title,
+            detail: releaseChecker.policy == .manual ? "Manual installs" : automaticScheduleDescription
+        )
+        if includeDividers { summaryDivider }
+        appUpdateSummaryCell
+        if includeDividers { summaryDivider }
+        updateSummaryCell(
+            systemImage: releaseChecker.canRollback ? "arrow.uturn.backward.circle.fill" : "lock.shield",
+            tint: releaseChecker.canRollback ? theme.colors.warning : theme.colors.success,
+            eyebrow: "ROLLBACK GUARD",
+            value: releaseChecker.canRollback ? "Available" : "Created at activation",
+            detail: releaseChecker.canRollback ? "Previous runtime retained" : "No dormant rollback claimed"
+        )
     }
 
     private var appUpdateSummaryCell: some View {

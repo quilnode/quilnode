@@ -8,6 +8,7 @@ import SwiftUI
 struct ActivityFlightRecorderView: View {
     @Environment(\.quilTheme) private var theme
     @Environment(\.redactionReasons) private var redactionReasons
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     let points: [ActivityIntervalPoint]
     let events: [NodeActivityEvent]
@@ -30,7 +31,7 @@ struct ActivityFlightRecorderView: View {
         events
             .filter { chartDomain.contains($0.timestamp) }
             .sorted { $0.timestamp < $1.timestamp }
-            .suffix(3)
+            .suffix(dashboardLayoutClass.isWide ? 3 : 1)
     }
 
     private var maximumFramePace: Double {
@@ -111,12 +112,22 @@ struct ActivityFlightRecorderView: View {
             }
 
             ForEach(visibleEvents) { event in
-                RuleMark(x: .value("Event", event.timestamp))
-                    .foregroundStyle(eventTint(event).opacity(0.74))
-                    .lineStyle(StrokeStyle(lineWidth: 0.8))
-                    .annotation(position: .top, alignment: .leading, spacing: 4) {
-                        eventMarker(event)
-                    }
+                if !dashboardLayoutClass.isWide {
+                    RuleMark(x: .value("Event", event.timestamp))
+                        .foregroundStyle(eventTint(event).opacity(0.74))
+                        .lineStyle(StrokeStyle(lineWidth: 0.8))
+                } else {
+                    RuleMark(x: .value("Event", event.timestamp))
+                        .foregroundStyle(eventTint(event).opacity(0.74))
+                        .lineStyle(StrokeStyle(lineWidth: 0.8))
+                        .annotation(
+                            position: .top,
+                            alignment: markerAlignment(for: event),
+                            spacing: 4
+                        ) {
+                            eventMarker(event)
+                        }
+                }
             }
 
             if let selectedTimestamp {
@@ -217,7 +228,14 @@ struct ActivityFlightRecorderView: View {
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
         .background(theme.colors.canvas.opacity(0.88), in: RoundedRectangle(cornerRadius: 4))
-        .frame(width: 112, alignment: .leading)
+        .frame(width: 144, alignment: .leading)
+    }
+
+    private func markerAlignment(for event: NodeActivityEvent) -> Alignment {
+        let midpoint = chartDomain.lowerBound.addingTimeInterval(
+            chartDomain.upperBound.timeIntervalSince(chartDomain.lowerBound) / 2
+        )
+        return event.timestamp >= midpoint ? .trailing : .leading
     }
 
     private func eventTint(_ event: NodeActivityEvent) -> Color {

@@ -6,49 +6,71 @@ import SwiftUI
 
 struct RecoverySummaryBand: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     let presentation: RecoveryWorkspacePresentation
     let active: ManagedKeyset
 
     var body: some View {
-        HStack(spacing: 0) {
-            activeIdentity
-                .frame(maxWidth: .infinity, alignment: .leading)
-            divider
-            summaryFact(
-                title: "Automatic rollback",
-                value: rollbackStage.value,
-                detail: rollbackStage.state.label,
-                symbol: "checkmark.shield.fill",
-                tint: rollbackStage.state.tint(in: theme),
-                privacyField: rollbackStage.privacyField
-            )
-            .frame(width: 190)
-            divider
-            summaryFact(
-                title: "Separate backup",
-                value: separateStage.state == .verified ? "Recorded" : "None recorded",
-                detail: separateStage.state.label,
-                symbol: separateStage.state == .verified
-                    ? "externaldrive.badge.checkmark" : "externaldrive.badge.exclamationmark",
-                tint: separateStage.state.tint(in: theme),
-                privacyField: nil
-            )
-            .frame(width: 166)
-            divider
-            summaryFact(
-                title: "Stored identities",
-                value: String(presentation.storedIdentityCount),
-                detail: "One can be active",
-                symbol: "person.2.fill",
-                tint: theme.colors.accent,
-                privacyField: .recoveryMetadata
-            )
-            .frame(width: 150)
+        Group {
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 12) {
+                    activeIdentity
+                    Divider()
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading), count: 3),
+                        alignment: .leading,
+                        spacing: 0
+                    ) {
+                        summaryFacts(fixedWidths: false)
+                    }
+                }
+            } else {
+                HStack(spacing: 0) {
+                    activeIdentity
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    divider
+                    summaryFacts(fixedWidths: true)
+                }
+            }
         }
         .padding(14)
         .frame(minHeight: 112)
         .controlSurface(tint: readinessTint)
+    }
+
+    @ViewBuilder
+    private func summaryFacts(fixedWidths: Bool) -> some View {
+        summaryFact(
+            title: "Automatic rollback",
+            value: rollbackStage.value,
+            detail: rollbackStage.state.label,
+            symbol: "checkmark.shield.fill",
+            tint: rollbackStage.state.tint(in: theme),
+            privacyField: rollbackStage.privacyField
+        )
+        .frame(width: fixedWidths ? 190 : nil)
+        if fixedWidths { divider }
+        summaryFact(
+            title: "Separate backup",
+            value: separateStage.state == .verified ? "Recorded" : "None recorded",
+            detail: separateStage.state.label,
+            symbol: separateStage.state == .verified
+                ? "externaldrive.badge.checkmark" : "externaldrive.badge.exclamationmark",
+            tint: separateStage.state.tint(in: theme),
+            privacyField: nil
+        )
+        .frame(width: fixedWidths ? 166 : nil)
+        if fixedWidths { divider }
+        summaryFact(
+            title: "Stored identities",
+            value: String(presentation.storedIdentityCount),
+            detail: "One can be active",
+            symbol: "person.2.fill",
+            tint: theme.colors.accent,
+            privacyField: .recoveryMetadata
+        )
+        .frame(width: fixedWidths ? 150 : nil)
     }
 
     private var activeIdentity: some View {

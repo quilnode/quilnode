@@ -6,32 +6,54 @@ import SwiftUI
 
 struct IdentitySummaryBand: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     let presentation: IdentityWorkspacePresentation
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            participation
-                .frame(maxWidth: .infinity, alignment: .leading)
+        Group {
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 0) {
+                    participation
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 12)
+                    Divider()
+                    HStack(alignment: .top, spacing: 0) {
+                        seniority.frame(maxWidth: .infinity, alignment: .leading)
+                        summaryDivider
+                        allocation.frame(maxWidth: .infinity, alignment: .leading)
+                        summaryDivider
+                        balance.frame(maxWidth: .infinity, alignment: .leading)
+                        summaryDivider
+                        evidence.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.top, 12)
+                }
+            } else {
+                HStack(alignment: .center, spacing: 0) {
+                    participation
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-            summaryDivider
-            seniority
-                .frame(width: 148, alignment: .leading)
+                    summaryDivider
+                    seniority
+                        .frame(width: 148, alignment: .leading)
 
-            summaryDivider
-            allocation
-                .frame(width: 118, alignment: .leading)
+                    summaryDivider
+                    allocation
+                        .frame(width: 118, alignment: .leading)
 
-            summaryDivider
-            balance
-                .frame(width: 112, alignment: .leading)
+                    summaryDivider
+                    balance
+                        .frame(width: 112, alignment: .leading)
 
-            summaryDivider
-            evidence
-                .frame(width: 126, alignment: .leading)
+                    summaryDivider
+                    evidence
+                        .frame(width: 126, alignment: .leading)
+                }
+            }
         }
         .padding(14)
-        .frame(minHeight: 138)
+        .frame(minHeight: dashboardLayoutClass.isCompact ? 224 : 138)
         .controlSurface(tint: participationTint)
     }
 

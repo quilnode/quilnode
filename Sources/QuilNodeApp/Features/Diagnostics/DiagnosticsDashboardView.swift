@@ -10,6 +10,7 @@ import SwiftUI
 /// explicit, and reversible where the platform permits.
 struct DiagnosticsDashboardView: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
     @EnvironmentObject private var monitor: NodeMonitor
     @EnvironmentObject private var lifecycle: NodeLifecycleController
     @EnvironmentObject private var network: NetworkReadinessCoordinator
@@ -52,17 +53,18 @@ struct DiagnosticsDashboardView: View {
                 scanStage: scanStage,
                 lastScanAt: lastScanAt
             )
-            HStack(alignment: .top, spacing: 10) {
-                DiagnosticsFindingsQueue(
-                    findings: presentation.findings,
-                    selectedID: selectedCheck?.id,
-                    onSelect: { selectedCheckID = $0 }
-                )
-                DiagnosticsProofMatrix(
-                    categories: presentation.categories,
-                    selectedID: selectedCheck?.id,
-                    onSelect: { selectedCheckID = $0 }
-                )
+            Group {
+                if !dashboardLayoutClass.isWide {
+                    VStack(alignment: .leading, spacing: 10) {
+                        diagnosticsFindings(presentation)
+                        diagnosticsProofMatrix(presentation)
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 10) {
+                        diagnosticsFindings(presentation)
+                        diagnosticsProofMatrix(presentation)
+                    }
+                }
             }
             DiagnosticsEvidenceInspector(check: selectedCheck, onRepair: handle)
             recentEvidence
@@ -90,19 +92,38 @@ struct DiagnosticsDashboardView: View {
     }
 
     private var diagnosticsHeader: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("LOCAL ASSURANCE")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.5)
-                    .foregroundStyle(theme.colors.accent)
-                Text("Diagnostics")
-                    .font(.largeTitle.weight(.bold))
-                Text("Local evidence, explicit conclusions, scoped repair.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Group {
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 12) {
+                    diagnosticsTitle
+                    diagnosticsActions
+                }
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    diagnosticsTitle
+                    Spacer()
+                    diagnosticsActions
+                }
             }
-            Spacer()
+        }
+    }
+
+    private var diagnosticsTitle: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("LOCAL ASSURANCE")
+                .font(.caption2.weight(.bold))
+                .tracking(1.5)
+                .foregroundStyle(theme.colors.accent)
+            Text("Diagnostics")
+                .font(.largeTitle.weight(.bold))
+            Text("Local evidence, explicit conclusions, scoped repair.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var diagnosticsActions: some View {
+        HStack(spacing: 8) {
             Button("Copy safe report", systemImage: "doc.on.doc") {
                 copySafeReport()
             }
@@ -115,6 +136,24 @@ struct DiagnosticsDashboardView: View {
             .buttonStyle(.borderedProminent)
             .disabled(isScanning)
         }
+    }
+
+    private func diagnosticsFindings(_ presentation: DiagnosticsPresentation) -> some View {
+        DiagnosticsFindingsQueue(
+            findings: presentation.findings,
+            selectedID: selectedCheck?.id,
+            fillsWidth: !dashboardLayoutClass.isWide,
+            onSelect: { selectedCheckID = $0 }
+        )
+    }
+
+    private func diagnosticsProofMatrix(_ presentation: DiagnosticsPresentation) -> some View {
+        DiagnosticsProofMatrix(
+            categories: presentation.categories,
+            selectedID: selectedCheck?.id,
+            compactLayout: !dashboardLayoutClass.isWide,
+            onSelect: { selectedCheckID = $0 }
+        )
     }
 
     private var selectedCheck: NodeDiagnosticCheck? {

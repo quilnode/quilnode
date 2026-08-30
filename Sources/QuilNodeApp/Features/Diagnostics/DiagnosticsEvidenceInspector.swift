@@ -6,6 +6,7 @@ import SwiftUI
 
 struct DiagnosticsEvidenceInspector: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
     let check: NodeDiagnosticCheck?
     let onRepair: (NodeDiagnosticRepair) -> Void
 
@@ -28,40 +29,37 @@ struct DiagnosticsEvidenceInspector: View {
             Divider()
 
             if let check {
-                HStack(alignment: .top, spacing: 0) {
-                    evidenceCell("What was tested", value: check.summary, systemImage: "checklist")
-                    divider
-                    evidenceCell(
-                        "Observed local signal", value: check.evidence, systemImage: "waveform.badge.magnifyingglass")
-                    divider
-                    evidenceCell("Why this follows", value: conclusion(for: check), systemImage: "function")
-                    divider
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Scoped response", systemImage: "wrench.and.screwdriver")
-                            .font(.caption.weight(.semibold))
-                        Text(DiagnosticRepairPresentation.scope(check.repair))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Label(
-                            DiagnosticRepairPresentation.safety(check.repair),
-                            systemImage: "checkmark.shield.fill"
-                        )
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(theme.colors.success)
-                        if let repair = check.repair {
-                            Button(
-                                DiagnosticRepairPresentation.label(repair),
-                                systemImage: DiagnosticRepairPresentation.icon(repair)
-                            ) {
-                                onRepair(repair)
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                Group {
+                    if !dashboardLayoutClass.isWide {
+                        LazyVGrid(
+                            columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: 2),
+                            alignment: .leading,
+                            spacing: 0
+                        ) {
+                            evidenceCell("What was tested", value: check.summary, systemImage: "checklist")
+                            evidenceCell(
+                                "Observed local signal",
+                                value: check.evidence,
+                                systemImage: "waveform.badge.magnifyingglass"
+                            )
+                            evidenceCell("Why this follows", value: conclusion(for: check), systemImage: "function")
+                            responseCell(check)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 0) {
+                            evidenceCell("What was tested", value: check.summary, systemImage: "checklist")
+                            divider
+                            evidenceCell(
+                                "Observed local signal",
+                                value: check.evidence,
+                                systemImage: "waveform.badge.magnifyingglass"
+                            )
+                            divider
+                            evidenceCell("Why this follows", value: conclusion(for: check), systemImage: "function")
+                            divider
+                            responseCell(check)
                         }
                     }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
 
                 Divider()
@@ -115,6 +113,35 @@ struct DiagnosticsEvidenceInspector: View {
         Rectangle().fill(Color.secondary.opacity(0.14)).frame(width: 1, height: 104).padding(.vertical, 10)
     }
 
+    private func responseCell(_ check: NodeDiagnosticCheck) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Scoped response", systemImage: "wrench.and.screwdriver")
+                .font(.caption.weight(.semibold))
+            Text(DiagnosticRepairPresentation.scope(check.repair))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Label(
+                DiagnosticRepairPresentation.safety(check.repair),
+                systemImage: "checkmark.shield.fill"
+            )
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(theme.colors.success)
+            if let repair = check.repair {
+                Button(
+                    DiagnosticRepairPresentation.label(repair),
+                    systemImage: DiagnosticRepairPresentation.icon(repair)
+                ) {
+                    onRepair(repair)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
     private func conclusion(for check: NodeDiagnosticCheck) -> String {
         switch check.state {
         case .checking: "The probe has not completed, so no pass or failure is claimed."
@@ -128,16 +155,31 @@ struct DiagnosticsEvidenceInspector: View {
 
 struct DiagnosticsProvenanceStrip: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     var body: some View {
-        HStack(spacing: 0) {
-            item("Local tests only", "No diagnostic data is sent.", "desktopcomputer")
-            Divider().frame(height: 30)
-            item("No keys read", "No private key bytes enter the app.", "key.slash")
-            Divider().frame(height: 30)
-            item("No explorer dependency", "Conclusions use local evidence.", "network.slash")
-            Divider().frame(height: 30)
-            item("Explicit repairs", "State changes require a visible action.", "hand.raised.fill")
+        Group {
+            if !dashboardLayoutClass.isWide {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 2),
+                    spacing: 0
+                ) {
+                    item("Local tests only", "No diagnostic data is sent.", "desktopcomputer")
+                    item("No keys read", "No private key bytes enter the app.", "key.slash")
+                    item("No explorer dependency", "Conclusions use local evidence.", "network.slash")
+                    item("Explicit repairs", "State changes require a visible action.", "hand.raised.fill")
+                }
+            } else {
+                HStack(spacing: 0) {
+                    item("Local tests only", "No diagnostic data is sent.", "desktopcomputer")
+                    Divider().frame(height: 30)
+                    item("No keys read", "No private key bytes enter the app.", "key.slash")
+                    Divider().frame(height: 30)
+                    item("No explorer dependency", "Conclusions use local evidence.", "network.slash")
+                    Divider().frame(height: 30)
+                    item("Explicit repairs", "State changes require a visible action.", "hand.raised.fill")
+                }
+            }
         }
         .padding(.vertical, 10)
         .controlSurface(tint: theme.colors.success)

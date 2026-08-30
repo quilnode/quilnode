@@ -6,6 +6,7 @@ import SwiftUI
 
 struct ActivityHeader: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     let narrative: ActivityNarrative
     @Binding var range: ActivityTimeRange
@@ -13,28 +14,16 @@ struct ActivityHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(narrative.title)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(theme.colors.primaryText)
-                    Text(narrative.subtitle)
-                        .font(.callout)
-                        .foregroundStyle(theme.colors.secondaryText)
+            if dashboardLayoutClass.isCompact {
+                VStack(alignment: .leading, spacing: 10) {
+                    title
+                    rangePicker
                 }
-                Spacer(minLength: 20)
-                HStack(spacing: 9) {
-                    Text("Activity range")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(theme.colors.secondaryText)
-                    Picker("Activity range", selection: $range) {
-                        ForEach(ActivityTimeRange.allCases) { value in
-                            Text(value.label).tag(value)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 208)
+            } else {
+                HStack(alignment: .top, spacing: 20) {
+                    title
+                    Spacer(minLength: 20)
+                    rangePicker
                 }
             }
 
@@ -47,6 +36,35 @@ struct ActivityHeader: View {
             .pickerStyle(.segmented)
             .frame(width: 290)
             .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(narrative.title)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(theme.colors.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(narrative.subtitle)
+                .font(.callout)
+                .foregroundStyle(theme.colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var rangePicker: some View {
+        HStack(spacing: 9) {
+            Text("Activity range")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(theme.colors.secondaryText)
+            Picker("Activity range", selection: $range) {
+                ForEach(ActivityTimeRange.allCases) { value in
+                    Text(value.label).tag(value)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 208)
         }
     }
 }

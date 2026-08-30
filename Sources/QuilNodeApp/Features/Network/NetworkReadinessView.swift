@@ -8,6 +8,7 @@ import SwiftUI
 /// claims that a router rule exists from configuration alone: only an inbound
 /// connection observed by the node or macOS closes the Internet boundary.
 struct NetworkReadinessView: View {
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
     @EnvironmentObject var monitor: NodeMonitor
     @EnvironmentObject var network: NetworkReadinessCoordinator
 
@@ -30,7 +31,7 @@ struct NetworkReadinessView: View {
 
     var body: some View {
         Group {
-            if compactLayout {
+            if compactLayout || !dashboardLayoutClass.isWide {
                 VStack(alignment: .leading, spacing: 12) {
                     workspace
                     inspector

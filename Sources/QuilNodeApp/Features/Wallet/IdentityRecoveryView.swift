@@ -9,6 +9,7 @@ import SwiftUI
 /// operation remain inside the code-signature-pinned local service.
 struct IdentityRecoveryView: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
     @EnvironmentObject private var walletManager: WalletManager
 
     @State private var pendingTransaction: IdentityTransactionContext?
@@ -60,26 +61,40 @@ struct IdentityRecoveryView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("SELF-CUSTODY")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .tracking(1.5)
-                    .foregroundStyle(theme.colors.accent)
-                Text("Identity Recovery")
-                    .font(
-                        .system(
-                            size: 28 * theme.typography.scale,
-                            weight: .bold,
-                            design: theme.typography.displayDesign
-                        ))
-                Text("Know which recovery layers exist before you back up, import, or switch an identity.")
-                    .font(.subheadline)
-                    .foregroundStyle(theme.colors.secondaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 16) {
+                recoveryHeaderCopy
+                Spacer(minLength: 16)
+                recoveryHeaderActions
             }
+            VStack(alignment: .leading, spacing: 12) {
+                recoveryHeaderCopy
+                recoveryHeaderActions
+            }
+        }
+    }
 
-            Spacer(minLength: 16)
+    private var recoveryHeaderCopy: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("SELF-CUSTODY")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundStyle(theme.colors.accent)
+            Text("Identity Recovery")
+                .font(
+                    .system(
+                        size: 28 * theme.typography.scale,
+                        weight: .bold,
+                        design: theme.typography.displayDesign
+                    ))
+            Text("Know which recovery layers exist before you back up, import, or switch an identity.")
+                .font(.subheadline)
+                .foregroundStyle(theme.colors.secondaryText)
+        }
+    }
 
+    private var recoveryHeaderActions: some View {
+        HStack(spacing: 8) {
             Button {
                 Task { await walletManager.refresh() }
             } label: {
@@ -139,31 +154,19 @@ struct IdentityRecoveryView: View {
         VStack(alignment: .leading, spacing: 12) {
             RecoverySummaryBand(presentation: presentation, active: active)
 
-            HStack(alignment: .top, spacing: 12) {
-                RecoveryRunwayView(stages: presentation.stages)
-                    .frame(width: 244)
-
-                RecoveryIdentityInventory(
-                    keysets: walletManager.inventory.keysets,
-                    selectedKeysetID: Binding(
-                        get: { selectedKeyset?.id },
-                        set: { selectedKeysetID = $0 }
-                    ),
-                    create: { pendingTransaction = .create(suggestedName: "My Quilibrium identity") },
-                    importPackage: walletManager.chooseImportFolder
-                )
-                .frame(width: 232)
-
-                if let selectedKeyset {
-                    RecoveryIdentityDossier(
-                        keyset: selectedKeyset,
-                        export: { Task { await walletManager.exportRecovery(for: selectedKeyset) } },
-                        protect: {
-                            Task { await walletManager.adoptActive(named: selectedKeyset.name) }
-                        },
-                        activate: { pendingTransaction = .activate(selectedKeyset) }
-                    )
-                    .frame(maxWidth: .infinity)
+            if !dashboardLayoutClass.isWide {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        runway
+                        inventory
+                    }
+                    dossier
+                }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    runway.frame(width: 244)
+                    inventory.frame(width: 232)
+                    dossier
                 }
             }
 
@@ -175,6 +178,39 @@ struct IdentityRecoveryView: View {
             )
 
             RecoveryOperationSequence()
+        }
+    }
+
+    private var runway: some View {
+        RecoveryRunwayView(stages: presentation.stages)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var inventory: some View {
+        RecoveryIdentityInventory(
+            keysets: walletManager.inventory.keysets,
+            selectedKeysetID: Binding(
+                get: { selectedKeyset?.id },
+                set: { selectedKeysetID = $0 }
+            ),
+            create: { pendingTransaction = .create(suggestedName: "My Quilibrium identity") },
+            importPackage: walletManager.chooseImportFolder
+        )
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var dossier: some View {
+        if let selectedKeyset {
+            RecoveryIdentityDossier(
+                keyset: selectedKeyset,
+                export: { Task { await walletManager.exportRecovery(for: selectedKeyset) } },
+                protect: {
+                    Task { await walletManager.adoptActive(named: selectedKeyset.name) }
+                },
+                activate: { pendingTransaction = .activate(selectedKeyset) }
+            )
+            .frame(maxWidth: .infinity)
         }
     }
 

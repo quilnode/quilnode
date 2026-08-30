@@ -21,6 +21,7 @@ struct DashboardView: View {
     @EnvironmentObject var appUpdates: AppUpdateController
     @Environment(\.quilTheme) var theme
     @Environment(\.quilMotion) var motion
+    @State var dashboardLayoutClass = DashboardLayoutClass.regular
     @State var diagnosticsExpanded = false
     @State var allocationsExpanded = false
     @State var historyRange: HistoryRange = .sixHours
@@ -47,96 +48,112 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ThemedWindowChrome(
-                sidebarWidth: sidebarWidth,
-                title: destination.title,
-                systemImage: destination.systemImage,
-                index: destinationIndex
-            ) {
-                headerActions
-            }
-            HStack(spacing: 0) {
-                DashboardSidebar(
-                    destination: $destination,
-                    isCollapsed: $sidebarCollapsed,
-                    snapshot: monitor.snapshot,
-                    observationPhase: monitor.observationPhase,
-                    onSelectDestination: handleDestinationSelection
-                )
-                Divider()
-                VStack(spacing: 0) {
-                    ZStack {
-                        ThemeCanvasBackground()
-                            .ignoresSafeArea()
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: theme.metrics.panelGap * theme.metrics.spacingScale) {
-                                destinationContent
-                            }
-                            .padding(.horizontal, destination == .overview ? 0 : theme.metrics.panelPadding + 8)
-                            .padding(.top, destination == .overview ? 0 : theme.metrics.panelPadding + 4)
-                            .padding(.bottom, destination == .overview ? 0 : theme.metrics.panelPadding + 12)
-                        }
-                    }
-                    DashboardStatusFooter(
+        GeometryReader { window in
+            let resolvedLayoutClass = DashboardLayoutClass(
+                contentWidth: max(window.size.width - sidebarWidth - 1, 0)
+            )
+            VStack(spacing: 0) {
+                ThemedWindowChrome(
+                    sidebarWidth: sidebarWidth,
+                    title: destination.title,
+                    systemImage: destination.systemImage,
+                    index: destinationIndex
+                ) {
+                    headerActions
+                }
+                HStack(spacing: 0) {
+                    DashboardSidebar(
+                        destination: $destination,
+                        isCollapsed: $sidebarCollapsed,
                         snapshot: monitor.snapshot,
                         observationPhase: monitor.observationPhase,
-                        onOpenDiagnostics: { destination = .diagnostics }
+                        onSelectDestination: handleDestinationSelection
                     )
-                }
-            }
-        }
-        .ignoresSafeArea(.container, edges: .top)
-        .background { ThemeCanvasBackground().ignoresSafeArea() }
-        .redacted(reason: privacyModeEnabled ? .privacy : [])
-        .onReceive(commandCenter.$latestRequest.compactMap { $0 }) { request in
-            handleCommand(request.command)
-        }
-        .sheet(
-            isPresented: Binding(
-                get: {
-                    guard installationCoordinator.preflight != nil else { return false }
-                    return installationCoordinator.requiresFirstInstall
-                        || installationCoordinator.requiresPlatformAuthorization
-                        || installationCoordinator.requiresQClientSetup
-                        || !walletManager.onboardingCompleted
-                        || (installationCoordinator.didCompleteInstallationThisRun
-                            && networkReadiness.shouldPresentInitialGuide)
-                },
-                set: { presented in
-                    if !presented,
-                        !installationCoordinator.requiresFirstInstall,
-                        walletManager.inventory.activeKeyset != nil
-                    {
-                        walletManager.dismissOnboarding()
+                    Divider()
+                    VStack(spacing: 0) {
+                        ZStack {
+                            ThemeCanvasBackground()
+                                .ignoresSafeArea()
+                            ScrollView {
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: theme.metrics.panelGap * theme.metrics.spacingScale
+                                ) {
+                                    destinationContent
+                                }
+                                .padding(.horizontal, destination == .overview ? 0 : theme.metrics.panelPadding + 8)
+                                .padding(.top, destination == .overview ? 0 : theme.metrics.panelPadding + 4)
+                                .padding(.bottom, destination == .overview ? 0 : theme.metrics.panelPadding + 12)
+                            }
+                        }
+                        DashboardStatusFooter(
+                            snapshot: monitor.snapshot,
+                            observationPhase: monitor.observationPhase,
+                            onOpenDiagnostics: { destination = .diagnostics }
+                        )
                     }
                 }
+            }
+            .environment(
+                \.dashboardLayoutClass,
+                resolvedLayoutClass
             )
-        ) {
-            if installationCoordinator.requiresFirstInstall {
-                FirstInstallView()
-                    .environmentObject(installationCoordinator)
-                    .quilThemed(theme)
-                    .interactiveDismissDisabled()
-            } else if installationCoordinator.requiresPlatformAuthorization {
-                PlatformAuthorizationView()
-                    .environmentObject(installationCoordinator)
-                    .quilThemed(theme)
-                    .interactiveDismissDisabled()
-            } else if installationCoordinator.requiresQClientSetup {
-                QClientSetupView()
-                    .environmentObject(installationCoordinator)
-                    .quilThemed(theme)
-                    .interactiveDismissDisabled()
-            } else if !walletManager.onboardingCompleted {
-                WalletOnboardingView()
-                    .environmentObject(walletManager)
-                    .quilThemed(theme)
-            } else {
-                NetworkOnboardingView()
-                    .environmentObject(networkReadiness)
-                    .quilThemed(theme)
-                    .interactiveDismissDisabled()
+            .onAppear { dashboardLayoutClass = resolvedLayoutClass }
+            .onChange(of: resolvedLayoutClass) { _, newValue in
+                dashboardLayoutClass = newValue
+            }
+            .ignoresSafeArea(.container, edges: .top)
+            .background { ThemeCanvasBackground().ignoresSafeArea() }
+            .redacted(reason: privacyModeEnabled ? .privacy : [])
+            .onReceive(commandCenter.$latestRequest.compactMap { $0 }) { request in
+                handleCommand(request.command)
+            }
+            .sheet(
+                isPresented: Binding(
+                    get: {
+                        guard installationCoordinator.preflight != nil else { return false }
+                        return installationCoordinator.requiresFirstInstall
+                            || installationCoordinator.requiresPlatformAuthorization
+                            || installationCoordinator.requiresQClientSetup
+                            || !walletManager.onboardingCompleted
+                            || (installationCoordinator.didCompleteInstallationThisRun
+                                && networkReadiness.shouldPresentInitialGuide)
+                    },
+                    set: { presented in
+                        if !presented,
+                            !installationCoordinator.requiresFirstInstall,
+                            walletManager.inventory.activeKeyset != nil
+                        {
+                            walletManager.dismissOnboarding()
+                        }
+                    }
+                )
+            ) {
+                if installationCoordinator.requiresFirstInstall {
+                    FirstInstallView()
+                        .environmentObject(installationCoordinator)
+                        .quilThemed(theme)
+                        .interactiveDismissDisabled()
+                } else if installationCoordinator.requiresPlatformAuthorization {
+                    PlatformAuthorizationView()
+                        .environmentObject(installationCoordinator)
+                        .quilThemed(theme)
+                        .interactiveDismissDisabled()
+                } else if installationCoordinator.requiresQClientSetup {
+                    QClientSetupView()
+                        .environmentObject(installationCoordinator)
+                        .quilThemed(theme)
+                        .interactiveDismissDisabled()
+                } else if !walletManager.onboardingCompleted {
+                    WalletOnboardingView()
+                        .environmentObject(walletManager)
+                        .quilThemed(theme)
+                } else {
+                    NetworkOnboardingView()
+                        .environmentObject(networkReadiness)
+                        .quilThemed(theme)
+                        .interactiveDismissDisabled()
+                }
             }
         }
     }

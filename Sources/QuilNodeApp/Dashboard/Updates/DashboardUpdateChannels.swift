@@ -13,30 +13,52 @@ extension DashboardView {
             hasStagedUpdate: releaseChecker.stagedUpdate != nil
         )
         return VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Node channels")
-                    .font(.headline)
-                Text("One runtime, three assurance levels")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("Checked \(snapshot.checkedAt.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    updateChannelTitle(snapshot)
+                    Spacer()
+                    updateChannelCheckedAt(snapshot)
+                }
+                VStack(alignment: .leading, spacing: 5) {
+                    updateChannelTitle(snapshot)
+                    updateChannelCheckedAt(snapshot)
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
 
-            updateChannelColumnHeaders
+            if dashboardLayoutClass.isWide {
+                updateChannelColumnHeaders
+            }
 
             ForEach(channels) { channel in
-                updateChannelRow(channel)
+                if !dashboardLayoutClass.isWide {
+                    updateChannelCard(channel)
+                } else {
+                    updateChannelRow(channel)
+                }
                 if channel.id != channels.last?.id {
                     Divider().opacity(0.45)
                 }
             }
         }
         .controlSurface(tint: theme.colors.info)
+    }
+
+    private func updateChannelTitle(_ snapshot: UpdateCenterSnapshot) -> some View {
+        HStack(spacing: 8) {
+            Text("Node channels")
+                .font(.headline)
+            Text("One runtime, three assurance levels")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func updateChannelCheckedAt(_ snapshot: UpdateCenterSnapshot) -> some View {
+        Text("Checked \(snapshot.checkedAt.formatted(date: .omitted, time: .shortened))")
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
     }
 
     private var updateChannelColumnHeaders: some View {
@@ -141,6 +163,97 @@ extension DashboardView {
         }
     }
 
+    private func updateChannelCard(_ channel: UpdateChannelPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                DashboardCircleIcon(
+                    systemImage: channel.kind.systemImage,
+                    tint: channelTint(channel.kind),
+                    size: 34
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(channel.kind.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(channel.kind.subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                channelActionButton(channel)
+                    .fixedSize()
+            }
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading), count: 3),
+                alignment: .leading,
+                spacing: 10
+            ) {
+                updateChannelDetail(
+                    label: "ASSURANCE",
+                    value: channel.assurance.title,
+                    detail: channel.assurance.detail,
+                    tint: assuranceTint(channel.assurance),
+                    systemImage: "shield.fill"
+                )
+                updateChannelDetail(
+                    label: "VERSION",
+                    value: channel.version,
+                    detail: channel.commit.map(shortCommit) ?? channel.evidence,
+                    tint: channelTint(channel.kind),
+                    systemImage: "number"
+                )
+                updateChannelDetail(
+                    label: "STATE",
+                    value: channel.state.title,
+                    detail: channel.timestamp.map {
+                        "\($0.kind.label) \($0.date.formatted(.relative(presentation: .named)))"
+                    } ?? channel.evidence,
+                    tint: stateTint(channel.state),
+                    systemImage: stateIcon(channel.state)
+                )
+            }
+        }
+        .padding(14)
+        .background(
+            channel.kind == selectedChannel
+                ? channelTint(channel.kind).opacity(0.055)
+                : Color.clear
+        )
+        .overlay(alignment: .leading) {
+            if channel.kind == selectedChannel {
+                Capsule()
+                    .fill(channelTint(channel.kind))
+                    .frame(width: 3)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+
+    private func updateChannelDetail(
+        label: String,
+        value: String,
+        detail: String,
+        tint: Color,
+        systemImage: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                .tracking(0.7)
+                .foregroundStyle(.secondary)
+            Label(value, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .lineLimit(2)
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .help(detail)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
     func managedQClientStrip(_ snapshot: UpdateCenterSnapshot) -> some View {
         let installed = snapshot.qclient.installed
         let available = snapshot.qclient.available
@@ -150,7 +263,51 @@ extension DashboardView {
                 qclientReleaseVersion: installed?.releaseVersion,
                 nodeVersion: snapshot.installed.build.version
             )
-        return HStack(spacing: 14) {
+        return Group {
+            if !dashboardLayoutClass.isWide {
+                VStack(alignment: .leading, spacing: 12) {
+                    qclientIdentity
+                    HStack(alignment: .bottom, spacing: 16) {
+                        UpdateDetailRow(
+                            label: "Installed",
+                            value: installed?.releaseVersion ?? "Not managed"
+                        )
+                        UpdateDetailRow(
+                            label: "Available",
+                            value: available?.releaseVersion ?? "Unavailable"
+                        )
+                        Spacer(minLength: 4)
+                        qclientAction(installed: installed, available: available, compatible: compatible)
+                    }
+                }
+            } else {
+                HStack(spacing: 14) {
+                    qclientIdentity
+                    Spacer()
+                    UpdateDetailRow(
+                        label: "Installed",
+                        value: installed?.releaseVersion ?? "Not managed"
+                    )
+                    UpdateDetailRow(
+                        label: "Available",
+                        value: available?.releaseVersion ?? "Unavailable"
+                    )
+                    Label(
+                        compatible ? "Compatible · reused" : "Needs attention",
+                        systemImage: compatible ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(compatible ? theme.colors.success : theme.colors.warning)
+                    qclientAction(installed: installed, available: available, compatible: compatible)
+                }
+            }
+        }
+        .padding(12)
+        .controlSurface(tint: theme.colors.accent)
+    }
+
+    private var qclientIdentity: some View {
+        HStack(spacing: 10) {
             DashboardCircleIcon(systemImage: "terminal.fill", tint: theme.colors.accent, size: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Managed qclient dependency")
@@ -159,32 +316,22 @@ extension DashboardView {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            UpdateDetailRow(
-                label: "Installed",
-                value: installed?.releaseVersion ?? "Not managed"
-            )
-            UpdateDetailRow(
-                label: "Available",
-                value: available?.releaseVersion ?? "Unavailable"
-            )
-            Label(
-                compatible ? "Compatible · reused" : "Needs attention",
-                systemImage: compatible ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-            )
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(compatible ? theme.colors.success : theme.colors.warning)
-            Button(compatible ? "Compatible" : (installed == nil ? "Install qclient" : "Update qclient")) {
-                releaseChecker.requestInstallQClient()
-            }
-            .buttonStyle(.bordered)
-            .disabled(
-                compatible || available == nil || releaseChecker.isInstalling
-                    || releaseChecker.stagedUpdate != nil
-            )
         }
-        .padding(12)
-        .controlSurface(tint: theme.colors.accent)
+    }
+
+    private func qclientAction(
+        installed: ManagedQClientStatus?,
+        available: OfficialQClientRelease?,
+        compatible: Bool
+    ) -> some View {
+        Button(compatible ? "Compatible" : (installed == nil ? "Install qclient" : "Update qclient")) {
+            releaseChecker.requestInstallQClient()
+        }
+        .buttonStyle(.bordered)
+        .disabled(
+            compatible || available == nil || releaseChecker.isInstalling
+                || releaseChecker.stagedUpdate != nil
+        )
     }
 
     private var selectedChannel: UpdateChannelKind? {

@@ -8,13 +8,13 @@ import SwiftUI
 extension DashboardView {
     var overviewHero: some View {
         GeometryReader { proxy in
-            if proxy.size.width >= 880 {
+            if dashboardLayoutClass.isWide {
                 protocolHeroWide(width: proxy.size.width)
             } else {
                 protocolHeroCompact(width: proxy.size.width)
             }
         }
-        .frame(height: 326)
+        .frame(height: dashboardLayoutClass.isWide ? 326 : 548)
         .background(theme.colors.canvas.opacity(0.84))
         .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
         .clipped()
@@ -22,7 +22,7 @@ extension DashboardView {
 
     private func protocolHeroWide(width: CGFloat) -> some View {
         HStack(spacing: 0) {
-            protocolHeroCopy
+            protocolHeroCopy(compact: false)
                 .frame(width: width * 0.38, alignment: .leading)
 
             LocalNetworkTopologyView(
@@ -38,25 +38,27 @@ extension DashboardView {
     }
 
     private func protocolHeroCompact(width: CGFloat) -> some View {
-        ZStack {
-            LocalNetworkTopologyView(
-                snapshot: monitor.snapshot,
-                hasLiveTelemetry: nodeObservation.hasLiveTelemetry
-            )
-            .frame(width: width * 0.64, height: 326)
-            .offset(x: width * 0.08)
-            .clipped()
+        VStack(spacing: 0) {
+            protocolHeroCopy(compact: true)
+                .frame(maxWidth: .infinity, minHeight: 282, alignment: .leading)
 
-            HStack(spacing: 0) {
-                protocolHeroCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .center, spacing: 0) {
+                LocalNetworkTopologyView(
+                    snapshot: monitor.snapshot,
+                    hasLiveTelemetry: nodeObservation.hasLiveTelemetry
+                )
+                .frame(maxWidth: .infinity, minHeight: 246)
+                .clipped()
+
                 protocolFramePanel
-                    .frame(width: min(190, width * 0.28), alignment: .leading)
+                    .frame(width: min(204, width * 0.32), alignment: .leading)
+                    .frame(minHeight: 246, alignment: .leading)
             }
+            .overlay(alignment: .top) { protocolRule(opacity: 0.42) }
         }
     }
 
-    private var protocolHeroCopy: some View {
+    private func protocolHeroCopy(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
                 Circle()
@@ -73,14 +75,14 @@ extension DashboardView {
             protocolStatusTitle
                 .font(
                     .system(
-                        size: 34 * theme.typography.scale,
+                        size: (compact ? 29 : 34) * theme.typography.scale,
                         weight: .bold,
                         design: .monospaced
                     )
                 )
                 .tracking(-1.4)
-                .lineLimit(1)
-                .minimumScaleFactor(0.68)
+                .lineLimit(compact ? 2 : 1)
+                .minimumScaleFactor(0.78)
 
             Text(provingPhaseDetail)
                 .font(.system(size: 12.5 * theme.typography.scale, design: theme.typography.displayDesign))
@@ -93,8 +95,8 @@ extension DashboardView {
 
             readinessBadges
         }
-        .padding(.leading, 34)
-        .padding(.trailing, 14)
+        .padding(.leading, compact ? 28 : 34)
+        .padding(.trailing, compact ? 28 : 14)
         .frame(maxHeight: .infinity, alignment: .center)
     }
 
@@ -247,32 +249,61 @@ extension DashboardView {
     }
 
     var overviewMetricStrip: some View {
-        HStack(spacing: 0) {
-            ProtocolMetricCell(
+        Group {
+            if dashboardLayoutClass.isCompact {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 3),
+                    spacing: 0
+                ) {
+                    ForEach(overviewMetricDescriptors) { descriptor in
+                        ProtocolMetricCell(descriptor: descriptor)
+                            .frame(minHeight: 92)
+                            .overlay(alignment: .trailing) { protocolMetricDivider }
+                            .overlay(alignment: .bottom) { protocolRule(opacity: 0.36) }
+                    }
+                }
+            } else {
+                HStack(spacing: 0) {
+                    ForEach(Array(overviewMetricDescriptors.enumerated()), id: \.element.id) { index, descriptor in
+                        if index > 0 { protocolMetricDivider }
+                        ProtocolMetricCell(descriptor: descriptor)
+                    }
+                }
+            }
+        }
+        .frame(minHeight: 112)
+        .background(theme.colors.canvas.opacity(0.68))
+        .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
+    }
+
+    private var overviewMetricDescriptors: [ProtocolMetricDescriptor] {
+        [
+            ProtocolMetricDescriptor(
+                id: "shards",
                 title: "Shards active",
                 value: nodeObservation.value(String(monitor.snapshot.activeShards)),
                 detail: nodeObservation.detail("Local registry"),
                 tint: monitor.snapshot.activeShards > 0 ? theme.colors.success : protocolSignal,
                 privacyField: .activeShardCount
-            )
-            protocolMetricDivider
-            ProtocolMetricCell(
+            ),
+            ProtocolMetricDescriptor(
+                id: "archives",
                 title: "Archive sources",
                 value: nodeObservation.value(monitor.snapshot.archiveSourceValue),
                 detail: nodeObservation.detail(monitor.snapshot.archiveSourceDetail),
                 tint: protocolSignal,
                 privacyField: nil
-            )
-            protocolMetricDivider
-            ProtocolMetricCell(
+            ),
+            ProtocolMetricDescriptor(
+                id: "peers",
                 title: "Network peers",
                 value: nodeObservation.value(String(monitor.snapshot.peers)),
                 detail: nodeObservation.detail(DashboardCopy.Activity.liveMesh),
                 tint: protocolSignal,
                 privacyField: nil
-            )
-            protocolMetricDivider
-            ProtocolMetricCell(
+            ),
+            ProtocolMetricDescriptor(
+                id: "seniority",
                 title: DashboardCopy.Overview.seniority,
                 value: nodeObservation.value(
                     monitor.snapshot.seniority > 0 ? monitor.snapshot.seniority.grouped : "—"
@@ -280,27 +311,24 @@ extension DashboardView {
                 detail: nodeObservation.detail(DashboardCopy.Overview.chainRegistry),
                 tint: theme.colors.accentSecondary,
                 privacyField: .seniority
-            )
-            protocolMetricDivider
-            ProtocolMetricCell(
+            ),
+            ProtocolMetricDescriptor(
+                id: "uptime",
                 title: DashboardCopy.Overview.uptime,
                 value: nodeObservation.value(monitor.snapshot.processUptime ?? "—"),
                 detail: nodeObservation.detail(DashboardCopy.Overview.nodeProcess),
                 tint: theme.colors.success,
                 privacyField: .nodeUptime
-            )
-            protocolMetricDivider
-            ProtocolMetricCell(
+            ),
+            ProtocolMetricDescriptor(
+                id: "balance",
                 title: "QUIL balance",
                 value: nodeObservation.value(monitor.snapshot.quilBalance?.compactDecimal ?? "—"),
                 detail: nodeObservation.detail(balanceDetail),
                 tint: theme.colors.wallet,
                 privacyField: .quilBalance
-            )
-        }
-        .frame(minHeight: 112)
-        .background(theme.colors.canvas.opacity(0.68))
-        .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
+            ),
+        ]
     }
 
     private var protocolMetricDivider: some View {
@@ -345,17 +373,13 @@ private struct ProtocolStatusCheck: View {
 
 private struct ProtocolMetricCell: View {
     @Environment(\.quilTheme) private var theme
-    let title: String
-    let value: String
-    let detail: String
-    let tint: Color
-    let privacyField: PrivacyField?
+    let descriptor: ProtocolMetricDescriptor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title.uppercased())
+            Text(descriptor.title.uppercased())
                 .protocolLabelStyle(color: theme.colors.secondaryText)
-            PrivacyProtectedText(value: value, field: privacyField)
+            PrivacyProtectedText(value: descriptor.value, field: descriptor.privacyField)
                 .font(
                     .system(
                         size: 20 * theme.typography.scale,
@@ -363,11 +387,11 @@ private struct ProtocolMetricCell: View {
                         design: .monospaced
                     ).monospacedDigit()
                 )
-                .foregroundStyle(tint)
+                .foregroundStyle(descriptor.tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.62)
-                .quilLiveValueTransition(value: value)
-            Text(detail)
+                .quilLiveValueTransition(value: descriptor.value)
+            Text(descriptor.detail)
                 .font(.system(size: 10.5))
                 .foregroundStyle(theme.colors.secondaryText)
                 .lineLimit(1)
@@ -376,6 +400,15 @@ private struct ProtocolMetricCell: View {
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
+}
+
+private struct ProtocolMetricDescriptor: Identifiable {
+    let id: String
+    let title: String
+    let value: String
+    let detail: String
+    let tint: Color
+    let privacyField: PrivacyField?
 }
 
 private extension View {

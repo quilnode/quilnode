@@ -6,6 +6,7 @@ import SwiftUI
 
 struct NetworkReadinessHeader: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.dashboardLayoutClass) private var dashboardLayoutClass
 
     let presentation: NetworkWorkspacePresentation
     let isRefreshing: Bool
@@ -14,6 +15,25 @@ struct NetworkReadinessHeader: View {
     let copyPlan: () -> Void
 
     var body: some View {
+        Group {
+            if !dashboardLayoutClass.isWide {
+                VStack(alignment: .leading, spacing: 14) {
+                    identity
+                    actions
+                }
+            } else {
+                HStack(alignment: .center, spacing: 15) {
+                    identity
+                    Spacer(minLength: 10)
+                    actions
+                }
+            }
+        }
+        .padding(16)
+        .controlSurface(tint: presentation.state.tint(in: theme))
+    }
+
+    private var identity: some View {
         HStack(alignment: .center, spacing: 15) {
             DashboardCircleIcon(
                 systemImage: presentation.state.headerSymbol,
@@ -51,33 +71,31 @@ struct NetworkReadinessHeader: View {
                 .font(.caption2)
                 .foregroundStyle(theme.colors.secondaryText)
             }
+        }
+    }
 
-            Spacer(minLength: 10)
-
-            HStack(spacing: 7) {
-                Button(action: refresh) {
-                    if isRefreshing {
-                        HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
-                            Text("Checking…")
-                        }
-                    } else {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+    private var actions: some View {
+        HStack(spacing: 7) {
+            Button(action: refresh) {
+                if isRefreshing {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Checking…")
                     }
+                } else {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(isRefreshing)
+            }
+            .disabled(isRefreshing)
+            .buttonStyle(.bordered)
+
+            Button("Customize ports", systemImage: "slider.horizontal.3", action: customizePorts)
                 .buttonStyle(.bordered)
 
-                Button("Customize ports", systemImage: "slider.horizontal.3", action: customizePorts)
-                    .buttonStyle(.bordered)
-
-                Button("Copy plan", systemImage: "doc.on.doc", action: copyPlan)
-                    .buttonStyle(.borderedProminent)
-            }
-            .controlSize(.small)
+            Button("Copy plan", systemImage: "doc.on.doc", action: copyPlan)
+                .buttonStyle(.borderedProminent)
         }
-        .padding(16)
-        .controlSurface(tint: presentation.state.tint(in: theme))
+        .controlSize(.small)
     }
 }
 
@@ -140,8 +158,9 @@ private struct NetworkStageButton: View {
 
                 PrivacyProtectedText(value: stage.value, field: stage.privacyField)
                     .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.68)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)
 
