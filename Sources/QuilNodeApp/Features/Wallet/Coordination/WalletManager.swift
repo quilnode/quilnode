@@ -1,7 +1,6 @@
-import AppKit
+import Combine
 import Darwin
 import Foundation
-import SwiftUI
 
 #if canImport(QuilNodeCore)
     import QuilNodeCore
@@ -9,23 +8,6 @@ import SwiftUI
 #if canImport(QuilNodeShared)
     import QuilNodeShared
 #endif
-
-struct PendingKeysetImport: Identifiable {
-    let id = UUID()
-    let keysetID = UUID()
-    /// A capability chosen by the operator. The GUI retains the URL only; it
-    /// never opens, parses, hashes, copies, or displays either key file.
-    let selectedDirectory: URL
-    let inspection: KeysetInspection
-    var suggestedName: String
-}
-
-enum PendingKeysetImportResult: Equatable {
-    case failed
-    case imported
-    case importedAndActivated
-    case importedActivationFailed(keysetID: UUID)
-}
 
 @MainActor
 final class WalletManager: ObservableObject {
@@ -41,14 +23,18 @@ final class WalletManager: ObservableObject {
         didSet { defaults.set(onboardingCompleted, forKey: "walletOnboardingCompleted") }
     }
 
-    private let fileManager = FileManager.default
     private let defaults: UserDefaults
+    private let transactionStaging: WalletTransactionStaging
     private var started = false
     private var serviceRetryTask: Task<Void, Never>?
     private var automaticServiceRetryCount = 0
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        transactionStaging: WalletTransactionStaging = .init()
+    ) {
         self.defaults = defaults
+        self.transactionStaging = transactionStaging
         onboardingCompleted = defaults.bool(forKey: "walletOnboardingCompleted")
     }
 
@@ -57,6 +43,7 @@ final class WalletManager: ObservableObject {
         /// state, and this path never starts the privileged service client.
         init(previewInventory: WalletInventory, defaults: UserDefaults) {
             self.defaults = defaults
+            transactionStaging = .init()
             inventory = previewInventory
             onboardingCompleted = false
         }
@@ -96,7 +83,7 @@ final class WalletManager: ObservableObject {
             }
         } else {
             let serviceError = result.error ?? "The secure identity service is unavailable."
-            requiresServiceAuthorization = Self.isCompatibilityError(serviceError)
+            requiresServiceAuthorization = WalletServiceCompatibility.requiresUpgrade(for: serviceError)
             error =
                 requiresServiceAuthorization
                 ? "Identity Recovery needs a one-time secure service upgrade. Your node and keys will not be changed by the authorization itself."
@@ -133,21 +120,12 @@ final class WalletManager: ObservableObject {
     }
 
     func chooseImportFolder() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose a Quilibrium keyset"
-        panel.message =
-            "Select the folder containing config.yml and keys.yml. The QuilNode interface never opens key files; the signed local service validates this selected folder on your Mac."
-        panel.prompt = "Inspect Keyset"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.resolvesAliases = false
-        guard panel.runModal() == .OK, let selected = panel.url else { return }
+        guard let selected = WalletDirectoryPicker.chooseKeysetDirectory() else { return }
 
         do {
-            let stage = try makeStageDirectory()
-            defer { try? fileManager.removeItem(at: stage) }
-            let manifestURL = try writeManifest(
+            let stage = try transactionStaging.makeDirectory()
+            defer { transactionStaging.remove(stage) }
+            let manifestURL = try transactionStaging.write(
                 .init(
                     kind: .importKeyset,
                     displayName: selected.lastPathComponent,
@@ -157,8 +135,8 @@ final class WalletManager: ObservableObject {
             let serviceInspection = PrivilegedServiceClient.inspectKeyset(manifestPath: manifestURL.path)
             guard let inspection = serviceInspection.inspection else {
                 let serviceError = serviceInspection.error ?? "The secure service could not inspect this keyset."
-                requiresServiceAuthorization = Self.isCompatibilityError(serviceError)
-                throw WalletUIError(
+                requiresServiceAuthorization = WalletServiceCompatibility.requiresUpgrade(for: serviceError)
+                throw WalletOperationError(
                     requiresServiceAuthorization
                         ? "Authorize Identity Recovery once before importing a keyset."
                         : serviceError)
@@ -240,15 +218,7 @@ final class WalletManager: ObservableObject {
     }
 
     func exportRecovery(for keyset: ManagedKeyset) async {
-        let panel = NSOpenPanel()
-        panel.title = "Choose encrypted backup storage"
-        panel.message =
-            "Choose an encrypted external drive, encrypted disk image, or password-protected vault. The signed local service writes and verifies the recovery package; the QuilNode interface never opens key files."
-        panel.prompt = "Save Verified Recovery Copy"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let parent = panel.url else {
+        guard let parent = WalletDirectoryPicker.chooseRecoveryDirectory() else {
             message = "Recovery export cancelled. No key material was copied."
             return
         }
@@ -263,7 +233,7 @@ final class WalletManager: ObservableObject {
                 confirmedBackupResponsibility: true
             )
         )
-        if success { NSWorkspace.shared.open(parent) }
+        if success { WalletDirectoryPicker.reveal(parent) }
     }
 
     func dismissOnboarding() {
@@ -291,12 +261,12 @@ final class WalletManager: ObservableObject {
         let ownsStage = suppliedStage == nil
         var ownedStage: URL?
         do {
-            let stage = try suppliedStage ?? makeStageDirectory()
+            let stage = try suppliedStage ?? transactionStaging.makeDirectory()
             if ownsStage { ownedStage = stage }
             defer {
-                if let ownedStage { try? fileManager.removeItem(at: ownedStage) }
+                if let ownedStage { transactionStaging.remove(ownedStage) }
             }
-            let manifestURL = try writeManifest(manifest, in: stage)
+            let manifestURL = try transactionStaging.write(manifest, in: stage)
             let result = await Task.detached(priority: .userInitiated) {
                 ReleaseChecker.runAuthorizedHelper(
                     arguments: ["wallet-transact", manifestURL.path],
@@ -304,8 +274,8 @@ final class WalletManager: ObservableObject {
                 )
             }.value
             guard result.exitCode == 0 else {
-                requiresServiceAuthorization = Self.isCompatibilityError(result.output)
-                throw WalletUIError(
+                requiresServiceAuthorization = WalletServiceCompatibility.requiresUpgrade(for: result.output)
+                throw WalletOperationError(
                     result.exitCode == -128
                         ? "Administrator authorization was cancelled. No identity material was changed."
                         : (requiresServiceAuthorization
@@ -321,39 +291,10 @@ final class WalletManager: ObservableObject {
         }
     }
 
-    private func makeStageDirectory() throws -> URL {
-        let support = fileManager.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/QuilNode", isDirectory: true)
-        try PrivateLocalFileSystem.ensureDirectory(at: support)
-        let root = support.appendingPathComponent("WalletStaging", isDirectory: true)
-        try PrivateLocalFileSystem.ensureDirectory(at: root)
-        let stage = root.appendingPathComponent(UUID().uuidString.lowercased(), isDirectory: true)
-        try PrivateLocalFileSystem.createExclusiveDirectory(at: stage)
-        return stage
-    }
-
-    private func writeManifest(_ manifest: WalletTransactionManifest, in stage: URL) throws -> URL {
-        let url = stage.appendingPathComponent("wallet-transaction.json")
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try PrivateLocalFileSystem.write(try encoder.encode(manifest), atomicallyTo: url)
-        return url
-    }
-
     private func readableName(_ source: String) -> String {
         let value = source.replacingOccurrences(of: #"[_-]+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? "Imported identity" : String(value.prefix(48))
-    }
-
-    private static func isCompatibilityError(_ value: String) -> Bool {
-        let text = value.lowercased()
-        return text.contains("invalid passwordless service response")
-            || text.contains("serviceaction")
-            || text.contains("protocol is incompatible")
-            || text.contains("passwordless service is not available")
-            || text.contains("walletinventory")
     }
 
     /// App and service updates are coordinated independently, so the first
@@ -370,10 +311,4 @@ final class WalletManager: ObservableObject {
             await self.refresh()
         }
     }
-}
-
-private struct WalletUIError: LocalizedError {
-    let message: String
-    init(_ message: String) { self.message = message }
-    var errorDescription: String? { message }
 }
