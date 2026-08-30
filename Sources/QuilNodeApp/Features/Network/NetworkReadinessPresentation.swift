@@ -1,245 +1,306 @@
-import AppKit
-import SwiftUI
+import Foundation
 
-extension NetworkReadinessView {
-    var listenersHealthy: Bool {
-        network.portPlan.required.allSatisfy { network.inspection.isListening(for: $0) }
-    }
+#if canImport(QuilNodeCore)
+    import QuilNodeCore
+#endif
 
-    var listenerValue: String {
-        listenersHealthy
-            ? network.portPlan.required.map(\.portLabel).joined(separator: " + ")
-            : "Check ports"
-    }
+enum NetworkStageKind: String, CaseIterable, Identifiable, Hashable {
+    case listeners
+    case firewall
+    case gateway
+    case internetBoundary
+    case inboundPeers
 
-    var listenerDetail: String {
-        if !listenersHealthy { return "One or more configured listeners are missing" }
-        let transports = Set(network.portPlan.required.map(\.transport.rawValue)).sorted().joined(separator: " + ")
-        return "\(transports) listeners verified on this process"
-    }
+    var id: String { rawValue }
 
-    var inboundValue: String {
-        if let count = monitor.snapshot.inboundConnectionsEstablished, count > 0 {
-            return count.formatted()
-        }
-        if network.inspection.inboundPeerSockets > 0 {
-            return network.inspection.inboundPeerSockets.formatted()
-        }
-        return network.inspection.inspectionSucceeded ? "None yet" : "Checking"
-    }
-
-    var inboundDetail: String {
-        if (monitor.snapshot.inboundConnectionsEstablished ?? 0) > 0 {
-            return "Established since node start"
-        }
-        if network.inspection.inboundPeerSockets > 0 {
-            return "Live connections on a listening port"
-        }
-        return "No inbound connection recorded yet"
-    }
-
-    var hasInboundEvidence: Bool {
-        (monitor.snapshot.inboundConnectionsEstablished ?? 0) > 0
-            || network.inspection.inboundPeerSockets > 0
-    }
-
-    var firewallValue: String {
-        if network.firewall.blockAllEnabled { return "Blocking all" }
-        if !network.firewall.globalEnabled { return "Off" }
-        switch network.firewall.nodeRule {
-        case .allowed: return "Node allowed"
-        case .blocked: return "Node blocked"
-        case .missing: return "Rule missing"
-        case .unavailable: return fallbackFirewallValue
+    var title: String {
+        switch self {
+        case .listeners: "Listeners"
+        case .firewall: "macOS Firewall"
+        case .gateway: "Gateway"
+        case .internetBoundary: "Internet boundary"
+        case .inboundPeers: "Inbound peers"
         }
     }
 
-    var firewallDetail: String {
-        if network.firewall.isReady {
-            return network.firewall.managedByQuilNode
-                ? "Verified and maintained after updates"
-                : "Explicit incoming rule verified"
-        }
-        if network.firewall.blockAllEnabled { return "Incoming node traffic is blocked" }
-        if network.firewall.globalEnabled && network.firewall.nodeRule == .blocked {
-            return "The current node is explicitly blocked"
-        }
-        if network.firewall.globalEnabled && network.firewall.nodeRule == .missing {
-            return "Add an explicit rule for this node build"
-        }
-        return network.firewall.nodeRule == .unavailable
-            ? "Secure service is verifying the rule"
-            : "Host protection is available"
-    }
-
-    var firewallTint: Color {
-        if network.firewall.isReady { return theme.colors.success }
-        if network.firewall.blockAllEnabled || network.firewall.nodeRule == .blocked {
-            return theme.colors.danger
-        }
-        return theme.colors.warning
-    }
-
-    var fallbackFirewallValue: String {
-        switch network.inspection.firewallState {
-        case .disabled: "Off"
-        case .enabled: "On"
-        case .blockingAll: "Blocking all"
-        case .unknown: "Checking"
+    var symbol: String {
+        switch self {
+        case .listeners: "dot.radiowaves.left.and.right"
+        case .firewall: "firewall.fill"
+        case .gateway: "wifi.router.fill"
+        case .internetBoundary: "globe.americas.fill"
+        case .inboundPeers: "point.3.connected.trianglepath.dotted"
         }
     }
+}
 
-    var firewallStatusLabel: String {
-        if network.firewall.isReady { return "Verified" }
-        if network.firewall.blockAllEnabled { return "Review required" }
-        if network.firewall.globalEnabled { return "Rule needed" }
-        return network.firewall.nodeRule == .unavailable ? "Checking" : "Available"
+enum NetworkStageState: String, Hashable {
+    case verified
+    case active
+    case waiting
+    case review
+    case blocked
+}
+
+struct NetworkStagePresentation: Identifiable, Hashable {
+    let kind: NetworkStageKind
+    let state: NetworkStageState
+    let status: String
+    let value: String
+    let detail: String
+    let evidenceSource: String
+    let observedAt: Date?
+    let privacyField: PrivacyField?
+
+    var id: NetworkStageKind { kind }
+}
+
+struct NetworkRouterTask: Identifiable, Hashable {
+    enum State: Hashable {
+        case complete
+        case ready
+        case manual
+        case waiting
     }
 
-    var firewallGuideDetail: String {
-        if network.firewall.nodeRule == .unavailable {
-            return
-                "The secure local service is upgrading or verifying the installed node rule. No firewall setting is changed while this check is unavailable."
-        }
-        if network.firewall.isReady {
-            return
-                "macOS Firewall is on and the installed node has an explicit incoming-connection rule. Router forwarding remains a separate manual boundary."
-        }
-        if network.firewall.blockAllEnabled {
-            return
-                "Block all incoming connections overrides application rules. Review this intentional macOS setting before expecting inbound peers."
-        }
-        if network.firewall.globalEnabled && network.firewall.nodeRule == .blocked {
-            return
-                "macOS Firewall is on, but this node build is blocked. QuilNode can safely repair only its own application rule."
-        }
-        if network.firewall.globalEnabled {
-            return
-                "macOS Firewall is on, but the current versioned node binary needs an explicit rule. QuilNode can add and maintain it."
-        }
-        return
-            "Enable Apple’s built-in application firewall and add an explicit allow rule for the installed Quilibrium node—without changing other apps or router settings."
+    let id: Int
+    let title: String
+    let state: State
+    let status: String
+}
+
+struct NetworkWorkspacePresentation {
+    let title: String
+    let detail: String
+    let state: NetworkReadinessState
+    let observedAt: Date?
+    let stages: [NetworkStagePresentation]
+    let routerTasks: [NetworkRouterTask]
+    let gatewayAddress: String?
+    let localAddress: String?
+    let interfaceLabel: String
+    let portPlan: NetworkPortPlan
+    let routerAccess: RouterAccessDiscovery
+    let firewall: ManagedFirewallStatus
+    let inboundEvidence: Bool
+
+    func stage(_ kind: NetworkStageKind) -> NetworkStagePresentation {
+        stages.first { $0.kind == kind } ?? stages[0]
     }
 
-    var firewallStatusSymbol: String {
-        if network.firewall.isReady { return "checkmark.shield.fill" }
-        if network.firewall.blockAllEnabled || network.firewall.nodeRule == .blocked {
-            return "exclamationmark.shield.fill"
-        }
-        return "firewall.fill"
-    }
+    static func make(
+        snapshot: NodeSnapshot,
+        assessment: NetworkReadinessAssessment,
+        inspection: NetworkLocalInspection,
+        gateway: GatewayRouteAssessment,
+        routerAccess: RouterAccessDiscovery,
+        firewall: ManagedFirewallStatus,
+        portPlan: NetworkPortPlan
+    ) -> NetworkWorkspacePresentation {
+        let listenersHealthy =
+            inspection.inspectionSucceeded
+            && portPlan.required.allSatisfy { inspection.isListening(for: $0) }
+        let inboundEvents = snapshot.inboundConnectionsEstablished ?? 0
+        let hasInbound = inboundEvents > 0 || inspection.inboundPeerSockets > 0
+        let inspectionDate = inspection.inspectionSucceeded ? inspection.observedAt : nil
+        let metricDate = snapshot.metricsUpdatedAt ?? snapshot.collectedAt
+        let ports = portPlan.required.map(\.portLabel).joined(separator: " + ")
 
-    var firewallActionTitle: String {
-        if network.isConfiguringFirewall { return "Applying…" }
-        if network.firewall.nodeRule == .unavailable { return "Check again" }
-        if network.firewall.blockAllEnabled { return "Review setting" }
-        if network.firewall.isReady { return "Verify again" }
-        if network.firewall.globalEnabled { return "Repair node access" }
-        return "Secure this Mac"
-    }
+        let stages = [
+            NetworkStagePresentation(
+                kind: .listeners,
+                state: listenersHealthy ? .verified : (inspection.inspectionSucceeded ? .blocked : .waiting),
+                status: listenersHealthy ? "Verified" : (inspection.inspectionSucceeded ? "Missing" : "Checking"),
+                value: listenersHealthy ? ports : listenerFallback(assessment),
+                detail: listenersHealthy
+                    ? "Required transports are listening on this process."
+                    : "The inbound path cannot start until every required listener is active.",
+                evidenceSource: "macOS socket table",
+                observedAt: inspectionDate,
+                privacyField: .networkPort
+            ),
+            NetworkStagePresentation(
+                kind: .firewall,
+                state: firewallState(firewall),
+                status: firewallStatus(firewall),
+                value: firewallValue(firewall, fallback: inspection.firewallState),
+                detail: firewallDetail(firewall),
+                evidenceSource: "QuilNode secure service",
+                observedAt: firewall.nodeRule == .unavailable ? nil : firewall.verifiedAt,
+                privacyField: nil
+            ),
+            NetworkStagePresentation(
+                kind: .gateway,
+                state: gatewayState(routerAccess),
+                status: gatewayStatus(routerAccess),
+                value: gateway.address ?? "Not detected",
+                detail: routerAccess.detail,
+                evidenceSource: "macOS default route + read-only local probe",
+                observedAt: routerAccess.checkedAt ?? inspectionDate,
+                privacyField: .networkIdentifier
+            ),
+            NetworkStagePresentation(
+                kind: .internetBoundary,
+                state: boundaryState(assessment: assessment, hasInbound: hasInbound),
+                status: hasInbound ? "Observed" : boundaryStatus(assessment),
+                value: hasInbound ? "Inbound crossed" : "Awaiting evidence",
+                detail: hasInbound
+                    ? "A remote connection crossed the local network boundary."
+                    : "QuilNode waits for local inbound evidence; it does not use a remote port checker.",
+                evidenceSource: "Node connection counter + live sockets",
+                observedAt: hasInbound ? metricDate : inspectionDate,
+                privacyField: .networkActivity
+            ),
+            NetworkStagePresentation(
+                kind: .inboundPeers,
+                state: hasInbound ? .verified : (snapshot.peers > 0 ? .active : .waiting),
+                status: hasInbound ? "Established" : (snapshot.peers > 0 ? "Mesh active" : "Waiting"),
+                value: snapshot.peers > 0 ? snapshot.peers.formatted() : "None observed",
+                detail: hasInbound
+                    ? "Current peer mesh; inbound events are counted separately and are not unique peers."
+                    : "Peer count alone does not prove that this Mac accepted an inbound connection.",
+                evidenceSource: "Local Quilibrium metrics",
+                observedAt: snapshot.peers > 0 ? metricDate : nil,
+                privacyField: .networkActivity
+            ),
+        ]
 
-    var firewallActionSymbol: String {
-        if network.firewall.nodeRule == .unavailable { return "arrow.clockwise" }
-        if network.firewall.blockAllEnabled { return "gear" }
-        if network.firewall.isReady { return "arrow.clockwise" }
-        return "checkmark.shield"
-    }
+        let routerTasks = [
+            NetworkRouterTask(
+                id: 1,
+                title: "Keep this Mac on the same LAN address",
+                state: inspection.localIPv4 == nil ? .waiting : .ready,
+                status: inspection.localIPv4 == nil ? "Detecting" : "Address ready"
+            ),
+            NetworkRouterTask(
+                id: 2,
+                title: "Forward only the verified node ports",
+                state: hasInbound ? .complete : .manual,
+                status: hasInbound ? "Proven by traffic" : "Router step"
+            ),
+            NetworkRouterTask(
+                id: 3,
+                title: "Save without enabling DMZ",
+                state: .manual,
+                status: "Manual safety check"
+            ),
+            NetworkRouterTask(
+                id: 4,
+                title: "Keep the node running for evidence",
+                state: hasInbound ? .complete : .waiting,
+                status: hasInbound ? "Evidence received" : "Watching locally"
+            ),
+        ]
 
-    func performFirewallAction() {
-        if network.firewall.nodeRule == .unavailable {
-            Task { await network.refresh() }
-        } else if network.firewall.blockAllEnabled {
-            openFirewallSettings()
-        } else if network.firewall.isReady {
-            Task { await network.refresh() }
-        } else {
-            showingFirewallConfirmation = true
-        }
-    }
-
-    var gatewayInterfaceLabel: String {
-        if let name = network.gatewayRoute.interfaceDisplayName {
-            return "via \(name)"
-        }
-        if let name = network.gatewayRoute.interfaceName {
-            return "via \(name)"
-        }
-        return "from the macOS default route"
-    }
-
-    var gatewayStatusColor: Color {
-        switch network.routerAccess.status {
-        case .confirmed: theme.colors.success
-        case .checking, .notChecked: theme.colors.info
-        case .unconfirmed: theme.colors.warning
-        case .unavailable: theme.colors.danger
-        }
-    }
-
-    var gatewayStatusSymbol: String {
-        switch network.routerAccess.status {
-        case .confirmed: "checkmark.shield.fill"
-        case .checking, .notChecked: "network"
-        case .unconfirmed: "questionmark.circle.fill"
-        case .unavailable: "exclamationmark.triangle.fill"
-        }
-    }
-
-    var routerActionTitle: String {
-        switch network.routerAccess.status {
-        case .confirmed: "Open gateway page"
-        case .unconfirmed: "Try gateway address"
-        case .checking: "Checking…"
-        case .notChecked: "Check gateway"
-        case .unavailable: "Gateway unavailable"
-        }
-    }
-
-    var statusColor: Color {
-        switch network.assessment.state {
-        case .inboundVerified: theme.colors.success
-        case .waitingForEvidence, .inspecting: theme.colors.info
-        case .reviewRouter: theme.colors.warning
-        case .localConfigurationIssue, .offline: theme.colors.danger
-        }
-    }
-
-    var statusSymbol: String {
-        switch network.assessment.state {
-        case .inboundVerified: "checkmark.seal.fill"
-        case .waitingForEvidence, .inspecting: "antenna.radiowaves.left.and.right"
-        case .reviewRouter: "wifi.exclamationmark"
-        case .localConfigurationIssue: "exclamationmark.arrow.triangle.2.circlepath"
-        case .offline: "power"
-        }
-    }
-
-    func openRouter() {
-        guard let url = network.routerURL else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    func openFirewallSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension?Firewall") else {
-            return
-        }
-        NSWorkspace.shared.open(url)
-    }
-
-    func copyPlan() {
-        let target = network.inspection.localIPv4 ?? "THIS_MAC_LAN_IP"
-        let gateway = network.gatewayRoute.address ?? "USE_ROUTER_APP_OR_DOCUMENTATION"
-        let rules = network.portPlan.required.map {
-            "\($0.portLabel) \($0.transport.rawValue) → \(target), same internal and external port"
-        }.joined(separator: "\n")
-        copy(
-            "QuilNode verified router plan (\(network.activePortProfile.title))\nDefault gateway detected by macOS: \(gateway)\nReserve \(target) with DHCP\n\(rules)\nDo not enable DMZ or broad port ranges. Use the router manufacturer app if the gateway has no web interface."
+        return NetworkWorkspacePresentation(
+            title: assessment.title,
+            detail: assessment.detail,
+            state: assessment.state,
+            observedAt: inspectionDate,
+            stages: stages,
+            routerTasks: routerTasks,
+            gatewayAddress: gateway.address,
+            localAddress: inspection.localIPv4,
+            interfaceLabel: gateway.interfaceDisplayName ?? gateway.interfaceName ?? "Active route",
+            portPlan: portPlan,
+            routerAccess: routerAccess,
+            firewall: firewall,
+            inboundEvidence: hasInbound
         )
     }
 
-    func copy(_ value: String?) {
-        guard let value else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+    private static func listenerFallback(_ assessment: NetworkReadinessAssessment) -> String {
+        assessment.missingMasterPorts.isEmpty
+            ? "Checking"
+            : assessment.missingMasterPorts.map(String.init).joined(separator: ", ")
+    }
+
+    private static func firewallState(_ firewall: ManagedFirewallStatus) -> NetworkStageState {
+        if firewall.isReady { return .verified }
+        if firewall.blockAllEnabled || firewall.nodeRule == .blocked { return .blocked }
+        if firewall.nodeRule == .unavailable { return .waiting }
+        return .review
+    }
+
+    private static func firewallStatus(_ firewall: ManagedFirewallStatus) -> String {
+        if firewall.isReady { return "Allowing" }
+        if firewall.blockAllEnabled || firewall.nodeRule == .blocked { return "Blocking" }
+        if firewall.nodeRule == .unavailable { return "Checking" }
+        return "Review"
+    }
+
+    private static func firewallValue(
+        _ firewall: ManagedFirewallStatus,
+        fallback: NetworkFirewallState
+    ) -> String {
+        if firewall.blockAllEnabled { return "Block all on" }
+        if firewall.globalEnabled {
+            switch firewall.nodeRule {
+            case .allowed: return "Node allowed"
+            case .blocked: return "Node blocked"
+            case .missing: return "Rule missing"
+            case .unavailable: break
+            }
+        }
+        switch fallback {
+        case .disabled: return "Firewall off"
+        case .enabled: return "Firewall on"
+        case .blockingAll: return "Block all on"
+        case .unknown: return "Checking"
+        }
+    }
+
+    private static func firewallDetail(_ firewall: ManagedFirewallStatus) -> String {
+        if firewall.isReady {
+            return firewall.managedByQuilNode
+                ? "The current node binary is explicitly allowed and the rule is maintained after updates."
+                : "The current node binary has an explicit inbound allow rule."
+        }
+        if firewall.blockAllEnabled { return "Block all overrides the node's application rule." }
+        if firewall.nodeRule == .blocked { return "The current node binary is explicitly blocked." }
+        if firewall.nodeRule == .missing { return "The current versioned node binary needs an explicit rule." }
+        return "The secure local service is checking the minimum application rule."
+    }
+
+    private static func gatewayState(_ access: RouterAccessDiscovery) -> NetworkStageState {
+        switch access.status {
+        case .confirmed: .verified
+        case .checking, .notChecked: .waiting
+        case .unconfirmed, .unavailable: .review
+        }
+    }
+
+    private static func gatewayStatus(_ access: RouterAccessDiscovery) -> String {
+        switch access.status {
+        case .confirmed: "Verified"
+        case .checking: "Checking"
+        case .notChecked: "Not checked"
+        case .unconfirmed: "Page unconfirmed"
+        case .unavailable: "Not inspectable"
+        }
+    }
+
+    private static func boundaryState(
+        assessment: NetworkReadinessAssessment,
+        hasInbound: Bool
+    ) -> NetworkStageState {
+        if hasInbound { return .verified }
+        switch assessment.state {
+        case .offline, .localConfigurationIssue: return .blocked
+        case .reviewRouter: return .review
+        case .inspecting, .waitingForEvidence: return .waiting
+        case .inboundVerified: return .verified
+        }
+    }
+
+    private static func boundaryStatus(_ assessment: NetworkReadinessAssessment) -> String {
+        switch assessment.state {
+        case .offline: "Node offline"
+        case .localConfigurationIssue: "Path incomplete"
+        case .reviewRouter: "Review router"
+        case .inspecting: "Checking"
+        case .waitingForEvidence: "Waiting"
+        case .inboundVerified: "Observed"
+        }
     }
 }

@@ -24,7 +24,7 @@ struct NetworkOnboardingView: View {
             Divider()
 
             ScrollView {
-                NetworkReadinessView()
+                NetworkReadinessView(compactLayout: true)
                     .padding(22)
             }
 
