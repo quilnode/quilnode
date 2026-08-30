@@ -243,7 +243,12 @@ if ! rg -q 'openat\(' Sources/QuilNodeShared/FileSystem/TrustedLocalFile.swift |
    ! rg -q 'O_WRONLY \| O_CREAT \| O_EXCL \| O_NOFOLLOW \| O_CLOEXEC \| O_NONBLOCK' \
         Sources/QuilNodeShared/FileSystem/PrivateLocalFileSystem.swift ||
    ! rg -q 'TrustedLocalFile\.read' Sources/QuilNodeApp/Features/Updates/Infrastructure/UpdateStorage.swift ||
-   ! rg -q 'PrivateLocalFileSystem\.write' Sources/QuilNodeApp/Features/Wallet/Coordination/WalletManager.swift; then
+   ! rg -q 'PrivateLocalFileSystem\.write' \
+        Sources/QuilNodeApp/Features/Wallet/Infrastructure/WalletTransactionStaging.swift ||
+   ! rg -q 'transactionStaging\.makeDirectory' \
+        Sources/QuilNodeApp/Features/Wallet/Coordination/WalletManager.swift ||
+   ! rg -q 'transactionStaging\.write' \
+        Sources/QuilNodeApp/Features/Wallet/Coordination/WalletManager.swift; then
     echo "FAIL: descriptor-relative recovery reads or private atomic state writes are missing" >&2
     failures=$((failures + 1))
 fi
