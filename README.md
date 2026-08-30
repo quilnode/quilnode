@@ -158,8 +158,11 @@ Larger feature folders separate `Coordination`, `Infrastructure`,
 `Persistence`, `Presentation`, `Views`, and `PreviewSupport` where those roles
 exist. Feature tests mirror the corresponding feature name. Swift files cannot
 sit loose at a feature root, and the dashboard cannot retain a computed view
-with no reachable caller. These rules, dependency direction, and file-size
-limits are enforced by `scripts/architecture-audit.sh`.
+with no reachable caller. Non-UI modules cannot import presentation frameworks,
+and production files have a 400-line review budget. These rules, dependency
+direction, case-safe filenames, and test limits are enforced by
+`scripts/architecture-audit.sh`; `scripts/architecture-report.sh` prints the
+current target, feature, and test inventory without modifying the repository.
 
 Release artifacts are built locally by a fail-closed pipeline; this project
 does not depend on GitHub Actions.

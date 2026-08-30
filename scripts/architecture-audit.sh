@@ -110,6 +110,13 @@ fi
 if rg -n '^import QuilNode(App|Core)' Sources/QuilNodeHelperKit; then
     fail "the privileged helper imports an unprivileged implementation module"
 fi
+if rg -n '^import (AppKit|Charts|SwiftUI)$' \
+    Sources/QuilNodeCore Sources/QuilNodeShared Sources/QuilNodeHelperKit; then
+    fail "non-UI modules must not depend on app presentation frameworks"
+fi
+if rg -n '^import XCTest$' Sources; then
+    fail "production sources must not import the test framework"
+fi
 
 wire_contract='Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift'
 if [[ ! -f "$wire_contract" ]] ||
@@ -150,8 +157,8 @@ fi
 
 while IFS=$'\t' read -r line_count source; do
     [[ -z "$source" ]] && continue
-    if (( line_count > 450 )); then
-        fail "production Swift file exceeds 450 lines ($line_count): $source"
+    if (( line_count > 400 )); then
+        fail "production Swift file exceeds the 400-line review budget ($line_count): $source"
     fi
 done < <(find Sources -type f -name '*.swift' -print0 | xargs -0 wc -l | awk 'NF == 2 && $2 != "total" { print $1 "\t" $2 }')
 
@@ -217,6 +224,17 @@ for target_path in Sources/* Tests/*; do
         fail "duplicate Swift basenames in ${target_path#*/}: ${duplicate_names//$'\n'/, }"
 done
 
+# The project is developed and shipped on case-insensitive macOS volumes. Two
+# basenames that differ only by case are ambiguous in reviews and can collide
+# when a checkout moves between filesystems, even if Git records both objects.
+for target_path in Sources/* Tests/*; do
+    [[ -d "$target_path" ]] || continue
+    case_collisions="$({ find "$target_path" -type f -name '*.swift' -exec basename {} \;; } \
+        | awk '{ print tolower($0) }' | sort | uniq -d)"
+    [[ -z "$case_collisions" ]] ||
+        fail "case-insensitive Swift basename collision in ${target_path#*/}: ${case_collisions//$'\n'/, }"
+done
+
 if rg -n '^public ' Sources/QuilNodeHelperKit --glob '!**/Application/QuilNodeHelper.swift'; then
     fail "the privileged implementation exposes public API outside its single runtime facade"
 fi
@@ -226,4 +244,4 @@ if (( failures > 0 )); then
     exit 1
 fi
 
-echo "PASS: source layout, dependency direction, and maintainability limits"
+echo "PASS: source layout, dependency direction, platform boundaries, and maintainability limits"
