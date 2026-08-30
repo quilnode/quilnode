@@ -48,6 +48,7 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 $0.hasPrefix("--design-preview=network-inbound-")
                     || $0.hasPrefix("--design-preview=identity-transaction-")
                     || $0.hasPrefix("--design-preview=operator-interlock-")
+                    || $0 == "--design-preview=theme-library"
             }
             guard let value else { return }
 
@@ -80,7 +81,9 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
 
         @ViewBuilder
         private func standaloneDesignPreview(mode: String) -> some View {
-            if mode.hasPrefix("operator-interlock-") {
+            if mode == "theme-library" {
+                ThemeLibraryDesignPreviewHost()
+            } else if mode.hasPrefix("operator-interlock-") {
                 let previewMode: OperatorInterlockPreviewMode =
                     switch mode {
                     case "operator-interlock-firewall": .firewall
@@ -308,6 +311,8 @@ struct QuilNodeApp: App {
                 OperatorInterlockDesignPreviewHost(mode: .updates)
             } else if designPreviewMode == "operator-interlock-quit" {
                 OperatorInterlockDesignPreviewHost(mode: .quit)
+            } else if designPreviewMode == "theme-library" {
+                ThemeLibraryDesignPreviewHost()
             } else {
                 dashboardSceneContent
             }
