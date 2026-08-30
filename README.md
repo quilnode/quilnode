@@ -154,15 +154,22 @@ Tests/
 └── QuilNodeHelperKitTests/
 ```
 
-Larger feature folders separate `Coordination`, `Infrastructure`,
-`Persistence`, `Presentation`, `Views`, and `PreviewSupport` where those roles
-exist. Feature tests mirror the corresponding feature name. Swift files cannot
-sit loose at a feature root, and the dashboard cannot retain a computed view
-with no reachable caller. Non-UI modules cannot import presentation frameworks,
-and production files have a 400-line review budget. These rules, dependency
-direction, case-safe filenames, and test limits are enforced by
+Larger feature folders separate `Coordination`, `Infrastructure`, `Models`,
+`Persistence`, `Presentation`, `Staging`, `Views`, and `PreviewSupport` where
+those roles exist. The app and privileged helper consume one versioned wallet
+wire schema from `QuilNodeShared`; neither side redeclares it. Source updates
+flow through named checkout, compilation, matching-client, and sealing phases,
+with a small facade preserving their order.
+
+Feature tests mirror the corresponding feature name. Swift files cannot sit
+loose at a feature root, and the dashboard cannot retain a computed view with
+no reachable caller. Non-UI modules cannot import presentation frameworks,
+and production files have a 375-line review budget. These rules, dependency
+direction, case-safe filenames, wallet schema ownership, update-pipeline shape,
+and test limits are enforced by
 `scripts/architecture-audit.sh`; `scripts/architecture-report.sh` prints the
-current target, feature, and test inventory without modifying the repository.
+current target, feature-responsibility, and test inventory without modifying
+the repository.
 
 Release artifacts are built locally by a fail-closed pipeline; this project
 does not depend on GitHub Actions.

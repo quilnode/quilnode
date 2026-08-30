@@ -58,6 +58,10 @@ required_directories=(
     Sources/QuilNodeApp/Features/Updates/Persistence
     Sources/QuilNodeApp/Features/Updates/Staging
     Sources/QuilNodeApp/Features/Updates/Views/Dashboard
+    Sources/QuilNodeApp/Features/Wallet/Infrastructure
+    Sources/QuilNodeApp/Features/Wallet/Models
+    Sources/QuilNodeApp/Features/Wallet/IdentityTransaction/Presentation
+    Sources/QuilNodeApp/Features/Wallet/IdentityTransaction/Views
     Sources/QuilNodeApp/Dashboard/Overview
     Sources/QuilNodeApp/DesignSystem/Theme/BuiltIns
     Sources/QuilNodeApp/DesignSystem/Theme/Loading
@@ -166,10 +170,25 @@ if (( helper_entry_lines > 20 )) ||
     fail "the root helper executable must remain a tiny composition entry point"
 fi
 
+source_build_orchestrator='Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildStaging.swift'
+required_source_build_phases=(
+    SourceBuildCheckoutStaging.swift
+    SourceBuildCompilationStaging.swift
+    SourceBuildQClientStaging.swift
+    SourceBuildPlanSealing.swift
+)
+for phase in "${required_source_build_phases[@]}"; do
+    [[ -f "Sources/QuilNodeApp/Features/Updates/Staging/$phase" ]] ||
+        fail "source-build pipeline phase is missing: $phase"
+done
+if rg -q 'runChecked|FileManager|SourceBuildSandbox' "$source_build_orchestrator"; then
+    fail "the source-build facade must orchestrate phases rather than perform infrastructure work"
+fi
+
 while IFS=$'\t' read -r line_count source; do
     [[ -z "$source" ]] && continue
-    if (( line_count > 400 )); then
-        fail "production Swift file exceeds the 400-line review budget ($line_count): $source"
+    if (( line_count > 375 )); then
+        fail "production Swift file exceeds the 375-line review budget ($line_count): $source"
     fi
 done < <(find Sources -type f -name '*.swift' -print0 | xargs -0 wc -l | awk 'NF == 2 && $2 != "total" { print $1 "\t" $2 }')
 

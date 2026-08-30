@@ -19,6 +19,21 @@ for target_path in Sources/*; do
     printf '%-24s %8s %10s\n' "$target" "$file_count" "$line_count"
 done
 
+printf '\nApplication feature responsibility inventory\n'
+printf '%-38s %8s %10s\n' 'Feature / responsibility' 'Files' 'Swift LOC'
+for responsibility_path in Sources/QuilNodeApp/Features/*/*; do
+    [[ -d "$responsibility_path" ]] || continue
+    responsibility="${responsibility_path#Sources/QuilNodeApp/Features/}"
+    file_count="$(find "$responsibility_path" -type f -name '*.swift' | wc -l | tr -d ' ')"
+    line_count="$({ find "$responsibility_path" -type f -name '*.swift' -print0 | xargs -0 wc -l; } \
+        | awk '$2 == "total" { print $1 }')"
+    if [[ -z "$line_count" ]]; then
+        line_count="$({ find "$responsibility_path" -type f -name '*.swift' -print0 | xargs -0 wc -l; } \
+            | awk 'NF == 2 { total += $1 } END { print total + 0 }')"
+    fi
+    printf '%-38s %8s %10s\n' "$responsibility" "$file_count" "$line_count"
+done
+
 printf '\nTest inventory\n'
 printf '%-24s %8s %10s\n' 'Target' 'Files' 'Swift LOC'
 for target_path in Tests/*; do
@@ -49,7 +64,7 @@ for feature_path in Sources/QuilNodeApp/Features/*; do
     printf '%-24s %8s %10s\n' "$feature" "$file_count" "$line_count"
 done
 
-printf '\nLargest production Swift files (review budget: 400 lines)\n'
+printf '\nLargest production Swift files (review budget: 375 lines)\n'
 find Sources -type f -name '*.swift' -print0 \
     | xargs -0 wc -l \
     | awk '$2 != "total" { print $1, $2 }' \
