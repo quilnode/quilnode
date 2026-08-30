@@ -154,30 +154,19 @@ final class InstallationCoordinator: ObservableObject {
             isEstimate: false
         )
         do {
-            let endpoint = URL(string: "https://releases.quilibrium.com/release")!
-            let qclientEndpoint = URL(string: "https://releases.quilibrium.com/qclient-release")!
-            let base = URL(string: "https://releases.quilibrium.com/")!
-            async let nodeRelease = ReleaseChecker.fetchSignedRelease(endpoint: endpoint)
-            async let clientRelease = ReleaseChecker.fetchSignedQClientRelease(endpoint: qclientEndpoint)
-            let (release, qclient) = try await (nodeRelease, clientRelease)
-            signedRelease = release
-            qclientRelease = qclient
             let reporter: @Sendable (NodeUpdateProgress) -> Void = { [weak self] update in
                 Task { @MainActor in
                     self?.phase = update.phase.localizedCaseInsensitiveContains("verif") ? .verifying : .downloading
                     self?.progress = update
                 }
             }
-            let manifest = try await Task.detached(priority: .utility) {
-                try ReleaseChecker.stageFirstInstallation(
-                    node: release,
-                    qclient: qclient,
-                    baseURL: base,
-                    startedAt: startedAt,
-                    progress: reporter
-                )
-            }.value
-            stagedManifestURL = manifest
+            let prepared = try await InstallationArtifactPreparation.stageFirstInstallation(
+                startedAt: startedAt,
+                progress: reporter
+            )
+            signedRelease = prepared.nodeRelease
+            qclientRelease = prepared.qclientRelease
+            stagedManifestURL = prepared.manifestURL
             phase = .awaitingAuthorization
             progress = NodeUpdateProgress(
                 status: .ready,
@@ -209,33 +198,17 @@ final class InstallationCoordinator: ObservableObject {
                     self?.progress = update
                 }
             }
-            let manifest: URL
-            if preflight?.installedNodeBuild?.kind == .source,
-                let installedBuild = preflight?.installedNodeBuild
-            {
-                manifest = try await Task.detached(priority: .utility) {
-                    try ReleaseChecker.stageMatchingSourceQClient(
-                        installed: installedBuild,
-                        repositoryURL: "https://github.com/QuilibriumNetwork/monorepo.git",
-                        startedAt: startedAt,
-                        progress: reporter
-                    )
-                }.value
-            } else {
-                let endpoint = URL(string: "https://releases.quilibrium.com/qclient-release")!
-                let base = URL(string: "https://releases.quilibrium.com/")!
-                let release = try await ReleaseChecker.fetchSignedQClientRelease(endpoint: endpoint)
-                qclientRelease = release
-                manifest = try await Task.detached(priority: .utility) {
-                    try ReleaseChecker.stageQClientRelease(
-                        release, baseURL: base, startedAt: startedAt, progress: reporter
-                    )
-                }.value
-            }
+            guard let preflightSnapshot = preflight else { return }
+            let prepared = try await InstallationArtifactPreparation.stageQClient(
+                for: preflightSnapshot,
+                startedAt: startedAt,
+                progress: reporter
+            )
+            qclientRelease = prepared.officialRelease
             phase = .installing
             let result = await Task.detached(priority: .userInitiated) {
                 ReleaseChecker.runAuthorizedHelper(
-                    arguments: ["qclient-install", manifest.path],
+                    arguments: ["qclient-install", prepared.manifestURL.path],
                     durableOperation: true
                 )
             }.value
