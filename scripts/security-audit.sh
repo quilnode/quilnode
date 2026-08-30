@@ -263,8 +263,20 @@ if ! rg -q 'manifestAge >= -300' Sources/QuilNodeHelperKit/Node/NodeStageValidat
     failures=$((failures + 1))
 fi
 
-helper_hash_function="$(sed -n '/static func sha256(_ url: URL)/,/static func sha256(_ data: Data)/p' Sources/QuilNodeHelperKit/Infrastructure/CommandExecution.swift)"
-if ! printf '%s' "$helper_hash_function" | rg -q 'O_RDONLY \| O_CLOEXEC \| O_NOFOLLOW \| O_NONBLOCK' ||
+helper_hash_source="$(
+    rg -l 'static func sha256\(_ url: URL\)' \
+        Sources/QuilNodeHelperKit/Infrastructure --glob '*.swift' || true
+)"
+helper_hash_source_count="$(printf '%s\n' "$helper_hash_source" | sed '/^$/d' | wc -l | tr -d ' ')"
+helper_hash_function=""
+if [[ "$helper_hash_source_count" -eq 1 ]]; then
+    helper_hash_function="$(
+        sed -n '/static func sha256(_ url: URL)/,/static func sha256(_ data: Data)/p' \
+            "$helper_hash_source"
+    )"
+fi
+if [[ "$helper_hash_source_count" -ne 1 ]] ||
+   ! printf '%s' "$helper_hash_function" | rg -q 'O_RDONLY \| O_CLOEXEC \| O_NOFOLLOW \| O_NONBLOCK' ||
    ! printf '%s' "$helper_hash_function" | rg -q 'before\.st_ino == after\.st_ino' ||
    ! printf '%s' "$helper_hash_function" | rg -q 'before\.st_mtimespec\.tv_nsec == after\.st_mtimespec\.tv_nsec' ||
    printf '%s' "$helper_hash_function" | rg -q 'FileHandle\(forReadingFrom:'; then
