@@ -1,5 +1,3 @@
-import AppKit
-import CryptoKit
 import Darwin
 import Foundation
 
@@ -11,7 +9,7 @@ import Foundation
 #endif
 
 extension ReleaseChecker {
-    nonisolated private static var seniorityDatasetRelativePath: String {
+    nonisolated static var seniorityDatasetRelativePath: String {
         "node/execution/intrinsics/global/compat/mainnet_244200_seniority.json"
     }
 
@@ -131,103 +129,6 @@ extension ReleaseChecker {
             && metadata.st_mode & 0o022 == 0
     }
 
-    nonisolated static func prepareSourceBuildSandbox(
-        workspace: URL,
-        repository: URL
-    ) throws -> PreparedSourceBuildSandbox {
-        let fm = FileManager.default
-        guard fm.isExecutableFile(atPath: SourceBuildSandbox.executable) else {
-            throw UpdateCenterError.sourceSandboxUnavailable
-        }
-        let toolchain = try SourceBuildToolchain.discover(fileManager: fm)
-
-        let sandboxRoot = workspace.appendingPathComponent("sandbox", isDirectory: true)
-        let cargoHome = sandboxRoot.appendingPathComponent("cargo-home", isDirectory: true)
-        let isolatedHome = sandboxRoot.appendingPathComponent("home", isDirectory: true)
-        let temporary = sandboxRoot.appendingPathComponent("tmp", isDirectory: true)
-        for directory in [sandboxRoot, cargoHome, isolatedHome, temporary] {
-            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
-            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
-        }
-        let layout = SourceBuildSandbox.Layout(
-            workspace: workspace,
-            repository: repository,
-            cargoHome: cargoHome,
-            isolatedHome: isolatedHome,
-            temporaryDirectory: temporary,
-            rustupHome: toolchain.rustupHome,
-            cargoBin: toolchain.cargoBin,
-            flintDirectory: toolchain.flintDirectory,
-            gmpDirectory: toolchain.gmpDirectory,
-            mpfrDirectory: toolchain.mpfrDirectory,
-            opensslDirectory: toolchain.opensslDirectory,
-            macOSSDK: toolchain.macOSSDK
-        )
-        let fetchProfile = sandboxRoot.appendingPathComponent("dependency-fetch.sb")
-        let compileProfile = sandboxRoot.appendingPathComponent("compile-no-network.sb")
-        try writePrivateBuildPolicy(
-            try SourceBuildSandbox.profile(layout: layout, allowsNetwork: true),
-            to: fetchProfile
-        )
-        try writePrivateBuildPolicy(
-            try SourceBuildSandbox.profile(layout: layout, allowsNetwork: false),
-            to: compileProfile
-        )
-        let environment = try SourceBuildSandbox.environment(layout: layout)
-
-        // Fail closed before cloning or compiling if the host OS can no longer
-        // apply this policy. Source updates are optional; silently building
-        // unsandboxed is never an acceptable compatibility fallback.
-        do {
-            _ = try runChecked(
-                SourceBuildSandbox.executable,
-                try SourceBuildSandbox.arguments(
-                    profileURL: compileProfile,
-                    executable: "/usr/bin/true",
-                    arguments: []
-                ),
-                currentDirectory: repository,
-                environment: environment,
-                timeout: 10
-            )
-        } catch {
-            throw UpdateCenterError.sourceSandboxUnavailable
-        }
-        return PreparedSourceBuildSandbox(
-            fetchProfile: fetchProfile,
-            compileProfile: compileProfile,
-            cargoExecutable: toolchain.cargoExecutable.path,
-            environment: environment
-        )
-    }
-
-    nonisolated private static func writePrivateBuildPolicy(
-        _ policy: String,
-        to url: URL
-    ) throws {
-        try Data(policy.utf8).write(to: url, options: [.atomic])
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o600],
-            ofItemAtPath: url.path
-        )
-    }
-
-    nonisolated static func validateSourceBuildArtifact(
-        _ url: URL,
-        maximumBytes: UInt64
-    ) throws {
-        var metadata = stat()
-        guard lstat(url.path, &metadata) == 0,
-            (metadata.st_mode & S_IFMT) == S_IFREG,
-            metadata.st_nlink == 1,
-            metadata.st_uid == getuid(),
-            metadata.st_size > 0,
-            UInt64(metadata.st_size) <= maximumBytes,
-            metadata.st_mode & 0o111 != 0,
-            metadata.st_mode & 0o022 == 0
-        else { throw UpdateCenterError.sourceArtifactUnsafe(url.lastPathComponent) }
-    }
-
     /// Cargo build scripts cache absolute source paths. A cache moved from an older
     /// workspace can therefore look valid while pointing `protoc` and native builds
     /// at files that no longer exist. Reset only generated `target/` data when the
@@ -289,123 +190,6 @@ extension ReleaseChecker {
             isEstimate: true,
             logURL: logURL
         )
-    }
-
-    /// Hydrates the large seniority input identified by the immutable commit's
-    /// Git LFS pointer. GitHub's LFS batch endpoint can be quota-limited even
-    /// while its immutable media endpoint remains available, so both official
-    /// transports are tried. The object is accepted only when its size and
-    /// SHA-256 match the pointer committed by upstream.
-    nonisolated static func prepareSeniorityDataset(in repository: URL) throws -> GitLFSPointer {
-        let relativePath = seniorityDatasetRelativePath
-        let destination = repository.appendingPathComponent(relativePath)
-        let pointerText = try runChecked(
-            gitExecutable, ["-C", repository.path, "show", "HEAD:\(relativePath)"], timeout: 30
-        )
-        guard let pointer = GitLFSPointerParser.parse(pointerText), pointer.size <= 600_000_000 else {
-            throw UpdateCenterError.seniorityDatasetUnavailable
-        }
-
-        if !isLFSPointer(destination),
-            (try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) == pointer.size,
-            sha256(of: destination) == pointer.oid
-        {
-            return pointer
-        }
-
-        if isLFSPointer(destination) {
-            _ = try? runChecked(
-                gitExecutable,
-                ["-C", repository.path, "lfs", "pull", "--include=\(relativePath)", "--exclude="],
-                timeout: 15 * 60
-            )
-        }
-        if !isLFSPointer(destination),
-            (try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) == pointer.size,
-            sha256(of: destination) == pointer.oid
-        {
-            return pointer
-        }
-
-        let commit = try runChecked(
-            gitExecutable, ["-C", repository.path, "rev-parse", "HEAD"], timeout: 30
-        ).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard commit.range(of: #"^[0-9a-f]{40}$"#, options: .regularExpression) != nil,
-            let mediaURL = URL(
-                string:
-                    "https://media.githubusercontent.com/media/QuilibriumNetwork/monorepo/\(commit)/\(relativePath)"
-            )
-        else { throw UpdateCenterError.seniorityDatasetUnavailable }
-        let temporary = destination.deletingLastPathComponent()
-            .appendingPathComponent(".quilnode-lfs-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: temporary) }
-        try downloadGitHubMediaSynchronously(
-            mediaURL, to: temporary, maximumBytes: 600_000_000
-        )
-        guard (try? temporary.resourceValues(forKeys: [.fileSizeKey]).fileSize) == pointer.size,
-            sha256(of: temporary) == pointer.oid
-        else { throw UpdateCenterError.seniorityDatasetUnavailable }
-        _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary)
-        return pointer
-    }
-
-    /// Proves that the immutable checkout has no staged changes and that its
-    /// only working-tree difference is the explicitly hydrated seniority LFS
-    /// object. Verification intentionally does not depend on a workstation's
-    /// global Git LFS filter configuration: GUI apps use a sealed Git config,
-    /// and a full LFS object must not be mistaken for a source modification just
-    /// because the system filter is unavailable. The allowed object is instead
-    /// revalidated directly against the size and SHA-256 committed in HEAD.
-    nonisolated static func verifyPinnedCheckoutIsUnmodified(
-        _ repository: URL,
-        hydratedSeniorityDataset pointer: GitLFSPointer
-    ) throws {
-        do {
-            _ = try runChecked(
-                gitExecutable,
-                [
-                    "-C", repository.path, "diff", "--cached", "--quiet", "--exit-code",
-                    "--no-ext-diff", "--no-textconv", "HEAD", "--",
-                ],
-                timeout: 60
-            )
-
-            let changedPaths = try runChecked(
-                gitExecutable,
-                [
-                    "-C", repository.path, "diff", "--name-only", "--no-renames",
-                    "--no-ext-diff", "--no-textconv", "-z", "--",
-                ],
-                timeout: 60
-            ).split(separator: "\0").map(String.init)
-            guard changedPaths == [seniorityDatasetRelativePath] else {
-                throw UpdateCenterError.sourceCheckoutModified
-            }
-            let untrackedPaths = try runChecked(
-                gitExecutable,
-                ["-C", repository.path, "ls-files", "--others", "--exclude-standard", "-z"],
-                timeout: 60
-            )
-            guard untrackedPaths.isEmpty else { throw UpdateCenterError.sourceCheckoutModified }
-
-            let dataset = repository.appendingPathComponent(seniorityDatasetRelativePath)
-            var metadata = stat()
-            guard lstat(dataset.path, &metadata) == 0,
-                metadata.st_mode & S_IFMT == S_IFREG,
-                metadata.st_nlink == 1,
-                metadata.st_uid == getuid(),
-                metadata.st_size == pointer.size,
-                sha256(of: dataset) == pointer.oid
-            else { throw UpdateCenterError.sourceCheckoutModified }
-        } catch {
-            throw UpdateCenterError.sourceCheckoutModified
-        }
-    }
-
-    nonisolated static func isLFSPointer(_ url: URL) -> Bool {
-        guard let data = try? BoundedLocalData.read(from: url, maximumBytes: 1_024) else { return true }
-        return String(decoding: data, as: UTF8.self)
-            .hasPrefix("version https://git-lfs.github.com/spec/v1")
     }
 
 }
