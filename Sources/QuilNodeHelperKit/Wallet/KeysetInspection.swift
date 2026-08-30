@@ -15,7 +15,7 @@ extension QuilNodeHelper {
         let hasKeys = FileManager.default.fileExists(atPath: keysURL.path)
         guard hasConfig, hasKeys else {
             return .init(
-                format: "empty", health: "incomplete", requiresMigration: false, keyCount: 0, keyTypes: [],
+                format: .empty, health: .incomplete, requiresMigration: false, keyCount: 0, keyTypes: [],
                 fingerprint: keysetFingerprint(nil, nil),
                 warnings: ["A complete keyset requires both config.yml and keys.yml."], hasConfig: hasConfig,
                 hasKeys: hasKeys)
@@ -28,7 +28,7 @@ extension QuilNodeHelper {
             let keys = String(data: keysData, encoding: .utf8)
         else {
             return .init(
-                format: "unreadable", health: "invalid", requiresMigration: false, keyCount: 0, keyTypes: [],
+                format: .unreadable, health: .invalid, requiresMigration: false, keyCount: 0, keyTypes: [],
                 fingerprint: keysetFingerprint(configData, keysData),
                 warnings: ["The selected files are not readable Quilibrium YAML."], hasConfig: true, hasKeys: true)
         }
@@ -45,31 +45,31 @@ extension QuilNodeHelper {
         if encryption?.allSatisfy({ $0 == "0" }) == true { warnings.append("The keystore encryption key is all-zero.") }
         if entries.isEmpty { warnings.append("keys.yml contains no generated key entries yet.") }
 
-        let format: String
-        let health: String
+        let format: NodeKeysetFormat
+        let health: KeysetHealth
         let migration: Bool
         let usableEncryption =
             encryption?.count == 64
             && encryption?.allSatisfy({ $0 == "0" }) == false
         if current {
-            format = walletKeys ? "current25" : "transitional25"
+            format = walletKeys ? .current25 : .transitional25
             migration = !walletKeys
             health =
                 peerLength < 114 || !usableEncryption
-                ? "invalid"
-                : (migration ? "migrationRequired" : "ready")
+                ? .invalid
+                : (migration ? .migrationRequired : .ready)
         } else if old || peerLength >= 114 {
-            format = "legacyPre25"
+            format = .legacyPre25
             migration = true
-            health = peerLength >= 114 && usableEncryption ? "migrationRequired" : "invalid"
+            health = peerLength >= 114 && usableEncryption ? .migrationRequired : .invalid
         } else if entries.isEmpty {
-            format = "empty"
+            format = .empty
             migration = false
-            health = "incomplete"
+            health = .incomplete
         } else {
-            format = "unreadable"
+            format = .unreadable
             migration = false
-            health = "invalid"
+            health = .invalid
         }
         return .init(
             format: format, health: health, requiresMigration: migration,

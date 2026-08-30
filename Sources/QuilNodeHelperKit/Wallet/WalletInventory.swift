@@ -64,6 +64,7 @@ extension QuilNodeHelper {
         return WalletInventoryPayload(
             keysets: keysets,
             activeKeysetID: registry.activeKeysetID ?? keysets.first(where: { $0.isActive })?.id,
+            serviceSupportsTransactions: true,
             recoveryVaultHealthy: walletVaultIsHealthy(),
             message: keysets.first(where: { $0.isActive })?.isManaged == true
                 ? "The active identity is protected by transactional recovery copies."

@@ -130,6 +130,17 @@ if rg -n '^(public )?(enum Privileged(Node|Service)Action|struct Privileged(Node
     fail "the app and helper must consume, not redeclare, the shared IPC wire contract"
 fi
 
+wallet_wire_contract='Sources/QuilNodeShared/IPC/WalletServiceProtocol.swift'
+if [[ ! -f "$wallet_wire_contract" ]] ||
+   ! rg -q 'public struct WalletInventory' "$wallet_wire_contract" ||
+   ! rg -q 'public struct WalletTransactionManifest' "$wallet_wire_contract"; then
+    fail "the wallet service wire contract is not centralized in QuilNodeShared"
+fi
+if rg -n '^(public )?(struct (WalletInventory|WalletTransactionManifest)|enum WalletTransactionKind)' \
+    Sources/QuilNodeCore Sources/QuilNodeHelperKit; then
+    fail "Core and HelperKit must consume, not redeclare, the shared wallet wire contract"
+fi
+
 if ! rg -q '\.target\(name: "QuilNodeShared"' Package.swift ||
    ! rg -q '\.target\(name: "QuilNodeCore", dependencies: \["QuilNodeShared"\]\)' Package.swift ||
    ! rg -q '\.target\(name: "QuilNodeHelperKit", dependencies: \["QuilNodeShared"\]\)' Package.swift ||

@@ -15,8 +15,8 @@ extension QuilNodeHelper {
         }
         let source = walletProfiles.appendingPathComponent(registry.profiles[index].directoryName, isDirectory: true)
         let inspection = try inspectKeyset(source)
-        let generatedPlaceholder = registry.profiles[index].createdAt != nil && inspection.health == "incomplete"
-        guard inspection.health != "invalid", inspection.health != "incomplete" || generatedPlaceholder else {
+        let generatedPlaceholder = registry.profiles[index].createdAt != nil && inspection.health == .incomplete
+        guard inspection.health != .invalid, inspection.health != .incomplete || generatedPlaceholder else {
             throw HelperFailure.service("the selected identity package is incomplete")
         }
 

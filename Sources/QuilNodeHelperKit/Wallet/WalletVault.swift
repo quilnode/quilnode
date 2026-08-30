@@ -46,7 +46,7 @@ extension QuilNodeHelper {
 
     static func replaceKeysetFiles(from source: URL, to destination: URL) throws {
         let inspection = try inspectKeyset(source)
-        guard inspection.health != "invalid", inspection.health != "incomplete" else {
+        guard inspection.health != .invalid, inspection.health != .incomplete else {
             throw HelperFailure.service("refusing to copy an incomplete identity package")
         }
         try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
@@ -113,7 +113,7 @@ extension QuilNodeHelper {
             }
         } else {
             let inspection = try inspectKeyset(source)
-            guard inspection.health != "invalid", inspection.health != "incomplete" else {
+            guard inspection.health != .invalid, inspection.health != .incomplete else {
                 throw HelperFailure.service("the identity package cannot be activated")
             }
         }

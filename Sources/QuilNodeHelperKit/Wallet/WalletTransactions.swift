@@ -26,7 +26,7 @@ extension QuilNodeHelper {
             var registry = try loadWalletRegistry()
             let active = nodeDirectory.appendingPathComponent(".config", isDirectory: true)
             let inspection = try inspectKeyset(active)
-            guard inspection.health != "invalid", inspection.health != "incomplete" else {
+            guard inspection.health != .invalid, inspection.health != .incomplete else {
                 throw HelperFailure.service("the active keyset is not complete enough to adopt")
             }
             let id = stableUUID(from: inspection.fingerprint)
@@ -64,7 +64,7 @@ extension QuilNodeHelper {
                 purpose: .keysetSource
             )
             let inspection = try inspectKeyset(source)
-            guard inspection.health != "invalid", inspection.health != "incomplete" else {
+            guard inspection.health != .invalid, inspection.health != .incomplete else {
                 throw HelperFailure.service(inspection.warnings.joined(separator: " "))
             }
             var registry = try loadWalletRegistry()
