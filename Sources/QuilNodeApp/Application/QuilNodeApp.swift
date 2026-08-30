@@ -49,6 +49,7 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                     || $0.hasPrefix("--design-preview=identity-transaction-")
                     || $0.hasPrefix("--design-preview=operator-interlock-")
                     || $0 == "--design-preview=theme-library"
+                    || $0 == "--design-preview=build-evidence"
             }
             guard let value else { return }
 
@@ -83,6 +84,9 @@ private final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         private func standaloneDesignPreview(mode: String) -> some View {
             if mode == "theme-library" {
                 ThemeLibraryDesignPreviewHost()
+            } else if mode == "build-evidence" {
+                BuildEvidenceDesignPreviewHost()
+                    .quilThemed(.quilNode)
             } else if mode.hasPrefix("operator-interlock-") {
                 let previewMode: OperatorInterlockPreviewMode =
                     switch mode {
@@ -313,6 +317,9 @@ struct QuilNodeApp: App {
                 OperatorInterlockDesignPreviewHost(mode: .quit)
             } else if designPreviewMode == "theme-library" {
                 ThemeLibraryDesignPreviewHost()
+            } else if designPreviewMode == "build-evidence" {
+                BuildEvidenceDesignPreviewHost()
+                    .quilThemed(.quilNode)
             } else {
                 dashboardSceneContent
             }
