@@ -99,7 +99,8 @@ Update archive: $(basename "$dmg")
 Feed: feed/appcast.xml
 Automatic installation: disabled
 System profiling: disabled
-Notarization: unavailable for the pseudonymous alpha
+Distribution profile: community-signed
+Apple notarization: not included
 EOF
 
 echo "$release_root"

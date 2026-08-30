@@ -32,8 +32,14 @@ Sparkle is distributed under the MIT License:
 > copies of the Software, and to permit persons to whom the Software is
 > furnished to do so, subject to the conditions in Sparkle’s bundled license.
 
-The full Sparkle license is included inside the distributed framework and is
-available in the [upstream repository](https://github.com/sparkle-project/Sparkle/blob/2.9.6/LICENSE).
+The full Sparkle license is available in the
+[upstream repository](https://github.com/sparkle-project/Sparkle/blob/2.9.6/LICENSE)
+and must be included in every QuilNode distribution.
+
+The fixed-purpose release verifier statically links OpenSSL 3.5.8 LTS,
+copyright © 1998–2026 The OpenSSL Project Authors and licensed under Apache
+License 2.0. Its complete license text must be included in every QuilNode
+distribution.
 
 Quilibrium node and qclient executables are independently downloaded from
 official Quilibrium release channels and are not part of the QuilNode source or

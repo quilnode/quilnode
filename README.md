@@ -17,13 +17,9 @@
 
 ## Status
 
-QuilNode is preparing for a small public alpha. The source is available for
-review and local development, but there is no supported public download yet.
-Do not use an unofficial build with an identity you cannot afford to recover.
-
-The first downloadable build will be published only after its exact source,
-signed update path, clean-machine installation flow, rollback behavior, and
-identity-preservation guarantees have been independently exercised.
+QuilNode is under active development. Install it only from this repository's
+official releases, verify the published checksums and signatures, and keep an
+independent recovery copy of every node identity before operating the node.
 
 ## What QuilNode does
 
@@ -184,14 +180,9 @@ Suspected vulnerabilities must be reported privately as described in
 [SECURITY.md](SECURITY.md). Security review reduces risk; no software can make a
 credible promise of zero vulnerabilities.
 
-## License and project identity
+## License
 
 QuilNode is released under
 [GNU Affero General Public License v3.0 only](LICENSE). Third-party notices,
 warranty limits, and the independent-project statement are in
 [NOTICE.md](NOTICE.md).
-
-The project is maintained publicly under the **jobless** GitHub identity. That
-is an intentional pseudonymous project identity; build-machine usernames,
-home-directory paths, workstation labels, private signing material, and node
-operator metadata are excluded from source and release artifacts.

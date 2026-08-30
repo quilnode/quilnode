@@ -10,6 +10,16 @@ fail() {
     failures=$((failures + 1))
 }
 
+contains_exactly() {
+    local candidate="$1"
+    shift
+    local item
+    for item in "$@"; do
+        [[ "$item" == "$candidate" ]] && return 0
+    done
+    return 1
+}
+
 expected_source_roots=(
     QuilNodeApp
     QuilNodeCore
@@ -29,14 +39,14 @@ expected_test_roots=(
 for source_root in Sources/*; do
     [[ -d "$source_root" ]] || continue
     source_name="${source_root#Sources/}"
-    if [[ ! " ${expected_source_roots[*]} " =~ " ${source_name} " ]]; then
+    if ! contains_exactly "$source_name" "${expected_source_roots[@]}"; then
         fail "undeclared or orphaned source root is present: $source_root"
     fi
 done
 for test_root in Tests/*; do
     [[ -d "$test_root" ]] || continue
     test_name="${test_root#Tests/}"
-    if [[ ! " ${expected_test_roots[*]} " =~ " ${test_name} " ]]; then
+    if ! contains_exactly "$test_name" "${expected_test_roots[@]}"; then
         fail "undeclared or orphaned test root is present: $test_root"
     fi
 done

@@ -6,7 +6,7 @@ material. Please do not open a public issue for a suspected vulnerability.
 ## Supported versions
 
 Only the latest published QuilNode release is supported. Security fixes are not
-backported before the first stable public release.
+backported unless a release announcement explicitly says otherwise.
 
 Application updates require both the Ed25519 archive signature and a signed
 Sparkle appcast. The code-signing identity used by the privileged local service
@@ -15,15 +15,11 @@ and source-hosting credentials are independent trust domains.
 
 ## Reporting a vulnerability
 
-Until a public repository enables GitHub private vulnerability reporting,
-contact the maintainer privately through the release channel where you obtained
-the app. Include the affected version, macOS version, reproduction steps, and
-impact. Do not include real `config.yml`, `keys.yml`, private keys, passwords,
-wallet exports, or unredacted diagnostic bundles.
-
-The repository owner must enable GitHub **Private vulnerability reporting**
-before publishing the first alpha. Until its URL exists, this is an explicit
-release blocker rather than a promise that reports can already be accepted.
+Use this repository's **Report a vulnerability** form. Include the affected
+version, macOS version, reproduction steps, and impact. Do not include real
+`config.yml`, `keys.yml`, private keys, passwords, wallet exports, or unredacted
+diagnostic bundles. If the private form is unavailable, do not publish the
+report or attach sensitive evidence to a public issue.
 
 ## Security boundary
 
@@ -55,6 +51,17 @@ release blocker rather than a promise that reports can already be accepted.
 Security review reduces risk; it does not establish that software has “zero
 vulnerabilities.” Public releases require the local preflight, clean-machine
 matrix, and independent review recorded in the release checklist.
+
+## Distribution security profiles
+
+Community-signed builds use a documented Hardened Runtime library-validation
+exception so the exact-pinned Sparkle framework can load. Every nested
+executable is sealed with the same project certificate, update archives and
+feeds are signed, and the app accepts no arbitrary plug-in path.
+
+Developer ID builds must keep library validation enabled and complete Apple's
+notarization flow. Release verification rejects a build whose entitlements do
+not match its declared distribution profile.
 
 The complete working threat model and release evidence are maintained outside
 the public source tree so machine-local context cannot enter repository history.

@@ -127,8 +127,8 @@ final class ThemeController: ObservableObject {
         }
     }
 
-    /// The pre-alpha build used `quil.classic` for what is now the distinct
-    /// QuilNode palette. Migrate that one historical default exactly once,
+    /// A legacy build used `quil.classic` for what is now the distinct QuilNode
+    /// palette. Migrate that historical default exactly once,
     /// while preserving every explicit third-party or bundled theme choice.
     static func migratedInitialThemeSelection(defaults: UserDefaults) -> String {
         let stored = defaults.string(forKey: selectionKey)

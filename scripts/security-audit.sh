@@ -51,7 +51,7 @@ if ! rg -q 'exact: "2\.9\.6"' Package.swift ||
 fi
 if [[ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.cs.disable-library-validation' Resources/QuilNode.entitlements 2>/dev/null)" != "true" ]] ||
    rg -n 'com\.apple\.security\.cs\.(allow-dyld-environment-variables|allow-jit|allow-unsigned-executable-memory|disable-executable-page-protection|get-task-allow)' Resources/QuilNode.entitlements; then
-    echo "FAIL: pseudonymous Sparkle build has an unexpected hardened-runtime exception" >&2
+    echo "FAIL: community-signed Sparkle profile has an unexpected hardened-runtime exception" >&2
     failures=$((failures + 1))
 fi
 if rg -n 'DJIxXBjq/gVQx7fUypBouvqtsS1Qx7SKvBUAi/yKZp8=' \

@@ -124,8 +124,8 @@ final class NetworkReadinessPresentationTests: XCTestCase {
         firewall: ManagedFirewallStatus? = nil
     ) -> NetworkWorkspacePresentation {
         let inspection = NetworkLocalInspection(
-            localIPv4: "192.168.1.49",
-            gatewayIPv4: "192.168.1.1",
+            localIPv4: "192.0.2.49",
+            gatewayIPv4: "192.0.2.1",
             interfaceName: "en0",
             interfaceDisplayName: "Wi-Fi",
             firewallState: .enabled,
@@ -136,7 +136,7 @@ final class NetworkReadinessPresentationTests: XCTestCase {
         let access = RouterAccessDiscovery(
             routeSignature: gateway.signature,
             status: .confirmed,
-            browserURL: URL(string: "http://192.168.1.1/"),
+            browserURL: URL(string: "http://192.0.2.1/"),
             checkedAt: Date(),
             title: "Gateway web service responded",
             detail: "Observed locally"

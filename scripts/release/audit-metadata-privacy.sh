@@ -22,15 +22,11 @@ fail() {
 }
 
 # These values are intentionally discovered at audit time and never printed.
-# `jobless` and the GitHub noreply address are the project's chosen public
-# identity; only accidental build-machine identity belongs in this deny set.
+# They identify the build workstation and never belong in release artifacts.
 sensitive_literals=()
 append_sensitive_literal() {
     local value="$1"
     [[ ${#value} -ge 4 ]] || return 0
-    case "$value" in
-        jobless|*users.noreply.github.com) return 0 ;;
-    esac
     sensitive_literals+=("$value")
 }
 

@@ -22,7 +22,7 @@ final class PresentationPolicyTests: XCTestCase {
     }
 
     @MainActor
-    func testThemeFamiliesAndPreAlphaDefaultMigration() {
+    func testThemeFamiliesAndLegacyDefaultMigration() {
         let modesByFamily = Dictionary(grouping: QuilTheme.builtIns, by: \.familyID)
             .mapValues { Set($0.map(\.appearance)) }
         XCTAssertTrue(modesByFamily.values.allSatisfy { $0 == Set([.light, .dark]) })

@@ -32,8 +32,8 @@
                 localWorkerCount: 8
             )
             let inspection = NetworkLocalInspection(
-                localIPv4: "192.168.1.49",
-                gatewayIPv4: "192.168.1.1",
+                localIPv4: "192.0.2.49",
+                gatewayIPv4: "192.0.2.1",
                 interfaceName: "en0",
                 interfaceDisplayName: "Wi-Fi",
                 firewallState: .enabled,
@@ -44,7 +44,7 @@
             let access = RouterAccessDiscovery(
                 routeSignature: gateway.signature,
                 status: .confirmed,
-                browserURL: URL(string: "https://192.168.1.1/"),
+                browserURL: URL(string: "https://192.0.2.1/"),
                 checkedAt: Date(timeIntervalSince1970: 1_787_928_000),
                 title: "Gateway web service responded",
                 detail: "A local web service responds on the detected default gateway."
