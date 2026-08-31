@@ -96,7 +96,7 @@ targets:
         NSHumanReadableCopyright: Copyright © 2026 QuilNode contributors. AGPL-3.0-only.
         SUFeedURL: https://www.quilnode.com/appcast.xml
         SUPublicEDKey: DJIxXBjq/gVQx7fUypBouvqtsS1Qx7SKvBUAi/yKZp8=
-        SUEnableAutomaticChecks: false
+        SUEnableAutomaticChecks: true
         SUAllowsAutomaticUpdates: false
         SUAutomaticallyUpdate: false
         SUEnableSystemProfiling: false

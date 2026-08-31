@@ -44,7 +44,8 @@ struct AppUpdateSettingsPane: View {
                 SettingsPreferenceRow(
                     systemImage: "calendar.badge.clock",
                     title: "Automatic check",
-                    detail: "Read signed release metadata once per day. Installation remains explicit."
+                    detail:
+                        "Discover signed releases once per day. An update button appears in the sidebar when action is needed."
                 ) {
                     Toggle(
                         "Daily",

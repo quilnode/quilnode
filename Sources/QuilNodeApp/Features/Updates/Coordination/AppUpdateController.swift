@@ -10,11 +10,11 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
     @Published private(set) var phase: AppUpdatePhase = .ready
     @Published private(set) var canCheck = false
     @Published private(set) var lastAttemptAt: Date?
+    @Published private(set) var availableVersion: String?
 
     private let bundle: Bundle
     private let userDriver: any SPUUserDriver
     private var observations: Set<AnyCancellable> = []
-    private var candidateVersion: String?
     private var started = false
     private lazy var updater = SPUUpdater(
         hostBundle: bundle, applicationBundle: bundle, userDriver: userDriver, delegate: self
@@ -59,7 +59,19 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
         guard started, updater.canCheckForUpdates else { return }
         // During an existing session Sparkle focuses its window. Do not replace
         // download/install progress with a misleading new "checking" state.
-        if !updater.sessionInProgress { phase = .checking }
+        if !updater.sessionInProgress, availableVersion == nil { phase = .checking }
+        updater.checkForUpdates()
+    }
+
+    /// Opens or focuses Sparkle's trusted update flow for a release already
+    /// discovered by the signed-feed scheduler. Sparkle remains responsible
+    /// for release notes, archive verification, installation, and relaunch.
+    func installAvailableUpdate() {
+        guard availableVersion != nil else {
+            checkNow()
+            return
+        }
+        guard started, updater.canCheckForUpdates else { return }
         updater.checkForUpdates()
     }
 
@@ -68,12 +80,12 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
     }
 
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        candidateVersion = item.displayVersionString
+        availableVersion = item.displayVersionString
         phase = .updateAvailable(version: item.displayVersionString)
     }
 
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {
-        candidateVersion = nil
+        availableVersion = nil
         apply(error)
     }
 
@@ -98,7 +110,7 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
         forUpdate item: SUAppcastItem, state: SPUUserUpdateState
     ) {
         if choice == .skip {
-            candidateVersion = nil
+            availableVersion = nil
             phase = .ready
         }
     }
@@ -118,14 +130,18 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
 
     private func apply(_ error: any Error) {
         switch AppUpdateOutcome.classify(error) {
-        case .current: phase = .current
-        case .unavailable(let message): phase = .unavailable(message: message)
+        case .current:
+            availableVersion = nil
+            phase = .current
+        case .unavailable(let message):
+            availableVersion = nil
+            phase = .unavailable(message: message)
         case .cancelled: restoreAvailableUpdate()
         case .failed(let message): phase = .failed(message: message)
         }
     }
 
     private func restoreAvailableUpdate() {
-        phase = candidateVersion.map { .updateAvailable(version: $0) } ?? .ready
+        phase = availableVersion.map { .updateAvailable(version: $0) } ?? .ready
     }
 }

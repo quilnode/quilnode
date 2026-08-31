@@ -41,6 +41,7 @@ struct DashboardSidebar: View {
                 onSelectDestination: onSelectDestination
             )
             Spacer(minLength: 0)
+            AppUpdateSidebarButton(isCollapsed: isCollapsed, railInset: railInset)
             DashboardSidebarUtilities(isCollapsed: isCollapsed, railInset: railInset)
             DashboardSidebarStatus(
                 snapshot: snapshot,
