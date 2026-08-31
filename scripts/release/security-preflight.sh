@@ -63,6 +63,7 @@ run_gate history-secret-scan gitleaks git --no-banner --no-color --redact=100 \
 run_gate repository-metadata scripts/release/audit-metadata-privacy.sh repository .
 run_gate metadata-auditor-tests scripts/release/test-metadata-privacy.sh
 run_gate release-evidence-tests scripts/release/test-evidence.sh
+run_gate application-updater scripts/release/test-app-updater.sh "$REPORT_DIR/application-updater"
 run_gate dependency-vulnerabilities osv-scanner scan source --recursive \
     --experimental-exclude .build --experimental-exclude Audit \
     --format json --output-file "$REPORT_DIR/osv.json" .

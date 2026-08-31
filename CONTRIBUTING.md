@@ -7,6 +7,19 @@ scripts/quality-gate.sh
 scripts/test-release-verifier.sh
 ```
 
+For application-updater changes, also run the native integration gate on a
+logged-in Mac:
+
+```bash
+scripts/release/test-app-updater.sh /absolute/private-report-directory
+```
+
+It uses disposable signed apps, a loopback feed, and a temporary 32-MB disk
+image to exercise the pinned Sparkle framework and QuilNode's actual update
+controller. It neither updates QuilNode nor accesses a node or release key.
+The security preflight includes this gate. Clean-machine testing of the full
+signed application remains a separate release requirement.
+
 The automated architecture audit enforces dependency direction, source
 placement, file-size tripwires, and retirement of legacy source trees. Keep UI
 and coordination in `QuilNodeApp`, deterministic policy in `QuilNodeCore`, wire
