@@ -5,10 +5,26 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 113
-    public static let minimumSupportedServiceBuild = 112
+    public static let currentServiceBuild = 114
+    public static let minimumSupportedServiceBuild = 114
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
+}
+
+/// Stable stages for daemon-owned work. The app can disappear and reconnect
+/// without guessing progress from human-readable status text.
+public enum PrivilegedOperationStage: String, Codable, Equatable, Sendable {
+    case accepted
+    case waitingForExclusiveAccess
+    case validatingPlan
+    case verifyingArtifact
+    case installingFiles
+    case verifyingInstalledArtifact
+    case probingRuntime
+    case recordingProvenance
+    case activatingRuntime
+    case validatingHealth
+    case completed
 }
 
 public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
@@ -87,6 +103,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     public var qclientOutput: String?
     public var operationID: String?
     public var operationState: String?
+    public var operationStage: PrivilegedOperationStage?
     public var serviceBuild: Int?
     /// Set only when the authenticated service deliberately refuses a
     /// passwordless high-risk operation and requires fresh macOS user presence.
@@ -107,6 +124,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         qclientOutput: String? = nil,
         operationID: String? = nil,
         operationState: String? = nil,
+        operationStage: PrivilegedOperationStage? = nil,
         serviceBuild: Int? = nil,
         authorizationRequired: Bool? = nil,
         nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil
@@ -124,6 +142,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.qclientOutput = qclientOutput
         self.operationID = operationID
         self.operationState = operationState
+        self.operationStage = operationStage
         self.serviceBuild = serviceBuild
         self.authorizationRequired = authorizationRequired
         self.nodeUpdatePolicy = nodeUpdatePolicy

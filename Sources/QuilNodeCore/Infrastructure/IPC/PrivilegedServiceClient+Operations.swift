@@ -5,6 +5,16 @@ import Foundation
 #endif
 
 extension PrivilegedServiceClient {
+    public struct OperationProgress: Equatable, Sendable {
+        public var stage: PrivilegedOperationStage?
+        public var message: String
+
+        public init(stage: PrivilegedOperationStage?, message: String) {
+            self.stage = stage
+            self.message = message
+        }
+    }
+
     public static func request(
         _ action: PrivilegedServiceAction,
         manifestPath: String? = nil,
@@ -67,7 +77,8 @@ extension PrivilegedServiceClient {
     public static func requestOperation(
         _ action: PrivilegedServiceAction,
         manifestPath: String? = nil,
-        timeout: TimeInterval = 420
+        timeout: TimeInterval = 420,
+        progress: (@Sendable (OperationProgress) -> Void)? = nil
     ) -> (output: String, exitCode: Int32) {
         let initial = response(action, manifestPath: manifestPath, timeout: timeout)
         guard initial.exitCode == 0, let accepted = initial.response else {
@@ -79,6 +90,11 @@ extension PrivilegedServiceClient {
 
         let deadline = Date().addingTimeInterval(timeout)
         var lastMessage = accepted.message
+        var lastProgress = OperationProgress(
+            stage: accepted.operationStage,
+            message: accepted.message
+        )
+        progress?(lastProgress)
         while Date() < deadline {
             switch OperationState(rawValue: accepted.operationState ?? "") {
             case .succeeded:
@@ -97,6 +113,14 @@ extension PrivilegedServiceClient {
             )
             if let status = polled.response {
                 lastMessage = status.message
+                let update = OperationProgress(
+                    stage: status.operationStage,
+                    message: status.message
+                )
+                if update != lastProgress {
+                    lastProgress = update
+                    progress?(update)
+                }
                 switch OperationState(rawValue: status.operationState ?? "") {
                 case .succeeded: return (status.message, 0)
                 case .failed: return (status.message, 1)

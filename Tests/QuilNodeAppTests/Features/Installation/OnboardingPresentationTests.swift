@@ -2,6 +2,7 @@ import XCTest
 
 @testable import QuilNodeApp
 @testable import QuilNodeCore
+@testable import QuilNodeShared
 
 final class OnboardingPresentationTests: XCTestCase {
     func testJourneyCollapsesDependenciesIntoFourOperatorOutcomes() {
@@ -59,6 +60,30 @@ final class OnboardingPresentationTests: XCTestCase {
         XCTAssertEqual(
             OnboardingRuntimeProgress.qclient(phase: .installing),
             .init(step: 4, total: 4, title: "Install & re-check")
+        )
+    }
+
+    func testPrivilegedQClientStagesRemainVisibleAndDeterministic() {
+        let startedAt = Date(timeIntervalSince1970: 1_000)
+        let progress = InstallationOperationPresentation.progress(
+            for: .init(
+                stage: .probingRuntime,
+                message: "Checking the qclient runtime version (up to 15 seconds)."
+            ),
+            workflow: .qclient,
+            startedAt: startedAt
+        )
+
+        XCTAssertEqual(progress.phase, "Checking runtime version")
+        XCTAssertEqual(progress.detail, "Checking the qclient runtime version (up to 15 seconds).")
+        XCTAssertEqual(progress.fraction, 0.98)
+        XCTAssertEqual(progress.startedAt, startedAt)
+        XCTAssertEqual(
+            InstallationOperationPresentation.elapsedDescription(
+                from: startedAt,
+                to: startedAt.addingTimeInterval(74)
+            ),
+            "Elapsed 1m 14s"
         )
     }
 }

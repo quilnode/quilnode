@@ -81,7 +81,8 @@ struct QClientSetupView: View {
                 OnboardingProgressPanel(
                     progress: runtimeProgress,
                     detail: installer.progress?.detail ?? "Resolving the client provenance that matches this runtime.",
-                    fraction: installer.progress?.boundedFraction
+                    fraction: installer.progress?.boundedFraction,
+                    startedAt: installer.isWorking ? installer.progress?.startedAt : nil
                 )
 
                 if let error = installer.error {

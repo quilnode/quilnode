@@ -38,4 +38,27 @@ final class ServiceConfigurationTests: XCTestCase {
         XCTAssertEqual(decoded.policy, .approvedDevelopment)
         XCTAssertEqual(decoded.updatedAt, updatedAt)
     }
+
+    func testDurableOperationRecordDecodesBeforeAndAfterStageReporting() throws {
+        let legacy = Data(
+            #"{"id":"op","action":"qclientInstall","state":"running","message":"Accepted","startedAt":0,"updatedAt":0}"#.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let legacyRecord = try decoder.decode(ServiceOperationRecord.self, from: legacy)
+        XCTAssertNil(legacyRecord.stage)
+
+        let staged = ServiceOperationRecord(
+            id: "op",
+            action: "qclientInstall",
+            idempotencyKey: "artifact-sha",
+            state: .running,
+            stage: .probingRuntime,
+            message: "Checking qclient version",
+            startedAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 2)
+        )
+        let encoded = try JSONEncoder().encode(staged)
+        XCTAssertEqual(try JSONDecoder().decode(ServiceOperationRecord.self, from: encoded).stage, .probingRuntime)
+    }
 }

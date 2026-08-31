@@ -8,7 +8,11 @@ import Security
 #endif
 
 extension QuilNodeHelper {
-    static func installQClient(manifestPath: String) throws {
+    static func installQClient(
+        manifestPath: String,
+        progress: ServiceOperationReporter? = nil
+    ) throws {
+        progress?(.validatingPlan, "Validating the sealed qclient installation plan.")
         let manifestURL = URL(fileURLWithPath: manifestPath).standardizedFileURL
         let stage = manifestURL.deletingLastPathComponent()
         try validateStage(stage, manifestURL: manifestURL)
@@ -24,16 +28,41 @@ extension QuilNodeHelper {
         else { throw HelperFailure.invalidManifest("the qclient activation manifest is invalid or expired") }
         try validateQClientArtifact(manifest.qclient, stage: stage)
         if manifest.qclient.trust == .officialSigned {
+            progress?(.verifyingArtifact, "Re-verifying the staged qclient inside the privileged boundary.")
             try verifyOfficialArtifact(manifest.qclient, stage: stage, maximumBinaryBytes: 250_000_000)
         }
-        _ = try installManagedQClient(manifest.qclient, stage: stage)
+        _ = try installManagedQClient(manifest.qclient, stage: stage, progress: progress)
+    }
+
+    static func qclientInstallOperationKey(manifestPath: String) throws -> String {
+        let manifestURL = URL(fileURLWithPath: manifestPath).standardizedFileURL
+        try validateStage(manifestURL.deletingLastPathComponent(), manifestURL: manifestURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let manifest = try decoder.decode(
+            QClientActivationManifest.self,
+            from: readSecureRegularFile(manifestURL, maximumBytes: 64_000)
+        )
+        guard manifest.schemaVersion == 1 else {
+            throw HelperFailure.invalidManifest("the qclient activation manifest is invalid")
+        }
+        try validateQClientArtifact(
+            manifest.qclient,
+            stage: manifestURL.deletingLastPathComponent()
+        )
+        return [
+            "qclient", manifest.qclient.trust.rawValue,
+            manifest.qclient.releaseVersion, manifest.qclient.sha256.lowercased(),
+        ].joined(separator: ":")
     }
 
     @discardableResult
     static func installManagedQClient(
         _ artifact: SignedArtifactActivation,
-        stage: URL
+        stage: URL,
+        progress: ServiceOperationReporter? = nil
     ) throws -> URL {
+        progress?(.installingFiles, "Installing qclient into its root-owned versioned directory.")
         let fm = FileManager.default
         try fm.createDirectory(at: qclientRoot, withIntermediateDirectories: true)
         try setRootPermissions(qclientRoot, mode: 0o755)
@@ -75,6 +104,7 @@ extension QuilNodeHelper {
             // Re-verify the root-owned copy, not only the user-writable staged
             // file. This guarantees the executable below is the exact quorum-
             // signed artifact even if staging changed during the copy.
+            progress?(.verifyingInstalledArtifact, "Re-verifying the installed root-owned qclient copy.")
             try verifyOfficialArtifact(
                 artifact,
                 stage: releaseDirectory,
@@ -86,6 +116,7 @@ extension QuilNodeHelper {
         // publisher authenticity, not memory safety; source builds have no
         // release signature at all. The restricted node account is therefore
         // the execution boundary for both provenance classes.
+        progress?(.probingRuntime, "Checking the qclient runtime version (up to 15 seconds).")
         let runtimeOutput = try runArtifactVersionProbe(
             destination,
             trustArguments + ["version"],
@@ -95,6 +126,7 @@ extension QuilNodeHelper {
         guard let reported, runtimeOutput.contains(reported) else {
             throw HelperFailure.invalidManifest("installed qclient runtime version does not match staged provenance")
         }
+        progress?(.recordingProvenance, "Recording verified qclient provenance.")
         let record = ManagedQClientRecord(
             releaseVersion: artifact.releaseVersion,
             trust: artifact.trust,

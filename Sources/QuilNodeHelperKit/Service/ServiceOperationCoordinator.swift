@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(QuilNodeShared)
+    import QuilNodeShared
+#endif
+
 enum ServiceOperationState: String, Codable {
     case running, succeeded, failed
 }
@@ -9,10 +13,13 @@ struct ServiceOperationRecord: Codable {
     var action: String
     var idempotencyKey: String?
     var state: ServiceOperationState
+    var stage: PrivilegedOperationStage?
     var message: String
     var startedAt: Date
     var updatedAt: Date
 }
+
+typealias ServiceOperationReporter = @Sendable (PrivilegedOperationStage, String) -> Void
 
 enum ServiceOperationError: Error, CustomStringConvertible {
     case busy
@@ -63,7 +70,7 @@ final class ServiceOperationCoordinator: @unchecked Sendable {
     func begin(
         action: String,
         idempotencyKey: String?,
-        operation: @escaping @Sendable () throws -> String
+        operation: @escaping @Sendable (@escaping ServiceOperationReporter) throws -> String
     ) throws -> ServiceOperationRecord {
         lock.lock()
         if let current, current.state == .running {
@@ -86,6 +93,7 @@ final class ServiceOperationCoordinator: @unchecked Sendable {
             action: action,
             idempotencyKey: idempotencyKey,
             state: .running,
+            stage: .accepted,
             message: "Privileged operation accepted by the local service.",
             startedAt: Date(),
             updatedAt: Date()
@@ -95,13 +103,27 @@ final class ServiceOperationCoordinator: @unchecked Sendable {
         lock.unlock()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let reporter: ServiceOperationReporter = { [weak self] stage, message in
+                self?.update(id: record.id, stage: stage, message: message)
+            }
             do {
-                self?.finish(id: record.id, state: .succeeded, message: try operation())
+                self?.finish(id: record.id, state: .succeeded, message: try operation(reporter))
             } catch {
                 self?.finish(id: record.id, state: .failed, message: "\(error)")
             }
         }
         return record
+    }
+
+    private func update(id: String, stage: PrivilegedOperationStage, message: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard var record = current, record.id == id, record.state == .running else { return }
+        record.stage = stage
+        record.message = message
+        record.updatedAt = Date()
+        current = record
+        persist(record)
     }
 
     func record(id: String) throws -> ServiceOperationRecord {
@@ -116,6 +138,7 @@ final class ServiceOperationCoordinator: @unchecked Sendable {
         defer { lock.unlock() }
         guard var record = current, record.id == id else { return }
         record.state = state
+        if state == .succeeded { record.stage = .completed }
         record.message = message
         record.updatedAt = Date()
         current = record

@@ -239,10 +239,28 @@ final class InstallationCoordinator: ObservableObject {
             )
             qclientRelease = prepared.officialRelease
             phase = .installing
+            progress = NodeUpdateProgress(
+                workflow: .qclient,
+                step: .switchRuntime,
+                phase: "Handing off to local installer",
+                detail: "The verified qclient is ready for the passwordless local service.",
+                fraction: 0.90,
+                startedAt: startedAt,
+                isEstimate: false
+            )
             let result = await Task.detached(priority: .userInitiated) {
                 ReleaseChecker.runAuthorizedHelper(
                     arguments: ["qclient-install", prepared.manifestURL.path],
-                    durableOperation: true
+                    durableOperation: true,
+                    progress: { [weak self] update in
+                        Task { @MainActor in
+                            self?.progress = InstallationOperationPresentation.progress(
+                                for: update,
+                                workflow: .qclient,
+                                startedAt: startedAt
+                            )
+                        }
+                    }
                 )
             }.value
             guard result.exitCode == 0 else {
@@ -281,6 +299,7 @@ final class InstallationCoordinator: ObservableObject {
     /// code-signature-pinned local service; no password is stored or forwarded.
     func authorizeAndInstall() async {
         guard let manifest = stagedManifestURL, phase == .awaitingAuthorization else { return }
+        let startedAt = progress?.startedAt ?? Date()
         showsAuthorizationExplanation = false
         phase = .authorizing
         error = nil
@@ -288,7 +307,7 @@ final class InstallationCoordinator: ObservableObject {
             phase: "Authorizing local service",
             detail: "Waiting for the standard macOS administrator confirmation",
             fraction: 0.05,
-            startedAt: Date(),
+            startedAt: startedAt,
             isEstimate: false
         )
 
@@ -313,12 +332,25 @@ final class InstallationCoordinator: ObservableObject {
         progress = NodeUpdateProgress(
             phase: "Installing signed node",
             detail: "The local service is creating the restricted runtime and launchd service",
-            fraction: 0.35,
-            startedAt: Date(),
-            isEstimate: true
+            fraction: 0.76,
+            startedAt: startedAt,
+            isEstimate: false
         )
         let result = await Task.detached(priority: .userInitiated) {
-            PrivilegedServiceClient.requestOperation(.install, manifestPath: manifest.path, timeout: 420)
+            PrivilegedServiceClient.requestOperation(
+                .install,
+                manifestPath: manifest.path,
+                timeout: 420,
+                progress: { [weak self] update in
+                    Task { @MainActor in
+                        self?.progress = InstallationOperationPresentation.progress(
+                            for: update,
+                            workflow: .signedNode,
+                            startedAt: startedAt
+                        )
+                    }
+                }
+            )
         }.value
         guard result.exitCode == 0 else {
             phase = .failed
@@ -331,7 +363,7 @@ final class InstallationCoordinator: ObservableObject {
             phase: "Validating local node",
             detail: "Checking launchd, the node process, its version, and loopback metrics",
             fraction: 0.92,
-            startedAt: Date(),
+            startedAt: startedAt,
             isEstimate: true
         )
         try? await Task.sleep(for: .seconds(2))
@@ -349,7 +381,7 @@ final class InstallationCoordinator: ObservableObject {
             phase: "Node installed",
             detail: "Signed release, restricted runtime, launchd startup, and local health checks passed",
             fraction: 1,
-            startedAt: Date(),
+            startedAt: startedAt,
             isEstimate: false
         )
         message = result.output

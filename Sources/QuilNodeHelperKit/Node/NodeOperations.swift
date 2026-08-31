@@ -47,7 +47,11 @@ extension QuilNodeHelper {
         return manifest.qclient.trust != .officialSigned
     }
 
-    static func freshInstall(manifestPath: String) throws {
+    static func freshInstall(
+        manifestPath: String,
+        progress: ServiceOperationReporter? = nil
+    ) throws {
+        progress?(.validatingPlan, "Validating the sealed first-install plan.")
         let manifestURL = URL(fileURLWithPath: manifestPath).standardizedFileURL
         let stage = manifestURL.deletingLastPathComponent()
         try validateStage(stage, manifestURL: manifestURL)
@@ -84,6 +88,7 @@ extension QuilNodeHelper {
             throw HelperFailure.invalidManifest("first installation requires an official signed release")
         }
         try validateQClientArtifact(firstInstall.qclient, stage: stage)
+        progress?(.verifyingArtifact, "Re-verifying the staged qclient inside the privileged boundary.")
         try verifyOfficialArtifact(firstInstall.qclient, stage: stage, maximumBinaryBytes: 250_000_000)
         let stagedBinary = stage.appendingPathComponent(manifest.binaryFileName)
         guard sha256(stagedBinary) == manifest.sha256.lowercased() else {
@@ -125,17 +130,20 @@ extension QuilNodeHelper {
             else { throw HelperFailure.command("Unable to prepare local node logs") }
         }
 
-        _ = try installManagedQClient(firstInstall.qclient, stage: stage)
+        _ = try installManagedQClient(firstInstall.qclient, stage: stage, progress: progress)
+        progress?(.installingFiles, "Installing the verified node runtime and launchd configuration.")
         let installedBinary = try installVerifiedNodeCandidate(manifest, stage: stage)
         try switchLinks(to: installedBinary, manifest: manifest)
         try ensureFileDescriptorLimits()
         try writeNodeServicePlist(signatureCheck: true)
         do {
+            progress?(.activatingRuntime, "Starting the restricted Quilibrium node runtime.")
             if isLoaded() {
                 try runLaunchctl(["kickstart", "-k", serviceTarget])
             } else {
                 try runLaunchctl(["bootstrap", "system", plistPath])
             }
+            progress?(.validatingHealth, "Validating the node process, version, and local metrics.")
             try restartAndValidate(expectedVersion: manifest.reportedVersion ?? manifest.version)
         } catch {
             _ = try? runLaunchctl(["bootout", "system", plistPath])
@@ -145,7 +153,11 @@ extension QuilNodeHelper {
         }
     }
 
-    static func activate(manifestPath: String) throws {
+    static func activate(
+        manifestPath: String,
+        progress: ServiceOperationReporter? = nil
+    ) throws {
+        progress?(.validatingPlan, "Validating the sealed node activation plan.")
         let manifestURL = URL(fileURLWithPath: manifestPath).standardizedFileURL
         let stage = manifestURL.deletingLastPathComponent()
         try validateStage(stage, manifestURL: manifestURL)
@@ -164,13 +176,16 @@ extension QuilNodeHelper {
         let previous = try captureCurrentRollback()
         try writeRollback(previous)
         do {
+            progress?(.installingFiles, "Installing the verified node candidate and rollback point.")
             let installedBinary = try installVerifiedNodeCandidate(manifest, stage: stage)
             try configureSignatureCheck(manifest.channel == "signed")
             try switchLinks(to: installedBinary, manifest: manifest)
+            progress?(.activatingRuntime, "Switching to the verified node runtime.")
+            progress?(.validatingHealth, "Validating the updated node and local metrics.")
             try restartAndValidate(expectedVersion: manifest.reportedVersion ?? manifest.version)
             try? refreshManagedFirewallAfterUpdate()
             if let qclient = manifest.qclient {
-                _ = try installManagedQClient(qclient, stage: stage)
+                _ = try installManagedQClient(qclient, stage: stage, progress: progress)
             }
             print("Installed \(manifest.version) from \(manifest.channel); startup and local metrics passed.")
         } catch {

@@ -174,6 +174,7 @@ struct OnboardingProgressPanel: View {
     let progress: OnboardingRuntimeProgress
     let detail: String
     var fraction: Double?
+    var startedAt: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -183,6 +184,18 @@ struct OnboardingProgressPanel: View {
                 Text("Step \(progress.step) of \(progress.total)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(theme.colors.secondaryText)
+                if let startedAt {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(
+                            InstallationOperationPresentation.elapsedDescription(
+                                from: startedAt,
+                                to: context.date
+                            )
+                        )
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(theme.colors.secondaryText)
+                    }
+                }
             }
             ProgressView(value: resolvedFraction, total: 1)
                 .tint(theme.colors.accent)

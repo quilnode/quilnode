@@ -33,6 +33,7 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
             serviceUser: nil,
             operationID: "operation-id",
             operationState: "failed",
+            operationStage: .probingRuntime,
             serviceBuild: PrivilegedServiceProtocol.currentServiceBuild,
             authorizationRequired: true,
             nodeUpdatePolicy: .signedStable
@@ -49,6 +50,7 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
         XCTAssertNil(decoded.serviceUser)
         XCTAssertEqual(decoded.operationID, "operation-id")
         XCTAssertEqual(decoded.operationState, "failed")
+        XCTAssertEqual(decoded.operationStage, .probingRuntime)
         XCTAssertEqual(
             decoded.serviceBuild,
             PrivilegedServiceProtocol.currentServiceBuild

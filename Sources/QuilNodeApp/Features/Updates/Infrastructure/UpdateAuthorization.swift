@@ -25,7 +25,8 @@ extension ReleaseChecker {
     nonisolated static func runAuthorizedHelper(
         arguments: [String],
         durableOperation: Bool = false,
-        allowsInteractiveAuthorization: Bool = true
+        allowsInteractiveAuthorization: Bool = true,
+        progress: (@Sendable (PrivilegedServiceClient.OperationProgress) -> Void)? = nil
     ) -> (output: String, exitCode: Int32) {
         if let actionName = arguments.first,
             let action = privilegedServiceAction(named: actionName)
@@ -36,7 +37,8 @@ extension ReleaseChecker {
                 ? PrivilegedServiceClient.requestOperation(
                     action,
                     manifestPath: manifestPath,
-                    timeout: 420
+                    timeout: 420,
+                    progress: progress
                 )
                 : PrivilegedServiceClient.request(
                     action,

@@ -96,9 +96,12 @@ extension QuilNodeHelper {
             return operationResponse(
                 try serviceOperations.begin(
                     action: PrivilegedServiceAction.qclientInstall.rawValue,
-                    idempotencyKey: URL(fileURLWithPath: path).standardizedFileURL.path
-                ) {
-                    try withMutationLock { try installQClient(manifestPath: path) }
+                    idempotencyKey: try qclientInstallOperationKey(manifestPath: path)
+                ) { report in
+                    report(.waitingForExclusiveAccess, "Waiting for exclusive installer access.")
+                    try withMutationLock {
+                        try installQClient(manifestPath: path, progress: report)
+                    }
                     return "Matching qclient installed and independently re-verified."
                 }
             )
@@ -179,8 +182,9 @@ extension QuilNodeHelper {
                 try serviceOperations.begin(
                     action: PrivilegedServiceAction.activate.rawValue,
                     idempotencyKey: URL(fileURLWithPath: path).standardizedFileURL.path
-                ) {
-                    try withMutationLock { try activate(manifestPath: path) }
+                ) { report in
+                    report(.waitingForExclusiveAccess, "Waiting for exclusive installer access.")
+                    try withMutationLock { try activate(manifestPath: path, progress: report) }
                     return "Update installed; startup and local health checks passed."
                 }
             )
@@ -190,8 +194,9 @@ extension QuilNodeHelper {
                 try serviceOperations.begin(
                     action: PrivilegedServiceAction.install.rawValue,
                     idempotencyKey: URL(fileURLWithPath: path).standardizedFileURL.path
-                ) {
-                    try withMutationLock { try freshInstall(manifestPath: path) }
+                ) { report in
+                    report(.waitingForExclusiveAccess, "Waiting for exclusive installer access.")
+                    try withMutationLock { try freshInstall(manifestPath: path, progress: report) }
                     return "Signed Quilibrium node installed; launchd startup and local health checks passed."
                 }
             )
@@ -201,7 +206,7 @@ extension QuilNodeHelper {
                 try serviceOperations.begin(
                     action: PrivilegedServiceAction.rollback.rawValue,
                     idempotencyKey: nil
-                ) {
+                ) { _ in
                     try withMutationLock { try rollback() }
                     return "Rollback completed; startup checks passed."
                 }
@@ -229,7 +234,8 @@ extension QuilNodeHelper {
             message: operation.message,
             nodePID: currentNodePID(),
             operationID: operation.id,
-            operationState: operation.state.rawValue
+            operationState: operation.state.rawValue,
+            operationStage: operation.stage
         )
     }
 

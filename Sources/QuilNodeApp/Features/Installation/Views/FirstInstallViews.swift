@@ -155,7 +155,8 @@ struct FirstInstallView: View {
                 OnboardingProgressPanel(
                     progress: runtimeProgress,
                     detail: installer.progress?.detail ?? "No runtime changes begin until this Mac passes inspection.",
-                    fraction: installer.progress?.boundedFraction
+                    fraction: installer.progress?.boundedFraction,
+                    startedAt: installer.isWorking ? installer.progress?.startedAt : nil
                 )
 
                 if let error = installer.error {
