@@ -13,22 +13,14 @@ struct PrivacyModeButton: View {
         Button {
             isEnabled.toggle()
         } label: {
-            HStack(spacing: compact ? 0 : 10) {
-                Image(systemName: isEnabled ? "eye.slash.fill" : "eye")
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .frame(width: compact ? 40 : 24)
-                    .contentTransition(.symbolEffect(.replace))
-                    .animation(motion.symbol, value: isEnabled)
-                if !compact {
-                    Text("Privacy")
-                        .foregroundStyle(theme.colors.primaryText)
-                    Spacer(minLength: 4)
-                    Text(isEnabled ? "Hidden" : "Visible")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(isEnabled ? theme.colors.privacy : theme.colors.secondaryText)
-                    Circle()
-                        .fill(isEnabled ? theme.colors.privacy : theme.colors.secondaryText.opacity(0.5))
-                        .frame(width: 6, height: 6)
+            Group {
+                if compact {
+                    privacyIcon.frame(width: 40)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        expandedLabel(showsState: true)
+                        expandedLabel(showsState: false)
+                    }
                 }
             }
             .font(.caption.weight(.semibold))
@@ -63,5 +55,31 @@ struct PrivacyModeButton: View {
         )
         .accessibilityIdentifier("quilnode-privacy-mode-button")
         .help(isEnabled ? "Show sensitive local values" : "Mask sensitive local values throughout QuilNode")
+    }
+
+    private var privacyIcon: some View {
+        Image(systemName: isEnabled ? "eye.slash.fill" : "eye")
+            .font(.system(size: 12.5, weight: .semibold))
+            .contentTransition(.symbolEffect(.replace))
+            .animation(motion.symbol, value: isEnabled)
+    }
+
+    private func expandedLabel(showsState: Bool) -> some View {
+        HStack(spacing: 8) {
+            privacyIcon.frame(width: 20)
+            Text("Privacy")
+                .foregroundStyle(theme.colors.primaryText)
+                .fixedSize()
+            Spacer(minLength: 4)
+            if showsState {
+                Text(isEnabled ? "Hidden" : "Visible")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(isEnabled ? theme.colors.privacy : theme.colors.secondaryText)
+                    .fixedSize()
+            }
+            Circle()
+                .fill(isEnabled ? theme.colors.privacy : theme.colors.secondaryText.opacity(0.5))
+                .frame(width: 6, height: 6)
+        }
     }
 }
