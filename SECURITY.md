@@ -13,6 +13,14 @@ Sparkle appcast. The code-signing identity used by the privileged local service
 is a separate project key. Node identity, application signing, update signing,
 and source-hosting credentials are independent trust domains.
 
+Sparkle permits application-certificate rotation when authorized by the update
+signing key; it does not require the previous application certificate as a
+second signer. Release packaging separately rejects an unexpected certificate
+or bundle identifier. The privileged service continues to require its pinned
+application identity, so certificate migration requires explicit qualification
+and service authorization. Protect the update-signing key as an executable
+code distribution capability, not merely a metadata-signing key.
+
 ## Reporting a vulnerability
 
 Use this repository's **Report a vulnerability** form. Include the affected
