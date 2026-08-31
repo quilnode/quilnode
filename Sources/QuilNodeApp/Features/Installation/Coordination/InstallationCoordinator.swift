@@ -129,10 +129,12 @@ final class InstallationCoordinator: ObservableObject {
                     self?.progress = update
                 }
             }
-            let prepared = try await InstallationArtifactPreparation.stageFirstInstallation(
-                startedAt: startedAt,
-                progress: reporter
-            )
+            let prepared = try await runCancellablePreparation {
+                try await InstallationArtifactPreparation.stageFirstInstallation(
+                    startedAt: startedAt,
+                    progress: reporter
+                )
+            }
             signedRelease = prepared.nodeRelease
             qclientRelease = prepared.qclientRelease
             stagedManifestURL = prepared.manifestURL
@@ -167,11 +169,13 @@ final class InstallationCoordinator: ObservableObject {
                 }
             }
             guard let preflightSnapshot = preflight else { return }
-            let prepared = try await InstallationArtifactPreparation.stageQClient(
-                for: preflightSnapshot,
-                startedAt: startedAt,
-                progress: reporter
-            )
+            let prepared = try await runCancellablePreparation {
+                try await InstallationArtifactPreparation.stageQClient(
+                    for: preflightSnapshot,
+                    startedAt: startedAt,
+                    progress: reporter
+                )
+            }
             qclientRelease = prepared.officialRelease
             phase = .installing
             progress = NodeUpdateProgress(

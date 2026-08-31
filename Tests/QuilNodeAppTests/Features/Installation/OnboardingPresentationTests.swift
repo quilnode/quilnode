@@ -5,6 +5,33 @@ import XCTest
 @testable import QuilNodeShared
 
 final class OnboardingPresentationTests: XCTestCase {
+    @MainActor
+    func testAppOwnedOnboardingPreparationStopsAtSafeQuitPoint() async {
+        let coordinator = InstallationCoordinator()
+        let preparation = Task {
+            try await coordinator.runCancellablePreparation {
+                try await Task.sleep(for: .seconds(30))
+                return true
+            }
+        }
+        for _ in 0..<20 where !UpdateActivityGuard.shared.isInstalling {
+            await Task.yield()
+        }
+        XCTAssertTrue(UpdateActivityGuard.shared.isInstalling)
+
+        await UpdateActivityGuard.shared.stopAtSafePointForTermination()
+
+        do {
+            _ = try await preparation.value
+            XCTFail("Quitting must cancel app-owned onboarding preparation.")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            XCTFail("Expected CancellationError, received \(error)")
+        }
+        XCTAssertFalse(UpdateActivityGuard.shared.isInstalling)
+    }
+
     func testJourneyCollapsesDependenciesIntoFourOperatorOutcomes() {
         XCTAssertEqual(OnboardingStage.allCases.map(\.title), ["This Mac", "Runtime", "Identity", "Network"])
         XCTAssertEqual(OnboardingStage.current(for: .inspecting), .host)

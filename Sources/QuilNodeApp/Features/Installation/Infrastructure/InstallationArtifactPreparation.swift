@@ -4,13 +4,13 @@ import Foundation
     import QuilNodeCore
 #endif
 
-struct PreparedFirstInstallationAssets {
+struct PreparedFirstInstallationAssets: Sendable {
     let nodeRelease: SignedReleaseInfo
     let qclientRelease: OfficialQClientRelease
     let manifestURL: URL
 }
 
-struct PreparedQClientAsset {
+struct PreparedQClientAsset: Sendable {
     let officialRelease: OfficialQClientRelease?
     let manifestURL: URL
 
@@ -35,15 +35,13 @@ enum InstallationArtifactPreparation {
         async let nodeRelease = ReleaseChecker.fetchSignedRelease(endpoint: nodeReleaseURL)
         async let qclientRelease = ReleaseChecker.fetchSignedQClientRelease(endpoint: qclientReleaseURL)
         let (node, qclient) = try await (nodeRelease, qclientRelease)
-        let manifestURL = try await Task.detached(priority: .utility) {
-            try ReleaseChecker.stageFirstInstallation(
-                node: node,
-                qclient: qclient,
-                baseURL: releaseBaseURL,
-                startedAt: startedAt,
-                progress: progress
-            )
-        }.value
+        let manifestURL = try ReleaseChecker.stageFirstInstallation(
+            node: node,
+            qclient: qclient,
+            baseURL: releaseBaseURL,
+            startedAt: startedAt,
+            progress: progress
+        )
         return PreparedFirstInstallationAssets(
             nodeRelease: node,
             qclientRelease: qclient,
@@ -59,26 +57,22 @@ enum InstallationArtifactPreparation {
         if preflight.installedNodeBuild?.kind == .source,
             let installedBuild = preflight.installedNodeBuild
         {
-            let manifestURL = try await Task.detached(priority: .utility) {
-                try ReleaseChecker.stageMatchingSourceQClient(
-                    installed: installedBuild,
-                    repositoryURL: repositoryURL,
-                    startedAt: startedAt,
-                    progress: progress
-                )
-            }.value
+            let manifestURL = try ReleaseChecker.stageMatchingSourceQClient(
+                installed: installedBuild,
+                repositoryURL: repositoryURL,
+                startedAt: startedAt,
+                progress: progress
+            )
             return PreparedQClientAsset(officialRelease: nil, manifestURL: manifestURL)
         }
 
         let release = try await ReleaseChecker.fetchSignedQClientRelease(endpoint: qclientReleaseURL)
-        let manifestURL = try await Task.detached(priority: .utility) {
-            try ReleaseChecker.stageQClientRelease(
-                release,
-                baseURL: releaseBaseURL,
-                startedAt: startedAt,
-                progress: progress
-            )
-        }.value
+        let manifestURL = try ReleaseChecker.stageQClientRelease(
+            release,
+            baseURL: releaseBaseURL,
+            startedAt: startedAt,
+            progress: progress
+        )
         return PreparedQClientAsset(officialRelease: release, manifestURL: manifestURL)
     }
 }
