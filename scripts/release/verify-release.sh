@@ -22,8 +22,10 @@ xcrun swiftc -O "$RELEASE_SCRIPT_DIR/verify-ed25519.swift" -o "$temporary/verify
 # Authenticate every archive byte before mounting it. No private key is read.
 name="$(python3 -B "$RELEASE_SCRIPT_DIR/release-evidence.py" verify \
     "$release_root" "$temporary/verify-ed25519" "$UPDATE_PUBLIC_KEY" ${mode_args[@]+"${mode_args[@]}"})"
-hdiutil verify -quiet "$release_root/$name"
-hdiutil attach -quiet -readonly -nobrowse -noautoopen -owners off -mountpoint "$mount_point" "$release_root/$name"
+# Verify explicitly without writing a checksum-cache xattr to the input.
+# Mounting need not repeat that check or change the original file's metadata.
+hdiutil verify -nocache -quiet "$release_root/$name"
+hdiutil attach -noverify -quiet -readonly -nobrowse -noautoopen -owners off -mountpoint "$mount_point" "$release_root/$name"
 attached=true
 app="$mount_point/QuilNode.app"
 [[ -L "$mount_point/Applications" && "$(readlink "$mount_point/Applications")" == "/Applications" ]]

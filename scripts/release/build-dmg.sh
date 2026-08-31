@@ -48,5 +48,7 @@ xattr -crs "$mount_point"
 hdiutil detach -quiet "$mount_point"
 attached=false
 hdiutil convert -quiet "$temporary/writable.dmg" -format UDZO -o "$output"
-hdiutil verify -quiet "$output"
+# Finder metadata on the container is not part of the installer layout.
+xattr -cs "$output"
+hdiutil verify -nocache -quiet "$output"
 echo "$output"

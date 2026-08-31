@@ -74,6 +74,7 @@ sign_release() {
 with_decrypted_update_key sign_release
 echo "6/6 — Verify signatures, delivered bundle and installer contents using public keys" >&2
 "$RELEASE_SCRIPT_DIR/verify-release.sh" "$release_root" ${mode_args[@]+"${mode_args[@]}"} >&2
+"$RELEASE_SCRIPT_DIR/audit-metadata-privacy.sh" artifact "$release_root" >&2
 if [[ "$mode" == "rehearsal" ]]; then
     echo "LOCAL REHEARSAL ONLY — source tag and clean-machine qualification are not attested." >&2
 fi
