@@ -6,7 +6,9 @@ import SwiftUI
 
 struct ProtocolAllocationCell: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.redactionReasons) private var redactionReasons
     let allocation: ShardAllocation
+    var clock: NodeEpochClock? = nil
 
     private var presentation: AllocationCellPresentation {
         AllocationCellPresentation(allocation: allocation)
@@ -56,27 +58,17 @@ struct ProtocolAllocationCell: View {
                 .shadow(color: isActive ? lifecycleTint.opacity(0.58) : .clear, radius: 4)
                 .padding(.top, 3)
             VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    PrivacyProtectedPhrase(
-                        prefix: titlePrefix,
-                        value: titleValue,
-                        field: .shardAllocation
-                    )
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(theme.colors.primaryText)
-
-                    Spacer(minLength: 4)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text("Allocation")
-                        PrivacyProtectedText(
-                            value: presentation.lifecycleLabel,
-                            field: .shardAllocation
-                        )
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        workerHeading
+                        Spacer(minLength: 4)
+                        lifecycleHeading
                     }
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(lifecycleTint)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 4) {
+                        workerHeading
+                        lifecycleHeading
+                    }
                 }
 
                 Group {
@@ -115,6 +107,20 @@ struct ProtocolAllocationCell: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 }
+
+                if let timing = AllocationEpochPresentation(allocation: allocation, clock: clock) {
+                    PrivacyProtectedPhrase(
+                        prefix: timing.label + " · ",
+                        value: timing.value,
+                        field: .shardAllocation
+                    )
+                    .font(.system(size: 9.5, weight: .medium))
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(
+                        redactionReasons.contains(.privacy)
+                            ? "Allocation timing hidden by Privacy Mode" : timing.explanation)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -125,8 +131,27 @@ struct ProtocolAllocationCell: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityHint(
-            "Allocation is \(presentation.lifecycleLabel.lowercased()). "
-                + "Shard coverage is \(presentation.coverageLabel?.lowercased() ?? "unavailable")."
+            redactionReasons.contains(.privacy)
+                ? "Allocation details hidden by Privacy Mode"
+                : "Allocation is \(presentation.lifecycleLabel.lowercased()). "
+                    + "Shard coverage is \(presentation.coverageLabel?.lowercased() ?? "unavailable")."
         )
+    }
+
+    private var workerHeading: some View {
+        PrivacyProtectedPhrase(prefix: titlePrefix, value: titleValue, field: .shardAllocation)
+            .font(.system(size: 11.5, weight: .semibold))
+            .foregroundStyle(theme.colors.primaryText)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var lifecycleHeading: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text("Allocation")
+            PrivacyProtectedText(value: presentation.lifecycleLabel, field: .shardAllocation)
+        }
+        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+        .foregroundStyle(lifecycleTint)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }

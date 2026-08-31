@@ -23,15 +23,15 @@ extension DashboardView {
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
                 Button {
-                    destination = .identity
+                    destination = .diagnostics
                 } label: {
-                    Label("Manage allocations", systemImage: "arrow.right")
+                    Label("Check allocations", systemImage: "arrow.right")
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(theme.colors.info)
-                .accessibilityHint("Opens Identity and allocation details")
+                .accessibilityHint("Opens allocation epoch checks in Diagnostics")
             }
 
             HStack(spacing: 0) {
@@ -182,12 +182,15 @@ extension DashboardView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
                 ForEach(monitor.snapshot.shardAllocations) { allocation in
                     Button {
-                        destination = .identity
+                        destination = .diagnostics
                     } label: {
-                        ProtocolAllocationCell(allocation: allocation)
+                        ProtocolAllocationCell(
+                            allocation: allocation,
+                            clock: monitor.snapshot.hasFreshProverStatus() ? epochClock : nil
+                        )
                     }
                     .buttonStyle(QuilPressFeedbackButtonStyle())
-                    .accessibilityHint("Opens this allocation in Identity")
+                    .accessibilityHint("Opens allocation checks in Diagnostics")
                 }
             }
         }

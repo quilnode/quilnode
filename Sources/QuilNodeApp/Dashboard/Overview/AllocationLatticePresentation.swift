@@ -58,17 +58,26 @@ struct AllocationCellPresentation: Equatable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
 
-        switch normalized {
-        case "active":
+        switch AllocationStatus(allocation.status) {
+        case .active:
             lifecycle = .active
             lifecycleLabel = "Active"
-        case "joining":
+        case .joining:
             lifecycle = .joining
-            lifecycleLabel = "Joining"
-        case "leaving":
+            lifecycleLabel = (allocation.confirmFrame ?? 0) > 0 ? "Confirmed · waiting" : "Joining"
+        case .leaving:
             lifecycle = .leaving
             lifecycleLabel = "Leaving"
-        case "rejected", "kicked", "expired", "expired_epoch", "expired_joining", "expired_leaving":
+        case .expiredJoin:
+            lifecycle = .attention
+            lifecycleLabel = "Join expired"
+        case .expiredLeave:
+            lifecycle = (allocation.leaveConfirmFrame ?? 0) > 0 ? .leaving : .attention
+            lifecycleLabel = (allocation.leaveConfirmFrame ?? 0) > 0 ? "Departed" : "Leave expired"
+        case .renewalMissed:
+            lifecycle = .attention
+            lifecycleLabel = "Renewal missed"
+        case .rejected, .kicked:
             lifecycle = .attention
             lifecycleLabel = normalized.replacingOccurrences(of: "_", with: " ").capitalized
         default:
