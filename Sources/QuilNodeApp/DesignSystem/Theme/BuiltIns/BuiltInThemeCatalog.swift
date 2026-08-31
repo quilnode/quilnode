@@ -11,7 +11,6 @@ extension QuilTheme {
             catppuccin, catppuccinLight, gruvbox, gruvboxLight, nord, nordLight,
             rosePine, rosePineDark, everforest, everforestLight, kanagawa, kanagawaLight,
             matteBlack, matteBlackLight,
-            nousResearch, nousResearchDark,
         ]
         let modesByFamily = Dictionary(grouping: themes, by: \.familyID).mapValues { Set($0.map(\.appearance)) }
         assert(

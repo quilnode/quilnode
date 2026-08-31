@@ -16,7 +16,9 @@ final class ThemeLibraryPresentationTests: XCTestCase {
         let themes = QuilTheme.builtIns.filter { $0.appearance == .light }
 
         XCTAssertTrue(
-            ThemeLibraryPresentation.filteredThemes(themes, query: "nous").contains { $0.familyID == "research.nous" }
+            ThemeLibraryPresentation.filteredThemes(themes, query: "QUILIBRIUM").contains {
+                $0.familyID == QuilTheme.classic.familyID
+            }
         )
         XCTAssertFalse(ThemeLibraryPresentation.filteredThemes(themes, query: "OMARCHY").isEmpty)
         XCTAssertTrue(
