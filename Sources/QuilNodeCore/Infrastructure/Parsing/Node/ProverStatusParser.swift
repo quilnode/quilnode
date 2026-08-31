@@ -21,8 +21,14 @@ public enum ProverStatusParser {
                     allocations[index].action = value(after: "Action:", in: line)
                     continue
                 }
-                if line.hasPrefix("Re-confirm") {
+                if line.hasPrefix("Re-confirm through epoch") {
                     allocations[index].action = line
+                    allocations[index].registeredEpoch = firstUInt(after: "Re-confirm through epoch", in: line)
+                    continue
+                }
+                if line.hasPrefix("MISSED re-confirm") {
+                    allocations[index].action = line
+                    allocations[index].registeredEpoch = firstUInt(after: "registered epoch", in: line)
                     continue
                 }
                 if line.hasPrefix("Join Frame:") {
@@ -32,6 +38,11 @@ public enum ProverStatusParser {
                 }
                 if line.hasPrefix("Last Active:") {
                     allocations[index].lastActiveFrame = firstUInt(after: "Last Active:", in: line)
+                    continue
+                }
+                if line.hasPrefix("Leave Frame:") {
+                    allocations[index].leaveFrame = firstUInt(after: "Leave Frame:", in: line)
+                    allocations[index].leaveConfirmFrame = firstUInt(after: "Confirm Frame:", in: line)
                     continue
                 }
             }
@@ -47,13 +58,18 @@ public enum ProverStatusParser {
             case "Peer Score": result.peerScore = Double(value)
             case "Running Workers": result.runningWorkers = Int(value.numericText) ?? 0
             case "Allocated Workers": result.allocatedWorkers = Int(value.numericText) ?? 0
-            case "Last Received": result.lastReceivedFrame = UInt64(value.numericText) ?? 0
+            case "Last Received":
+                if let frame = UInt64(value.numericText) {
+                    result.lastReceivedFrame = frame
+                    sawStatus = true
+                }
             case "Last Global Head": result.lastGlobalHeadFrame = UInt64(value.numericText) ?? 0
             case "Reachable": result.reachable = parseBool(value)
             case "Epoch":
                 result.epoch = UInt64(value.split(whereSeparator: \.isWhitespace).first ?? "") ?? 0
-                result.epochLength = firstUInt(after: "length", in: value) ?? 720
-                result.nextEpochFrame = firstUInt(after: "frame", in: value) ?? 0
+                let length = firstUInt(after: "length", in: value) ?? NodeEpochClock.defaultLength
+                result.epochLength = length == 0 ? NodeEpochClock.defaultLength : length
+                result.nextEpochFrame = firstUInt(after: "next boundary @ frame", in: value) ?? 0
             default: continue
             }
         }
@@ -88,7 +104,7 @@ public enum ProverStatusParser {
 
     private static func firstUInt(after marker: String, in text: String) -> UInt64? {
         guard let value = value(after: marker, in: text),
-            let regex = try? NSRegularExpression(pattern: #"[0-9]+"#),
+            let regex = try? NSRegularExpression(pattern: #"^[0-9]+\b"#),
             let match = regex.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)),
             let range = Range(match.range, in: value)
         else { return nil }

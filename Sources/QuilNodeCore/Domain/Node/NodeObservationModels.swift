@@ -8,6 +8,10 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
     public var action: String?
     public var joinFrame: UInt64?
     public var confirmFrame: UInt64?
+    public var leaveFrame: UInt64?
+    public var leaveConfirmFrame: UInt64?
+    /// Highest epoch covered by registered shard roots, not the join epoch.
+    public var registeredEpoch: UInt64?
     public var lastActiveFrame: UInt64?
     /// Locally queried shard topology. These remain optional because an older
     /// qclient or a temporarily unavailable RPC must not invalidate the
@@ -28,6 +32,9 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
         action: String? = nil,
         joinFrame: UInt64? = nil,
         confirmFrame: UInt64? = nil,
+        leaveFrame: UInt64? = nil,
+        leaveConfirmFrame: UInt64? = nil,
+        registeredEpoch: UInt64? = nil,
         lastActiveFrame: UInt64? = nil,
         activeProvers: Int? = nil,
         ring: Int? = nil,
@@ -42,6 +49,9 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
         self.action = action
         self.joinFrame = joinFrame
         self.confirmFrame = confirmFrame
+        self.leaveFrame = leaveFrame
+        self.leaveConfirmFrame = leaveConfirmFrame
+        self.registeredEpoch = registeredEpoch
         self.lastActiveFrame = lastActiveFrame
         self.activeProvers = activeProvers
         self.ring = ring
