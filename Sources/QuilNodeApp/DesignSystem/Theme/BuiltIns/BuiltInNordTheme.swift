@@ -5,36 +5,45 @@ import SwiftUI
 #endif
 
 extension QuilTheme {
+    // One family owns both palettes and a shared visual structure. Accent and
+    // telemetry colors are text-safe adaptations, not terminal ANSI mappings.
     static let nord = makeBuiltIn(
-        id: "omarchy.nord", name: "Nord", summary: "Calm arctic blues and disciplined low-contrast panels.",
+        id: "omarchy.nord", name: "Nord",
+        summary: "Glacier-blue focus on deep polar surfaces, with clear arctic contrast.",
         palette: .init(
-            accent: "#81A1C1", selection: "#434C5E", muted: "#4C566A",
-            background: "#2E3440", darkBackground: "#222730", darkerBackground: "#191C23", lighterBackground: "#3B4252",
-            foreground: "#D8DEE9", darkForeground: "#667080", lightForeground: "#ADB5C4", brightForeground: "#D8DEE9",
-            red: "#BF616A", yellow: "#EBCB8B", orange: "#D5967A", green: "#A3BE8C", cyan: "#88C0D0", blue: "#81A1C1",
-            magenta: "#B48EAD"
+            accent: "#A9D7EF", selection: "#354B60", muted: "#59718B",
+            background: "#242F40", darkBackground: "#1C2737", lighterBackground: "#2D3D50",
+            foreground: "#EDF4FA", darkForeground: "#BDCDDC",
+            red: "#F3A7AE", yellow: "#EDD49D", orange: "#EDD49D", green: "#C0D8A7",
+            cyan: "#A7DDE3", magenta: "#D9B7D6",
+            privacy: "#A9D7EF", frame: "#A9D7EF", wallet: "#A7DDE3"
         ),
         style: .init(
-            corners: .init(control: 12, hero: 18, navigation: 8),
+            spacing: .init(
+                scale: 1, sidebarExpandedWidth: 208, navigationRowHeight: 42,
+                panelPadding: 20, panelGap: 16),
+            corners: .init(control: 10, hero: 14, navigation: 8),
             controls: .init(
-                navigationSelectionStyle: "row", selectionFillAlpha: 0.32, selectedBorderWidth: 1, ringStyle: "solid",
-                ringThickness: 8),
+                navigationSelectionStyle: "row", selectionFillAlpha: 0.6, selectedBorderWidth: 1,
+                iconScale: 1, ringStyle: "solid", ringThickness: 8),
             surfaces: .init(
-                treatment: "solid", surfaceOpacity: 0.82, elevatedOpacity: 0.96, borderOpacity: 0.38,
-                heroAccentOpacity: 0.09),
-            typography: .init(displayDesign: "default")
+                treatment: "solid", surfaceOpacity: 0.94, elevatedOpacity: 1, borderOpacity: 0.65,
+                heroAccentOpacity: 0.12),
+            typography: .init(scale: 1, displayDesign: "default", dataDesign: "monospaced", heroDesign: "default"),
+            effects: .init(backdrop: "spotlight", shadow: "none", accentTreatment: "solid", scene: "none")
         )
     )
 
     static let nordLight = makeBuiltInVariant(
         base: nord, id: "omarchy.nord.light", appearance: .light,
-        summary: "Nord Snow Storm: arctic paper with Frost and Aurora signals.",
+        summary: "Frost-blue ink, snow-white cards and calm glacial surfaces.",
         palette: .init(
-            accent: "#5E81AC", selection: "#D8DEE9", muted: "#C8D0DB",
-            background: "#ECEFF4", darkBackground: "#E5E9F0", darkerBackground: "#D8DEE9", lighterBackground: "#FFFFFF",
-            foreground: "#2E3440", darkForeground: "#7B8494", lightForeground: "#4C566A", brightForeground: "#242933",
-            red: "#BF616A", yellow: "#B58A37", orange: "#D08770", green: "#668A50", cyan: "#2E7E91", blue: "#5E81AC",
-            magenta: "#9A6F93"
+            accent: "#315B7E", selection: "#D5E5EF", muted: "#A5BDCD",
+            background: "#EDF4F8", darkBackground: "#DCE9F1", lighterBackground: "#FBFDFF",
+            foreground: "#253D52", darkForeground: "#456276",
+            red: "#9E3E50", yellow: "#79581D", orange: "#79581D", green: "#44602C",
+            cyan: "#276270", magenta: "#805178",
+            privacy: "#315B7E", frame: "#315B7E", wallet: "#276270"
         )
     )
 }
