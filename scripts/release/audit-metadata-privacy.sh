@@ -105,7 +105,7 @@ scan_target() {
                 if [[ "$attribute" != "com.apple.provenance" ]]; then
                     fail "privacy-bearing extended attribute on distributable entry: ${entry#"$root"/} ($attribute)"
                 fi
-            done < <(xattr "$entry" 2>/dev/null || true)
+            done < <(xattr -s "$entry" 2>/dev/null || true)
             case "$(basename "$entry")" in
                 *.dSYM|*.bcsymbolmap|*.swiftmodule|*.swiftdoc|*.dia|*.dwarf)
                     fail "debug or compiler metadata file in distributable: ${entry#"$root"/}"
