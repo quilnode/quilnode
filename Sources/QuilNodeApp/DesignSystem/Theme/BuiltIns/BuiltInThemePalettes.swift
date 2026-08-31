@@ -46,8 +46,6 @@ extension QuilTheme {
         isBuiltIn: true
     )
 
-    static let classic = builtInDefaults
-
     static let graphite = makeBuiltIn(
         id: "quil.graphite", name: "Graphite", summary: "Restrained graphite glass with cyan telemetry.",
         palette: .init(
