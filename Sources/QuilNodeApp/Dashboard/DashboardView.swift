@@ -136,15 +136,20 @@ struct DashboardView: View {
                         .quilThemed(theme)
                         .interactiveDismissDisabled()
                 } else if !walletManager.onboardingCompleted {
-                    WalletOnboardingView()
-                        .environmentObject(walletManager)
-                        .quilThemed(theme)
+                    WalletOnboardingView(
+                        preferredChoice: installationCoordinator.identityPlan?.preferredIdentityChoice
+                    )
+                    .environmentObject(walletManager)
+                    .quilThemed(theme)
                 } else {
                     NetworkOnboardingView()
                         .environmentObject(networkReadiness)
                         .quilThemed(theme)
                         .interactiveDismissDisabled()
                 }
+            }
+            .onChange(of: walletManager.onboardingCompleted) { _, completed in
+                if completed { installationCoordinator.clearIdentityPlan() }
             }
         }
     }

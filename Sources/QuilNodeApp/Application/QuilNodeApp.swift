@@ -153,8 +153,8 @@ struct QuilNodeApp: App {
     @ViewBuilder
     private var primarySceneContent: some View {
         #if DEBUG
-            if designPreviewMode == "onboarding-identity" {
-                OnboardingDesignPreviewHost()
+            if let designPreviewMode, designPreviewMode.hasPrefix("onboarding-") {
+                OnboardingDesignPreviewHost(mode: .init(argument: designPreviewMode))
                     .frame(minWidth: 900, minHeight: 680)
             } else if designPreviewMode == "menu-bar" {
                 MenuBarDesignPreviewHost(privacyEnabled: false)

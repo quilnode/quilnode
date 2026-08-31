@@ -18,6 +18,35 @@ final class OnboardingPresentationTests: XCTestCase {
         XCTAssertEqual(IdentityOnboardingChoice.importKeyset.primaryActionTitle, "Choose keyset…")
     }
 
+    func testFirstInstallMakesExistingIdentityImportExplicit() {
+        XCTAssertEqual(FirstInstallIdentityPlan.allCases, [.createNew, .importExisting])
+        XCTAssertEqual(FirstInstallIdentityPlan.createNew.preferredIdentityChoice, .create)
+        XCTAssertEqual(FirstInstallIdentityPlan.importExisting.preferredIdentityChoice, .importKeyset)
+        XCTAssertEqual(
+            IdentityOnboardingChoice.initialChoice(
+                hasActiveIdentity: true,
+                preferredChoice: .importKeyset
+            ),
+            .importKeyset
+        )
+    }
+
+    func testExternalNodeDiscoveryBlocksOnlyUnmanagedRuntimeProcesses() {
+        let processTable = """
+            /Applications/QuilNode.app/Contents/MacOS/QuilNode
+            /opt/quilibrium/node/quilibrium-node
+            /Users/operator/ceremonyclient/node/node-2.1.0.25-darwin-arm64
+            /usr/local/bin/node
+            """
+        XCTAssertTrue(ExistingNodeRuntimeDiscovery.isExternalNodeRunning(processTable: processTable))
+
+        let managedOnly = """
+            /opt/quilibrium/node/quilibrium-node
+            /usr/local/bin/node
+            """
+        XCTAssertFalse(ExistingNodeRuntimeDiscovery.isExternalNodeRunning(processTable: managedOnly))
+    }
+
     func testRuntimeProgressUsesNamedFiniteStepsInsteadOfOpaquePercentageAlone() {
         XCTAssertEqual(
             OnboardingRuntimeProgress.firstInstall(phase: .downloading),

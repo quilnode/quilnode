@@ -12,6 +12,7 @@ final class InstallationCoordinator: ObservableObject {
     @Published private(set) var progress: NodeUpdateProgress?
     @Published private(set) var signedRelease: SignedReleaseInfo?
     @Published private(set) var qclientRelease: OfficialQClientRelease?
+    @Published private(set) var identityPlan: FirstInstallIdentityPlan? = nil
     @Published private(set) var error: String?
     @Published private(set) var message: String?
     @Published var showsAuthorizationExplanation = false
@@ -22,6 +23,25 @@ final class InstallationCoordinator: ObservableObject {
 
     private var stagedManifestURL: URL?
     private var started = false
+
+    init() {}
+
+    #if DEBUG
+        init(
+            previewPreflight: InstallationPreflight,
+            phase: FirstInstallPhase = .ready,
+            identityPlan: FirstInstallIdentityPlan? = nil,
+            signedRelease: SignedReleaseInfo? = nil,
+            qclientRelease: OfficialQClientRelease? = nil
+        ) {
+            preflight = previewPreflight
+            self.phase = phase
+            self.identityPlan = identityPlan
+            self.signedRelease = signedRelease
+            self.qclientRelease = qclientRelease
+            started = true
+        }
+    #endif
 
     var requiresFirstInstall: Bool {
         guard let preflight else { return false }
@@ -41,6 +61,19 @@ final class InstallationCoordinator: ObservableObject {
 
     var isWorking: Bool {
         [.inspecting, .downloading, .verifying, .authorizing, .installing, .validating].contains(phase)
+    }
+
+    var canPrepareSignedInstallation: Bool {
+        preflight?.productionReady == true && identityPlan != nil && !isWorking
+    }
+
+    func selectIdentityPlan(_ plan: FirstInstallIdentityPlan) {
+        guard !isWorking else { return }
+        identityPlan = plan
+    }
+
+    func clearIdentityPlan() {
+        identityPlan = nil
     }
 
     func start() {
@@ -140,7 +173,7 @@ final class InstallationCoordinator: ObservableObject {
     /// requested. No node state, configuration, keyset, or store is touched.
     func prepareSignedInstallation() async {
         guard phase == .ready || phase == .failed,
-            preflight?.productionReady == true
+            canPrepareSignedInstallation
         else { return }
         error = nil
         message = nil

@@ -62,8 +62,11 @@ enum IdentityOnboardingChoice: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    static func initialChoice(hasActiveIdentity: Bool) -> IdentityOnboardingChoice? {
-        hasActiveIdentity ? .keep : nil
+    static func initialChoice(
+        hasActiveIdentity: Bool,
+        preferredChoice: IdentityOnboardingChoice? = nil
+    ) -> IdentityOnboardingChoice? {
+        preferredChoice ?? (hasActiveIdentity ? .keep : nil)
     }
 
     var title: String {
@@ -95,6 +98,56 @@ enum IdentityOnboardingChoice: String, CaseIterable, Identifiable {
         case .keep: "Protect & continue"
         case .importKeyset: "Choose keyset…"
         case .create: "Create & continue"
+        }
+    }
+}
+
+/// The only decision a clean installation needs before acquiring runtime
+/// artifacts. Runtime installation and identity handling remain separate so
+/// the interface never implies that stores or private files are scanned as
+/// part of installing Quilibrium.
+enum FirstInstallIdentityPlan: String, CaseIterable, Identifiable {
+    case createNew
+    case importExisting
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .createNew: "Create a new identity"
+        case .importExisting: "Use an existing identity"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .createNew:
+            "The verified local qclient creates it after runtime setup."
+        case .importExisting:
+            "For an existing or legacy node; choose its complete keyset after runtime setup."
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .createNew: "plus.circle.fill"
+        case .importExisting: "arrow.trianglehead.2.clockwise.rotate.90"
+        }
+    }
+
+    var preferredIdentityChoice: IdentityOnboardingChoice {
+        switch self {
+        case .createNew: .create
+        case .importExisting: .importKeyset
+        }
+    }
+
+    var preparationDetail: String {
+        switch self {
+        case .createNew:
+            "No identity is generated yet. After the runtime is healthy, qclient creates and protects the new local identity."
+        case .importExisting:
+            "No key or store is scanned now. After the runtime is healthy, you choose the folder containing config.yml and keys.yml for local validation."
         }
     }
 }

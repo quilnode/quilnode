@@ -12,6 +12,12 @@ struct WalletOnboardingView: View {
     @State private var selection: IdentityOnboardingChoice?
     @State private var createName = "My Quilibrium identity"
     @State private var pendingTransaction: IdentityTransactionContext?
+    private let preferredChoice: IdentityOnboardingChoice?
+
+    init(preferredChoice: IdentityOnboardingChoice? = nil) {
+        self.preferredChoice = preferredChoice
+        _selection = State(initialValue: nil)
+    }
 
     private var activeIdentity: ManagedKeyset? {
         walletManager.inventory.activeKeyset
@@ -73,12 +79,23 @@ struct WalletOnboardingView: View {
                         design: theme.typography.displayDesign
                     ))
             Text(
-                activeIdentity == nil
-                    ? "No active identity was detected. Import a complete keyset or create a new local identity."
-                    : "An active identity was detected. Keep and protect it, import another complete keyset, or create a new identity."
+                headingDetail
             )
             .font(.subheadline)
             .foregroundStyle(theme.colors.secondaryText)
+        }
+    }
+
+    private var headingDetail: String {
+        switch preferredChoice {
+        case .importKeyset:
+            "You chose to bring an existing identity. Select its complete keyset; any newly detected identity remains untouched until you confirm activation."
+        case .create:
+            "You chose to create a new local identity with the verified qclient. Nothing is generated until you confirm."
+        case .keep, nil:
+            activeIdentity == nil
+                ? "No active identity was detected. Import a complete keyset or create a new local identity."
+                : "An active identity was detected. Keep and protect it, import another complete keyset, or create a new identity."
         }
     }
 
@@ -208,7 +225,10 @@ struct WalletOnboardingView: View {
 
     private func chooseSafeDefaultIfNeeded() {
         guard selection == nil else { return }
-        selection = IdentityOnboardingChoice.initialChoice(hasActiveIdentity: activeIdentity != nil)
+        selection = IdentityOnboardingChoice.initialChoice(
+            hasActiveIdentity: activeIdentity != nil,
+            preferredChoice: preferredChoice
+        )
     }
 
     private func deferOnboarding() {

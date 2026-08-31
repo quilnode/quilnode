@@ -19,6 +19,7 @@ enum InstallationHostInspector {
         let nodeInstalled = FileManager.default.isExecutableFile(atPath: nodeLink)
         let nodeTarget = commandOutput("/usr/bin/readlink", [nodeLink])
         let installedNodeBuild = nodeTarget.isEmpty ? nil : InstalledNodeBuildParser.parse(symlinkTarget: nodeTarget)
+        let externalNodeRunning = !nodeInstalled && ExistingNodeRuntimeDiscovery.isExternalNodeRunning()
 
         let hardware = [
             InstallationCheck(
@@ -54,7 +55,7 @@ enum InstallationHostInspector {
             ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/QuilNodeReleaseVerifier")
         let verifierReady = FileManager.default.isExecutableFile(atPath: releaseVerifier.path)
         let currentLimit = Int(commandOutput("/usr/sbin/sysctl", ["-n", "kern.maxfilesperproc"])) ?? 0
-        let production = [
+        var production = [
             InstallationCheck(
                 id: "verifier", title: "Release trust verifier",
                 detail: verifierReady
@@ -73,6 +74,17 @@ enum InstallationHostInspector {
                 state: .notRequired
             ),
         ]
+        if externalNodeRunning {
+            production.insert(
+                InstallationCheck(
+                    id: "external-node",
+                    title: "Existing node is running",
+                    detail: "Stop its current service, then run these checks again. QuilNode has not changed it.",
+                    state: .blocked
+                ),
+                at: 0
+            )
+        }
 
         let sourceToolDefinitions: [(String, String, String)] = [
             ("xcode", "Xcode command-line tools", "/usr/bin/xcodebuild"),

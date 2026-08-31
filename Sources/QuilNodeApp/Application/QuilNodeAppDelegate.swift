@@ -50,7 +50,8 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
         /// production coordinators.
         private func presentStandaloneDesignPreviewIfRequested() {
             let value = ProcessInfo.processInfo.arguments.first {
-                $0 == "--design-preview=menu-bar"
+                $0.hasPrefix("--design-preview=onboarding-")
+                    || $0 == "--design-preview=menu-bar"
                     || $0 == "--design-preview=menu-bar-private"
                     || $0.hasPrefix("--design-preview=network-inbound-")
                     || $0.hasPrefix("--design-preview=identity-transaction-")
@@ -117,7 +118,10 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
 
         @ViewBuilder
         private func standaloneDesignPreview(mode: String) -> some View {
-            if mode == "menu-bar" || mode == "menu-bar-private" {
+            if mode.hasPrefix("onboarding-") {
+                OnboardingDesignPreviewHost(mode: .init(argument: mode))
+                    .quilThemed(.quilNode)
+            } else if mode == "menu-bar" || mode == "menu-bar-private" {
                 MenuBarDesignPreviewHost(privacyEnabled: mode == "menu-bar-private")
                     .quilThemed(.quilNode)
             } else if mode == "theme-library" {

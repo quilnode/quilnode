@@ -62,6 +62,7 @@ struct FirstInstallView: View {
                 }
 
                 if let preflight = installer.preflight {
+                    identityPlanSection
                     checkSection("This Mac", checks: preflight.hardware)
                     checkSection("Production path", checks: preflight.productionRequirements)
 
@@ -98,13 +99,32 @@ struct FirstInstallView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    OnboardingSectionLabel(text: "Runtime flight plan")
-                    Text(installer.signedRelease.map { "Quilibrium \($0.version)" } ?? "Latest signed release")
+                    OnboardingSectionLabel(text: "Signed installation")
+                    Text("Runtime components")
                         .font(.title2.bold())
-                    Text("A bounded local sequence with trust checks before activation.")
+                    Text("Each component keeps its own official version and provenance.")
                         .font(.caption)
                         .foregroundStyle(theme.colors.secondaryText)
                 }
+
+                VStack(alignment: .leading, spacing: 11) {
+                    RuntimeComponentRow(
+                        label: "Node runtime",
+                        version: installer.signedRelease?.version ?? "Latest signed",
+                        detail: "The long-running Quilibrium node"
+                    )
+                    Divider().opacity(0.55)
+                    RuntimeComponentRow(
+                        label: "qclient dependency",
+                        version: installer.qclientRelease?.releaseVersion ?? "Matching official",
+                        detail: "A separate local management tool"
+                    )
+                    Label("Development builds are optional later in Updates.", systemImage: "shield.lefthalf.filled")
+                        .font(.caption2)
+                        .foregroundStyle(theme.colors.secondaryText)
+                }
+                .padding(13)
+                .controlSurface(tint: theme.colors.accent)
 
                 VStack(alignment: .leading, spacing: 11) {
                     OnboardingEvidenceRow(
@@ -170,12 +190,13 @@ struct FirstInstallView: View {
                 }
             } label: {
                 Label(
-                    installer.preflight?.productionReady == true ? "Acquire signed release" : "Run checks again",
+                    primaryActionTitle,
                     systemImage: "arrow.right.circle.fill"
                 )
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .disabled(installer.preflight?.productionReady == true && !installer.canPrepareSignedInstallation)
         case .awaitingAuthorization:
             Button("Review authorization") {
                 installer.showsAuthorizationExplanation = true
@@ -188,6 +209,45 @@ struct FirstInstallView: View {
                 .foregroundStyle(theme.colors.success)
         default:
             QuilLoadingIndicator(label: "Setup is working", compact: true)
+        }
+    }
+
+    private var identityPlanSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            OnboardingSectionLabel(text: "Identity path")
+            Text("Do you already have a Quilibrium identity?")
+                .font(.subheadline.weight(.semibold))
+            HStack(spacing: 9) {
+                ForEach(FirstInstallIdentityPlan.allCases) { plan in
+                    FirstInstallIdentityPlanCard(
+                        plan: plan,
+                        isSelected: installer.identityPlan == plan,
+                        select: { installer.selectIdentityPlan(plan) }
+                    )
+                }
+            }
+            if let plan = installer.identityPlan {
+                Label(plan.preparationDetail, systemImage: "hand.raised.fill")
+                    .font(.caption2)
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .controlSurface(tint: theme.colors.success)
+            } else {
+                Text("Choose one path to continue. Nothing changes on this Mac yet.")
+                    .font(.caption2)
+                    .foregroundStyle(theme.colors.warning)
+            }
+        }
+    }
+
+    private var primaryActionTitle: String {
+        guard installer.preflight?.productionReady == true else { return "Run checks again" }
+        return switch installer.identityPlan {
+        case .createNew: "Prepare new node"
+        case .importExisting: "Prepare for existing identity"
+        case nil: "Choose an identity path"
         }
     }
 

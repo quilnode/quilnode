@@ -61,6 +61,75 @@ struct AuthorizationExplanationView: View {
     }
 }
 
+struct FirstInstallIdentityPlanCard: View {
+    @Environment(\.quilTheme) private var theme
+
+    let plan: FirstInstallIdentityPlan
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isSelected ? theme.colors.accent : theme.colors.secondaryText)
+                    .contentTransition(.symbolEffect(.replace))
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(plan.title, systemImage: plan.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.colors.primaryText)
+                    Text(plan.detail)
+                        .font(.caption2)
+                        .foregroundStyle(theme.colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(QuilPressFeedbackButtonStyle())
+        .background(theme.colors.surface.opacity(isSelected ? 0.9 : 0.58))
+        .overlay {
+            RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous)
+                .strokeBorder(
+                    isSelected ? theme.colors.accent.opacity(0.86) : theme.colors.border.opacity(0.48),
+                    lineWidth: isSelected ? max(theme.metrics.borderWidth, 1.2) : max(theme.metrics.borderWidth, 0.5)
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous))
+        .quilHoverSurface(tint: theme.colors.accent, cornerRadius: theme.metrics.controlCornerRadius)
+        .accessibilityLabel("\(plan.title). \(plan.detail)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+}
+
+struct RuntimeComponentRow: View {
+    @Environment(\.quilTheme) private var theme
+
+    let label: String
+    let version: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.caption.weight(.semibold))
+                Text(detail).font(.caption2).foregroundStyle(theme.colors.secondaryText)
+            }
+            Spacer(minLength: 8)
+            Text(version)
+                .font(.caption.monospaced().weight(.semibold))
+                .foregroundStyle(theme.colors.accent)
+                .textSelection(.enabled)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct InstallCheckRow: View {
     let check: InstallationCheck
     var body: some View {
