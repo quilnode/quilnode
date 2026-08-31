@@ -34,8 +34,7 @@ struct ProtocolAllocationPlaceholderLayout: View {
                         placeholderMetadata
                             .font(.system(size: 8.7, weight: .medium, design: .monospaced))
                             .foregroundStyle(theme.colors.secondaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }
@@ -90,14 +89,9 @@ struct ProtocolAllocationPlaceholderLayout: View {
         if mode == .loading {
             Text("Coverage — · — provers · Ring —")
         } else {
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text("Coverage ")
-                Text(PrivacyMaskStyle.identifier.text)
-                Text(" · ")
-                Text(PrivacyMaskStyle.compact.text)
-                Text(" provers · Ring ")
-                Text(PrivacyMaskStyle.compact.text)
-            }
+            Text(
+                "Coverage \(PrivacyMaskStyle.identifier.text) · \(PrivacyMaskStyle.compact.text) provers · Ring \(PrivacyMaskStyle.compact.text)"
+            )
         }
     }
 

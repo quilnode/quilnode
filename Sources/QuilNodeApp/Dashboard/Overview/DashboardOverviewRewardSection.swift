@@ -2,32 +2,59 @@ import SwiftUI
 
 extension DashboardView {
     var protocolRewardEvidenceSection: some View {
-        HStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle().fill(rewardTint.opacity(0.13))
-                    Image(systemName: rewardSystemImage)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(rewardTint)
-                }
-                .frame(width: 39, height: 39)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("REWARD EVIDENCE")
-                        .protocolSectionLabel(color: theme.colors.secondaryText)
-                    Text(rewardStatusTitle)
-                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(rewardTint)
-                    Text(rewardEvidenceSummary)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(theme.colors.secondaryText)
-                        .lineLimit(2)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 0) {
+                rewardEvidenceIntroduction
+                    .padding(.trailing, 20)
+                protocolEvidenceDivider
+                rewardEvidenceStatistics
+                rewardActivityButton.padding(.leading, 18)
             }
-            .padding(.trailing, 20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 14) {
+                rewardEvidenceIntroduction
+                rewardEvidenceStatistics
+                rewardActivityButton.frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(theme.colors.surface.opacity(0.58))
+        .overlay {
+            RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous)
+                .strokeBorder(theme.colors.border.opacity(0.72), lineWidth: max(theme.metrics.borderWidth, 0.5))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: theme.metrics.controlCornerRadius, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+    }
 
-            protocolEvidenceDivider
+    private var rewardEvidenceIntroduction: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle().fill(rewardTint.opacity(0.13))
+                Image(systemName: rewardSystemImage)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(rewardTint)
+            }
+            .frame(width: 39, height: 39)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("REWARD EVIDENCE")
+                    .protocolSectionLabel(color: theme.colors.secondaryText)
+                Text(rewardStatusTitle)
+                    .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(rewardTint)
+                Text(rewardEvidenceSummary)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var rewardEvidenceStatistics: some View {
+        HStack(spacing: 0) {
             ProtocolEvidenceStat(
                 title: "Last credit",
                 value: monitor.snapshot.lastRewardCreditFrame.map { "Frame \($0.grouped)" } ?? "None observed",
@@ -53,27 +80,18 @@ extension DashboardView {
                 tint: theme.colors.wallet,
                 privacyField: .quilBalance
             )
+        }
+    }
 
-            Button {
-                destination = .activity
-            } label: {
-                Label("View activity", systemImage: "arrow.right")
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 10.5, weight: .semibold))
-            .foregroundStyle(theme.colors.info)
-            .padding(.leading, 18)
+    private var rewardActivityButton: some View {
+        Button {
+            destination = .activity
+        } label: {
+            Label("View activity", systemImage: "arrow.right")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(theme.colors.surface.opacity(0.58))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(theme.colors.border.opacity(0.72), lineWidth: max(theme.metrics.borderWidth, 0.5))
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
+        .buttonStyle(.plain)
+        .font(.system(size: 10.5, weight: .semibold))
+        .foregroundStyle(theme.colors.info)
     }
 
     private var rewardEvidenceSummary: String {
