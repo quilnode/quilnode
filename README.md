@@ -8,6 +8,11 @@
   A native, local-first macOS console for operating a Quilibrium node.
 </p>
 
+<p align="center">
+  <strong><a href="https://github.com/quilnode/quilnode/releases/tag/v0.1.0-alpha.1">Download QuilNode 0.1.0-alpha.1</a></strong>
+  · Apple silicon · macOS 14+
+</p>
+
 > [!WARNING]
 > **Alpha software — not production-ready.** Bugs, security issues, and breaking
 > changes are possible. QuilNode manages a privileged local service and can
@@ -222,6 +227,10 @@ the repository.
 
 Release artifacts are built locally by a fail-closed pipeline; this project
 does not depend on GitHub Actions.
+
+The orphan `release-feed` branch is a minimal publication surface for the
+signed application-update feed. It is intentionally separate from `main`, is
+not a feature branch, and must not be merged through a pull request.
 
 ### Release packaging
 
