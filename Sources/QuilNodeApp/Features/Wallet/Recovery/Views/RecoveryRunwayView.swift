@@ -47,7 +47,7 @@ struct RecoveryRunwayView: View {
         HStack(alignment: .top, spacing: 10) {
             Text(String(number))
                 .font(.caption2.bold().monospacedDigit())
-                .foregroundStyle(Color.white)
+                .foregroundStyle(theme.colors.canvas)
                 .frame(width: 22, height: 22)
                 .background(stage.state.tint(in: theme), in: Circle())
 
