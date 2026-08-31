@@ -68,7 +68,7 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 ? NSSize(width: 420, height: 590)
                 : mode.hasPrefix("onboarding-")
                     ? NSSize(width: 900, height: 680)
-                : NSSize(width: 980, height: 730)
+                    : NSSize(width: 980, height: 730)
             let window = NSWindow(
                 contentRect: NSRect(origin: .zero, size: previewSize),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
