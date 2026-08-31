@@ -66,6 +66,8 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
             let previewSize =
                 mode.hasPrefix("menu-bar")
                 ? NSSize(width: 420, height: 590)
+                : mode.hasPrefix("onboarding-")
+                    ? NSSize(width: 900, height: 680)
                 : NSSize(width: 980, height: 730)
             let window = NSWindow(
                 contentRect: NSRect(origin: .zero, size: previewSize),
@@ -102,7 +104,11 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 !argument.dropFirst(prefix.count).isEmpty
             else { return }
             let destination = URL(fileURLWithPath: String(argument.dropFirst(prefix.count)))
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            // Let SwiftUI finish the first layout transaction before taking a
+            // regression artifact. Capturing while the preview window is
+            // resizing can otherwise produce a valid but horizontally clipped
+            // frame that does not represent the shipped interface.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 guard let contentView = window.contentView else { return }
                 contentView.displayIfNeeded()
                 guard let bitmap = contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds) else { return }
