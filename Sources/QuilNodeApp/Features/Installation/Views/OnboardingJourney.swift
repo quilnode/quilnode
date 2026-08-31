@@ -68,6 +68,7 @@ struct OnboardingJourneyHeader: View {
                         .controlSize(.small)
                 }
             }
+            .frame(maxWidth: .infinity)
 
             HStack(alignment: .top, spacing: 0) {
                 ForEach(Array(OnboardingStage.allCases.enumerated()), id: \.element.id) { index, stage in
@@ -78,7 +79,9 @@ struct OnboardingJourneyHeader: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
         .padding(.top, 12)
         .padding(.bottom, 10)
