@@ -5,6 +5,21 @@ import XCTest
 @testable import QuilNodeShared
 
 final class OnboardingPresentationTests: XCTestCase {
+    func testDesignPreviewRoutesCoverEveryBlockingOnboardingState() {
+        XCTAssertEqual(
+            String(describing: OnboardingDesignPreviewMode(argument: "onboarding-first-install-existing")),
+            "firstInstallExistingIdentity"
+        )
+        XCTAssertEqual(
+            String(describing: OnboardingDesignPreviewMode(argument: "onboarding-platform-authorization")),
+            "platformAuthorization"
+        )
+        XCTAssertEqual(
+            String(describing: OnboardingDesignPreviewMode(argument: "onboarding-qclient-download")),
+            "qclientDownload"
+        )
+    }
+
     @MainActor
     func testAppOwnedOnboardingPreparationStopsAtSafeQuitPoint() async {
         let coordinator = InstallationCoordinator()

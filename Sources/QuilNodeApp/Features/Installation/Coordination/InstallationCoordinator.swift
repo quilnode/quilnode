@@ -33,12 +33,14 @@ final class InstallationCoordinator: ObservableObject {
         init(
             previewPreflight: InstallationPreflight,
             phase: FirstInstallPhase = .ready,
+            progress: NodeUpdateProgress? = nil,
             identityPlan: FirstInstallIdentityPlan? = nil,
             signedRelease: SignedReleaseInfo? = nil,
             qclientRelease: OfficialQClientRelease? = nil
         ) {
             preflight = previewPreflight
             self.phase = phase
+            self.progress = progress
             self.identityPlan = identityPlan
             self.signedRelease = signedRelease
             self.qclientRelease = qclientRelease

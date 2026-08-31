@@ -8,13 +8,17 @@
 
     enum OnboardingDesignPreviewMode {
         case firstInstallExistingIdentity
+        case platformAuthorization
+        case qclientDownload
         case identityExisting
 
         init(argument: String) {
-            self =
-                argument == "onboarding-first-install-existing"
-                ? .firstInstallExistingIdentity
-                : .identityExisting
+            switch argument {
+            case "onboarding-first-install-existing": self = .firstInstallExistingIdentity
+            case "onboarding-platform-authorization": self = .platformAuthorization
+            case "onboarding-qclient-download": self = .qclientDownload
+            default: self = .identityExisting
+            }
         }
     }
 
@@ -50,7 +54,9 @@
                 ))
             _installer = StateObject(
                 wrappedValue: InstallationCoordinator(
-                    previewPreflight: Self.cleanMacPreflight,
+                    previewPreflight: Self.preflight(for: mode),
+                    phase: Self.phase(for: mode),
+                    progress: Self.progress(for: mode),
                     identityPlan: .importExisting,
                     signedRelease: SignedReleaseInfo(
                         version: "2.1.0.24",
@@ -73,6 +79,12 @@
                 switch mode {
                 case .firstInstallExistingIdentity:
                     FirstInstallView()
+                        .environmentObject(installer)
+                case .platformAuthorization:
+                    PlatformAuthorizationView()
+                        .environmentObject(installer)
+                case .qclientDownload:
+                    QClientSetupView()
                         .environmentObject(installer)
                 case .identityExisting:
                     WalletOnboardingView(preferredChoice: .importKeyset)
@@ -120,5 +132,73 @@
             nodeInstalled: false,
             secureServiceReady: false
         )
+
+        private static func preflight(for mode: OnboardingDesignPreviewMode) -> InstallationPreflight {
+            switch mode {
+            case .firstInstallExistingIdentity, .identityExisting:
+                cleanMacPreflight
+            case .platformAuthorization:
+                installedPreflight(secureServiceReady: false)
+            case .qclientDownload:
+                installedPreflight(secureServiceReady: true)
+            }
+        }
+
+        private static func installedPreflight(secureServiceReady: Bool) -> InstallationPreflight {
+            InstallationPreflight(
+                hardware: cleanMacPreflight.hardware,
+                productionRequirements: cleanMacPreflight.productionRequirements,
+                sourceToolchain: cleanMacPreflight.sourceToolchain,
+                nodeInstalled: true,
+                secureServiceReady: secureServiceReady,
+                secureServiceBuild: secureServiceReady ? 115 : 91,
+                qclientStatus: nil,
+                qclientCompatibleWithNode: false,
+                installedNodeBuild: InstalledNodeBuild(
+                    version: "2.1.0.24",
+                    kind: .signed,
+                    commit: nil,
+                    fileName: "node-2.1.0.24-darwin-arm64"
+                )
+            )
+        }
+
+        private static func phase(for mode: OnboardingDesignPreviewMode) -> FirstInstallPhase {
+            switch mode {
+            case .platformAuthorization: .authorizing
+            case .qclientDownload: .downloading
+            case .firstInstallExistingIdentity, .identityExisting: .ready
+            }
+        }
+
+        private static func progress(for mode: OnboardingDesignPreviewMode) -> NodeUpdateProgress? {
+            let startedAt = Date().addingTimeInterval(-46)
+            return switch mode {
+            case .platformAuthorization:
+                NodeUpdateProgress(
+                    workflow: .signedNode,
+                    step: .sealPlan,
+                    phase: "Waiting for macOS authorization",
+                    detail: OnboardingWaitPresentation.platformAuthorizationGuidance,
+                    fraction: 0,
+                    startedAt: startedAt,
+                    isEstimate: true
+                )
+            case .qclientDownload:
+                NodeUpdateProgress(
+                    workflow: .qclient,
+                    step: .acquire,
+                    phase: "Downloading official qclient",
+                    detail: "62.3 MB of 130.5 MB",
+                    fraction: 0.48,
+                    startedAt: startedAt,
+                    transferredBytes: 62_300_000,
+                    totalBytes: 130_511_922,
+                    isEstimate: false
+                )
+            case .firstInstallExistingIdentity, .identityExisting:
+                nil
+            }
+        }
     }
 #endif
