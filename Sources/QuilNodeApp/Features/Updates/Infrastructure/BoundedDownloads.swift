@@ -32,6 +32,23 @@ func boundedResponseBodyIsValid(statusCode: Int, data: Data) -> Bool {
 #endif
 
 extension ReleaseChecker {
+    /// Waits in short bounded slices so structured-concurrency cancellation is
+    /// observed even while URLSession owns the network transfer. The caller
+    /// remains responsible for cancelling its URLSessionTask on any error.
+    nonisolated static func waitForDownloadCompletion<Value>(
+        _ state: BoundedDownloadState<Value>,
+        timeout: TimeInterval
+    ) throws {
+        guard timeout > 0 else { throw UpdateCenterError.downloadTimedOut }
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            try Task.checkCancellation()
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { throw UpdateCenterError.downloadTimedOut }
+            if state.wait(timeout: min(0.2, remaining)) { return }
+        } while true
+    }
+
     nonisolated static func downloadSynchronously(
         _ url: URL,
         to destination: URL,
@@ -56,9 +73,11 @@ extension ReleaseChecker {
         defer { session.invalidateAndCancel() }
         let task = session.downloadTask(with: url)
         task.resume()
-        guard delegate.wait(timeout: resourceTimeout) else {
+        do {
+            try waitForDownloadCompletion(delegate, timeout: resourceTimeout)
+        } catch {
             task.cancel()
-            throw UpdateCenterError.downloadTimedOut
+            throw error
         }
         try delegate.result.get()
     }
@@ -87,9 +106,11 @@ extension ReleaseChecker {
         defer { session.invalidateAndCancel() }
         let task = session.downloadTask(with: url)
         task.resume()
-        guard delegate.wait(timeout: 30 * 60) else {
+        do {
+            try waitForDownloadCompletion(delegate, timeout: 30 * 60)
+        } catch {
             task.cancel()
-            throw UpdateCenterError.downloadTimedOut
+            throw error
         }
         try delegate.result.get()
     }
@@ -145,9 +166,11 @@ extension ReleaseChecker {
         defer { session.invalidateAndCancel() }
         let task = session.dataTask(with: request)
         task.resume()
-        guard delegate.wait(timeout: timeout) else {
+        do {
+            try waitForDownloadCompletion(delegate, timeout: timeout)
+        } catch {
             task.cancel()
-            throw UpdateCenterError.downloadTimedOut
+            throw error
         }
         return try delegate.result.get()
     }

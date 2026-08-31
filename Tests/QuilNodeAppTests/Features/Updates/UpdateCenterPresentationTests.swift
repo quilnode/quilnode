@@ -14,6 +14,35 @@ final class UpdateCenterPresentationTests: XCTestCase {
         XCTAssertFalse(unknown.byteDescription.contains("of"))
     }
 
+    func testBoundedDownloadWaitHonorsCancellationAndDeadline() async {
+        let cancelled = Task.detached {
+            try ReleaseChecker.waitForDownloadCompletion(
+                BoundedDownloadState<Void>(),
+                timeout: 10
+            )
+        }
+        cancelled.cancel()
+        do {
+            try await cancelled.value
+            XCTFail("A cancelled transfer must not keep waiting for its network deadline.")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            XCTFail("Expected CancellationError, received \(error)")
+        }
+
+        XCTAssertThrowsError(
+            try ReleaseChecker.waitForDownloadCompletion(
+                BoundedDownloadState<Void>(),
+                timeout: 0.01
+            )
+        ) { error in
+            guard case UpdateCenterError.downloadTimedOut = error else {
+                return XCTFail("Expected downloadTimedOut, received \(error)")
+            }
+        }
+    }
+
     func testAutomaticPoliciesMapToNarrowPrivilegedCapabilities() {
         XCTAssertEqual(NodeUpdatePolicy.manual.privilegedAutomaticPolicy, .signedStable)
         XCTAssertEqual(NodeUpdatePolicy.signedStable.privilegedAutomaticPolicy, .signedStable)
