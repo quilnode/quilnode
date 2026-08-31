@@ -232,6 +232,22 @@ approved tag-signer fingerprint (`QUILNODE_RELEASE_TAG_SIGNER`), and the separat
 update-signing capability (`QUILNODE_UPDATE_KEY_PASSWORD_FILE`). It never tags,
 pushes, uploads, or publishes anything.
 
+The source-tag signer is separate from both application-signing identities.
+The current SSH signing-key fingerprint is
+`SHA256:PM+ldi+LXfBdMWbTSuf7vfGE7L9qxRfLW4b4ccowSY4`.
+After confirming that fingerprint through a trusted channel, verify a release
+tag with the public-only signer list:
+
+```sh
+git -c gpg.ssh.allowedSignersFile=config/release/allowed-signers tag -v v0.1.0-alpha.1
+```
+
+For packaging, set `QUILNODE_RELEASE_TAG_ALLOWED_SIGNERS` to the absolute path
+of this file and `QUILNODE_RELEASE_TAG_SIGNER` to the approved fingerprint.
+Keep signing private keys and their unlock factors outside the repository.
+Git signatures attest source provenance; they do not attest a security review
+or Apple notarization.
+
 Use `--rehearsal` to test packaging from clean committed source without a release
 tag. Rehearsal reports and feeds are explicitly marked and are rejected by
 normal release verification. They do not qualify a public release.
