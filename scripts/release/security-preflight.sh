@@ -57,8 +57,12 @@ run_gate shellcheck shellcheck -x "${shell_scripts[@]}"
 
 run_gate secret-scan gitleaks dir --no-banner --no-color --redact=100 \
     --config .gitleaks.toml --report-format json --report-path "$REPORT_DIR/gitleaks.json" .
+run_gate history-secret-scan gitleaks git --no-banner --no-color --redact=100 \
+    --log-opts="--all --full-history" --config .gitleaks.toml \
+    --report-format json --report-path "$REPORT_DIR/gitleaks-history.json" .
 run_gate repository-metadata scripts/release/audit-metadata-privacy.sh repository .
 run_gate metadata-auditor-tests scripts/release/test-metadata-privacy.sh
+run_gate release-evidence-tests scripts/release/test-evidence.sh
 run_gate dependency-vulnerabilities osv-scanner scan source --recursive \
     --experimental-exclude .build --experimental-exclude Audit \
     --format json --output-file "$REPORT_DIR/osv.json" .

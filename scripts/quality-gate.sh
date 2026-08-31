@@ -10,6 +10,7 @@ swift test --parallel
 scripts/check-helper-composition.sh
 scripts/security-audit.sh
 scripts/release/test-metadata-privacy.sh
+scripts/release/test-evidence.sh
 scripts/release/audit-metadata-privacy.sh repository .
 semgrep scan --config config/security/semgrep.yml \
     --metrics off --error --exclude .build --exclude Audit Sources scripts

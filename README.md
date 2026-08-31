@@ -170,6 +170,25 @@ the repository.
 Release artifacts are built locally by a fail-closed pipeline; this project
 does not depend on GitHub Actions.
 
+### Release packaging
+
+`scripts/release/prepare-release.sh` builds the drag-to-Applications DMG,
+generates the Sparkle feed and artifact inventory, and signs the release
+report. It requires clean source, the exact signed version tag, an independently
+approved tag-signer fingerprint (`QUILNODE_RELEASE_TAG_SIGNER`), and the separate
+update-signing capability (`QUILNODE_UPDATE_KEY_PASSWORD_FILE`). It never tags,
+pushes, uploads, or publishes anything.
+
+Use `--rehearsal` to test packaging from clean committed source without a release
+tag. Rehearsal reports and feeds are explicitly marked and are rejected by
+normal release verification. They do not qualify a public release.
+
+`scripts/release/verify-release.sh /path/to/release` verifies the report, feed
+and archive with public keys before mounting the DMG, then checks the exact
+delivered bundle, licenses and inventory. Verification needs no private key.
+Rehearsal verification also requires `--rehearsal`. Run
+`scripts/release/test-evidence.sh` for the disposable-fixture regression tests.
+
 ## Contributing and security
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Never attach

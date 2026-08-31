@@ -4,8 +4,16 @@ set -euo pipefail
 app="${1:-}"
 expected_authority="${2:-QuilNode Project Release Signing}"
 [[ -d "$app" ]] || { echo "Usage: $0 /path/to/QuilNode.app [signing-authority]" >&2; exit 64; }
+project="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+certificate_sha1="$(openssl x509 -inform der -in "$project/Resources/QuilNodeReleaseSigning.cer" \
+    -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)"
+[[ "$certificate_sha1" =~ ^[A-Fa-f0-9]{40}$ ]]
+# A leading '=' tells codesign this is literal requirement text, not a filename.
+certificate_requirement="=certificate leaf = H\"$certificate_sha1\""
 
 codesign --verify --deep --strict --verbose=2 "$app"
+codesign --verify --strict -R "$certificate_requirement" "$app"
+[[ "$(lipo -archs "$app/Contents/MacOS/QuilNode")" == "arm64" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == "com.quilnode.app" ]]
 [[ ! -e "$app/Contents/Resources/qclient" ]]
 [[ -d "$app/Contents/Frameworks/Sparkle.framework" ]]
@@ -35,6 +43,7 @@ fi
 
 while IFS= read -r -d '' candidate; do
     file "$candidate" | grep -q 'Mach-O' || continue
+    codesign --verify --strict -R "$certificate_requirement" "$candidate"
     authority="$(codesign -dvv "$candidate" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
     [[ "$authority" == "$expected_authority" ]] || {
         echo "Unexpected code-signing authority for $candidate: $authority" >&2

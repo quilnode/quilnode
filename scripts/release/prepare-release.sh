@@ -1,106 +1,80 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Build locally. Never create a tag, upload assets, or publish the appcast.
 # shellcheck source=scripts/release/release-common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release-common.sh"
-
-require_command hdiutil
-require_command shasum
-require_sparkle_tools
-
-cd "$PROJECT_DIR"
-if [[ "${QUILNODE_RELEASE_ALLOW_DIRTY:-0}" != "1" ]]; then
-    if [[ -n "$(git status --porcelain)" ]]; then
-        echo "Public release preparation requires a clean, committed source tree." >&2
-        echo "QUILNODE_RELEASE_ALLOW_DIRTY=1 is reserved for local pipeline tests." >&2
-        exit 1
-    fi
-    exact_tag="$(git describe --tags --exact-match 2>/dev/null || true)"
-    if [[ -z "$exact_tag" ]]; then
-        echo "Public release preparation requires HEAD to have an exact version tag." >&2
-        exit 1
-    fi
-fi
-
-app_path="$(scripts/build-app.sh | tail -1)"
-if [[ ! -d "$app_path" ]]; then
-    echo "Release build did not produce an application bundle." >&2
-    exit 1
-fi
-
-version="$(bundle_value "$app_path" CFBundleShortVersionString)"
-build="$(bundle_value "$app_path" CFBundleVersion)"
-bundle_id="$(bundle_value "$app_path" CFBundleIdentifier)"
-if [[ "$bundle_id" != "com.quilnode.app" ]]; then
-    echo "Unexpected bundle identifier: $bundle_id" >&2
-    exit 1
-fi
-
-release_root="${QUILNODE_RELEASE_OUTPUT_DIR:-$WORKSPACE_DIR/artifacts/releases/QuilNode-$version-$build}"
-archives="$release_root/archives"
-feed="$release_root/feed"
-verification="$release_root/verification"
-if [[ -e "$release_root" ]]; then
-    echo "Refusing to overwrite an existing release directory: $release_root" >&2
-    exit 1
-fi
-mkdir -p "$archives" "$feed" "$verification"
-
-source_folder="$(mktemp -d -t quilnode-dmg-source)"
-trap 'rm -rf "$source_folder"' EXIT
-ditto --norsrc --noextattr --noqtn "$app_path" "$source_folder/QuilNode.app"
-ln -s /Applications "$source_folder/Applications"
-xattr -cr "$source_folder"
-"$PROJECT_DIR/scripts/release/audit-metadata-privacy.sh" artifact "$source_folder"
-dmg="$archives/QuilNode-$version.dmg"
-hdiutil create -quiet -fs HFS+ -format UDZO -volname "QuilNode $version" -srcfolder "$source_folder" "$dmg"
-
-generate_feed() {
-    local key="$1"
-    "$SPARKLE_TOOLS_DIR/generate_appcast" \
-        --ed-key-file "$key" \
-        --download-url-prefix "https://github.com/$REPOSITORY_SLUG/releases/download/v$version/" \
-        --link "https://quilnode.com" \
-        --maximum-deltas 0 \
-        --maximum-versions 5 \
-        -o "$feed/appcast.xml" \
-        "$archives"
-    "$SPARKLE_TOOLS_DIR/sign_update" --ed-key-file "$key" "$feed/appcast.xml" >/dev/null
-    "$SPARKLE_TOOLS_DIR/sign_update" --verify --ed-key-file "$key" "$feed/appcast.xml"
-    archive_signature="$(xmllint --xpath \
-        'string(//*[local-name()="enclosure"]/@*[local-name()="edSignature"])' \
-        "$feed/appcast.xml")"
-    if [[ -z "$archive_signature" ]]; then
-        echo "Generated appcast is missing the archive signature." >&2
-        exit 1
-    fi
-    "$SPARKLE_TOOLS_DIR/sign_update" --verify --ed-key-file "$key" "$dmg" "$archive_signature"
+mode=release
+mode_args=()
+case "${1:-}" in
+    "") ;;
+    --rehearsal) mode=rehearsal; mode_args=(--rehearsal) ;;
+    *) echo "Usage: $0 [--rehearsal]" >&2; exit 64 ;;
+esac
+(( $# <= 1 )) || exit 64
+[[ "${QUILNODE_RELEASE_ALLOW_DIRTY:-0}" == "0" ]] || {
+    echo "Dirty-tree bypasses are no longer supported. Commit the candidate first." >&2; exit 1;
 }
-with_decrypted_update_key generate_feed
+require_command hdiutil
+require_command python3
+require_sparkle_tools
+[[ -n "$UPDATE_KEY_PASSWORD_FILE" && -r "$UPDATE_KEY_PASSWORD_FILE" && -r "$ENCRYPTED_UPDATE_KEY" ]] || {
+    echo "Provide the separately held update-key password capability before packaging." >&2; exit 1;
+}
+cd "$PROJECT_DIR"
+temporary="$(mktemp -d -t quilnode-release)"
+trap 'rm -rf "$temporary"' EXIT
 
-codesign --verify --deep --strict --verbose=2 "$app_path"
-spctl --assess --type execute --verbose=4 "$app_path" > "$verification/gatekeeper-assessment.txt" 2>&1 || true
-codesign -dvvv "$app_path" > "$verification/code-signing.txt" 2>&1
-spctl -a -vvv -t install "$dmg" > "$verification/dmg-assessment.txt" 2>&1 || true
-(cd "$release_root" && shasum -a 256 "archives/$(basename "$dmg")" "feed/appcast.xml") > "$release_root/SHA256SUMS"
-swift package show-dependencies --format json > "$verification/swift-dependencies.json"
+echo "1/6 — Pin the clean source candidate ($mode)" >&2
+python3 -B "$RELEASE_SCRIPT_DIR/release-evidence.py" source "$temporary/source.json" ${mode_args[@]+"${mode_args[@]}"}
+version="$(python3 -B "$RELEASE_SCRIPT_DIR/release-version.py" Resources/Info.plist releaseVersion)"
+build="$(python3 -B "$RELEASE_SCRIPT_DIR/release-version.py" Resources/Info.plist build)"
+tag="$(python3 -B "$RELEASE_SCRIPT_DIR/release-version.py" Resources/Info.plist tag)"
+name="$(python3 -B "$RELEASE_SCRIPT_DIR/release-version.py" Resources/Info.plist dmg)"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+default_root="$WORKSPACE_DIR/artifacts/releases/QuilNode-$version-$build"
+if [[ "$mode" == "rehearsal" ]]; then default_root="$default_root-rehearsal-$timestamp"; fi
+release_root="${QUILNODE_RELEASE_OUTPUT_DIR:-$default_root}"
+release_root="$(python3 -B "$RELEASE_SCRIPT_DIR/release-evidence.py" output-path "$release_root")"
+mkdir -p "$release_root"
+audit_dir="$WORKSPACE_DIR/audits/release-package-$timestamp"
+mkdir -p "$audit_dir"
+chmod 700 "$audit_dir"
 
-source_commit="$(git rev-parse --verify HEAD 2>/dev/null || true)"
-if [[ -z "$source_commit" ]]; then
-    source_commit="uncommitted-development-snapshot"
+echo "2/6 — Build and seal the app; log: $audit_dir/build.log" >&2
+if ! scripts/build-app.sh > "$audit_dir/build.log" 2>&1; then
+    tail -n 30 "$audit_dir/build.log" >&2
+    echo "Build failed. The full private log is retained at $audit_dir/build.log" >&2
+    exit 1
 fi
+app_path="$(tail -n 1 "$audit_dir/build.log")"
+[[ -d "$app_path" ]] || { echo "Build did not return an application bundle." >&2; exit 1; }
+echo "3/6 — Create the drag-to-Applications disk image" >&2
+"$RELEASE_SCRIPT_DIR/build-dmg.sh" "$app_path" "$release_root/$name" >&2
 
-cat > "$release_root/RELEASE.txt" <<EOF
-QuilNode $version ($build)
-Bundle identifier: $bundle_id
-Source commit: $source_commit
-Sparkle: 2.9.6 exact pin
-Update archive: $(basename "$dmg")
-Feed: feed/appcast.xml
-Automatic installation: disabled
-System profiling: disabled
-Distribution profile: community-signed
-Apple notarization: not included
-EOF
-
+sign_release() {
+    local key="$1"
+    echo "4/6 — Generate and sign the final update feed" >&2
+    mkdir "$temporary/feed-input"
+    cp "$release_root/$name" "$temporary/feed-input/$name"
+    "$SPARKLE_TOOLS_DIR/generate_appcast" --ed-key-file "$key" \
+        --download-url-prefix "https://github.com/$REPOSITORY_SLUG/releases/download/$tag/" \
+        --link "https://quilnode.com" --maximum-deltas 0 --maximum-versions 1 \
+        -o "$release_root/appcast.xml" "$temporary/feed-input" >&2
+    python3 -B "$RELEASE_SCRIPT_DIR/release-version.py" "$app_path/Contents/Info.plist" label-feed \
+        --feed "$release_root/appcast.xml" ${mode_args[@]+"${mode_args[@]}"}
+    "$SPARKLE_TOOLS_DIR/sign_update" --ed-key-file "$key" "$release_root/appcast.xml" >/dev/null
+    echo "5/6 — Seal the artifact inventory, SBOMs and release report" >&2
+    python3 -B "$RELEASE_SCRIPT_DIR/release-evidence.py" report \
+        "$app_path" "$release_root" "$temporary/source.json" ${mode_args[@]+"${mode_args[@]}"} >&2
+    "$SPARKLE_TOOLS_DIR/sign_update" --ed-key-file "$key" -p "$release_root/release-report.json" \
+        > "$release_root/release-report.sig"
+    python3 -B "$RELEASE_SCRIPT_DIR/release-evidence.py" checksums "$release_root"
+}
+with_decrypted_update_key sign_release
+echo "6/6 — Verify signatures, delivered bundle and installer contents using public keys" >&2
+"$RELEASE_SCRIPT_DIR/verify-release.sh" "$release_root" ${mode_args[@]+"${mode_args[@]}"} >&2
+if [[ "$mode" == "rehearsal" ]]; then
+    echo "LOCAL REHEARSAL ONLY — source tag and clean-machine qualification are not attested." >&2
+fi
 echo "$release_root"

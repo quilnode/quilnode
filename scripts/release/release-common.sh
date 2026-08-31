@@ -40,17 +40,20 @@ with_decrypted_update_key() {
         echo "Encrypted application-update key is unavailable: $ENCRYPTED_UPDATE_KEY" >&2
         exit 1
     fi
-    local temporary_key
-    temporary_key="$(mktemp -t quilnode-ed25519-release-key)"
-    chmod 600 "$temporary_key"
-    trap 'rm -f "$temporary_key"' RETURN
-    openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
-        -in "$ENCRYPTED_UPDATE_KEY" \
-        -out "$temporary_key" \
-        -pass "file:$UPDATE_KEY_PASSWORD_FILE"
-    "$callback" "$temporary_key" "$@"
-    rm -f "$temporary_key"
-    trap - RETURN
+    # The subshell owns an EXIT trap even when signing fails; it cannot replace
+    # the packager's separate disk-image cleanup trap.
+    (
+        umask 077
+        key_directory="$(mktemp -d -t quilnode-release-key)"
+        trap 'rm -rf "$key_directory"' EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM HUP
+        temporary_key="$key_directory/update.key"
+        openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in "$ENCRYPTED_UPDATE_KEY" -out "$temporary_key" \
+            -pass "file:$UPDATE_KEY_PASSWORD_FILE" || exit 1
+        "$callback" "$temporary_key" "$@"
+    )
 }
 
 bundle_value() {
