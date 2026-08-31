@@ -21,6 +21,10 @@ public enum NodeDiagnosticEvaluator {
             versionCheck(context),
         ]
 
+        if let allocationCheck = allocationEpochCheck(context) {
+            checks.append(allocationCheck)
+        }
+
         if !snapshot.recentWarnings.isEmpty {
             let progress = ChainProgressEvaluator.evaluate(snapshot, now: now)
             let recoveryMessageCount = snapshot.recentWarnings.count(

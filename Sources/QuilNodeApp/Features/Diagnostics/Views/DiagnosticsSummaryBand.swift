@@ -108,7 +108,7 @@ struct DiagnosticsSummaryBand: View {
         switch report.overallState {
         case .checking: return "Evidence collecting"
         case .passed: return "All tested systems are ready"
-        case .waiting: return "Shared recovery in progress"
+        case .waiting: return "Waiting for protocol progress"
         case .advisory: return "Review recommended"
         case .failed: return "Action required"
         }
@@ -118,7 +118,7 @@ struct DiagnosticsSummaryBand: View {
         switch report.overallState {
         case .checking: "No failure is declared before its probe completes."
         case .passed: "No local repair is recommended."
-        case .waiting: "Keep the healthy node running while shared state recovers."
+        case .waiting: "Expected waiting is not a local failure. Inspect the pending checks below."
         case .advisory: "The node can continue; inspect the prioritized findings."
         case .failed: "A readiness condition failed; use the scoped repair."
         }

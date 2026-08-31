@@ -146,7 +146,8 @@ struct DiagnosticsEvidenceInspector: View {
         switch check.state {
         case .checking: "The probe has not completed, so no pass or failure is claimed."
         case .passed: "The observed signal satisfies this local readiness condition."
-        case .waiting: "Local operation is healthy; the missing progress depends on shared network state."
+        case .waiting:
+            "Progress depends on a protocol or network transition. This check does not establish a local fault."
         case .advisory: "The signal does not prove failure, but it deserves operator review."
         case .failed: "The required local readiness condition is absent or invalid."
         }
