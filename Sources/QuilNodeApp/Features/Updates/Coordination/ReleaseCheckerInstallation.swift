@@ -85,7 +85,8 @@ extension ReleaseChecker {
             let result = await Task.detached(priority: .userInitiated) {
                 Self.runAuthorizedHelper(
                     arguments: ["qclient-install", manifest.path],
-                    durableOperation: true
+                    durableOperation: true,
+                    allowsInteractiveAuthorization: false
                 )
             }.value
             guard result.exitCode == 0 else { throw UpdateCenterError.activationFailed(result.output) }

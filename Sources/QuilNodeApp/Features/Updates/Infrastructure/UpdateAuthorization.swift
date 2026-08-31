@@ -32,19 +32,28 @@ extension ReleaseChecker {
             let action = privilegedServiceAction(named: actionName)
         {
             let manifestPath = arguments.count == 2 ? arguments[1] : nil
-            let serviceResult =
-                durableOperation
-                ? PrivilegedServiceClient.requestOperation(
-                    action,
-                    manifestPath: manifestPath,
-                    timeout: 420,
-                    progress: progress
-                )
-                : PrivilegedServiceClient.request(
-                    action,
-                    manifestPath: manifestPath,
-                    timeout: 120
-                )
+            var serviceResult: (output: String, exitCode: Int32) =
+                ("Passwordless service is not available.", 69)
+            // A same-certificate service upgrade briefly replaces the local
+            // socket. Retry that narrow transient before considering any
+            // interactive authorization fallback.
+            for attempt in 0..<6 {
+                serviceResult =
+                    durableOperation
+                    ? PrivilegedServiceClient.requestOperation(
+                        action,
+                        manifestPath: manifestPath,
+                        timeout: 420,
+                        progress: progress
+                    )
+                    : PrivilegedServiceClient.request(
+                        action,
+                        manifestPath: manifestPath,
+                        timeout: 120
+                    )
+                if serviceResult.exitCode != 69 { break }
+                if attempt < 5 { Thread.sleep(forTimeInterval: 0.5) }
+            }
             if serviceResult.exitCode != 69 && serviceResult.exitCode != 77 {
                 return serviceResult
             }

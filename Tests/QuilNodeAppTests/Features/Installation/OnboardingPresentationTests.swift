@@ -86,4 +86,21 @@ final class OnboardingPresentationTests: XCTestCase {
             "Elapsed 1m 14s"
         )
     }
+
+    func testOnlySourceBuiltQClientPermitsInteractiveFallback() {
+        let manifest = URL(fileURLWithPath: "/private/tmp/qclient-install.json")
+        let official = PreparedQClientAsset(
+            officialRelease: OfficialQClientRelease(
+                releaseVersion: "2.1.0.23",
+                binaryFileName: "qclient-2.1.0.23-darwin-arm64",
+                digestPublished: true,
+                signatureIndices: [1, 2, 8, 11, 13, 14, 17]
+            ),
+            manifestURL: manifest
+        )
+        let source = PreparedQClientAsset(officialRelease: nil, manifestURL: manifest)
+
+        XCTAssertFalse(official.allowsInteractiveAuthorization)
+        XCTAssertTrue(source.allowsInteractiveAuthorization)
+    }
 }

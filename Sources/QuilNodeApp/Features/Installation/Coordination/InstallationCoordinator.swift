@@ -225,6 +225,7 @@ final class InstallationCoordinator: ObservableObject {
                 ReleaseChecker.runAuthorizedHelper(
                     arguments: ["qclient-install", prepared.manifestURL.path],
                     durableOperation: true,
+                    allowsInteractiveAuthorization: prepared.allowsInteractiveAuthorization,
                     progress: { [weak self] update in
                         Task { @MainActor in
                             self?.progress = InstallationOperationPresentation.progress(

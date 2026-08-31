@@ -13,6 +13,11 @@ struct PreparedFirstInstallationAssets {
 struct PreparedQClientAsset {
     let officialRelease: OfficialQClientRelease?
     let manifestURL: URL
+
+    /// Official artifacts stay inside the durable passwordless service
+    /// boundary. Only a source-built qclient deliberately asks for fresh
+    /// administrator presence.
+    var allowsInteractiveAuthorization: Bool { officialRelease == nil }
 }
 
 /// Stages public installation artifacts without mutating coordinator state.
