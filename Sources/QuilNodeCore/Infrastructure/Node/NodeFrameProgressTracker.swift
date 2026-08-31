@@ -30,6 +30,12 @@ struct NodeFrameProgressTracker {
         }
 
         let now = snapshot.collectedAt
+        if let previous = lastFrame,
+            snapshot.frame < previous || samples.last.map({ now < $0.date }) == true
+        {
+            // A reset/reorg or wall-clock correction invalidates the old pace.
+            reset(snapshot: &snapshot)
+        }
         if let previous = lastFrame {
             if snapshot.frame != previous {
                 lastFrame = snapshot.frame
@@ -45,6 +51,12 @@ struct NodeFrameProgressTracker {
         let cutoff = now.addingTimeInterval(-retentionInterval)
         samples.removeAll { $0.date < cutoff }
         snapshot.frameLastAdvancedAt = lastAdvanceAt
+        if let lastAdvanceAt,
+            now.timeIntervalSince(lastAdvanceAt) >= ChainProgressEvaluator.quietObservationThreshold
+        {
+            clearRate(on: &snapshot)
+            return
+        }
         guard let first = samples.first,
             let last = samples.last,
             last.frame >= first.frame,

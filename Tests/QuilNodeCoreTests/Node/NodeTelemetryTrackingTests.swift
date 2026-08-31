@@ -83,4 +83,38 @@ final class NodeTelemetryTrackingTests: XCTestCase {
         XCTAssertNil(snapshot.lowerFramesPerMinute)
         XCTAssertNil(snapshot.upperFramesPerMinute)
     }
+
+    func testFrameTrackerClearsPaceAfterQuietInterval() {
+        let start = Date(timeIntervalSince1970: 1000)
+        var tracker = NodeFrameProgressTracker()
+        var snapshot = NodeSnapshot(collectedAt: start, isRunning: true, frame: 100)
+        tracker.apply(to: &snapshot)
+        snapshot.collectedAt = start.addingTimeInterval(120)
+        snapshot.frame = 112
+        tracker.apply(to: &snapshot)
+        XCTAssertEqual(snapshot.framesPerMinute, 6)
+        snapshot.collectedAt = start.addingTimeInterval(240)
+        tracker.apply(to: &snapshot)
+        XCTAssertNil(snapshot.framesPerMinute)
+        XCTAssertNil(snapshot.lowerFramesPerMinute)
+        XCTAssertNil(snapshot.upperFramesPerMinute)
+    }
+
+    func testFrameRegressionRequiresANewPaceBaseline() {
+        let start = Date(timeIntervalSince1970: 1000)
+        var tracker = NodeFrameProgressTracker()
+        var snapshot = NodeSnapshot(collectedAt: start, isRunning: true, frame: 100)
+        tracker.apply(to: &snapshot)
+        snapshot.collectedAt = start.addingTimeInterval(120)
+        snapshot.frame = 120
+        tracker.apply(to: &snapshot)
+        snapshot.collectedAt = start.addingTimeInterval(150)
+        snapshot.frame = 110
+        tracker.apply(to: &snapshot)
+        XCTAssertNil(snapshot.framesPerMinute)
+        snapshot.collectedAt = start.addingTimeInterval(180)
+        snapshot.frame = 112
+        tracker.apply(to: &snapshot)
+        XCTAssertNil(snapshot.framesPerMinute)
+    }
 }

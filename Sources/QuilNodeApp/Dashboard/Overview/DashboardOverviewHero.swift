@@ -170,7 +170,7 @@ extension DashboardView {
             Text(nodeObservation.hasLiveTelemetry ? "EPOCH \(currentEpoch.grouped)" : "EPOCH")
                 .protocolLabelStyle(color: protocolSignal)
 
-            Text(nodeObservation.hasLiveTelemetry ? "→ \((currentEpoch + 1).grouped)" : "reading")
+            Text(nodeObservation.hasLiveTelemetry ? "→ \(epochClock.nextEpoch?.grouped ?? "—")" : "reading")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced).monospacedDigit())
                 .foregroundStyle(theme.colors.secondaryText)
                 .padding(.top, 5)
@@ -195,7 +195,7 @@ extension DashboardView {
 
             Text(
                 nodeObservation.hasLiveTelemetry
-                    ? "of \((effectiveFrame + framesUntilEpoch).grouped)"
+                    ? "of \(epochClock.nextBoundary?.grouped ?? "—")"
                     : "reading epoch boundary"
             )
             .font(.system(size: 11, design: .monospaced).monospacedDigit())
@@ -228,7 +228,7 @@ extension DashboardView {
 
             Text(
                 nodeObservation.hasLiveTelemetry
-                    ? "\(epochCompactETA) to Epoch \((currentEpoch + 1).grouped)"
+                    ? epochCompactETA
                     : "Reading local pace"
             )
             .font(.system(size: 10.5, design: .monospaced).monospacedDigit())

@@ -17,34 +17,25 @@ extension DashboardView {
     }
 
     var effectiveFrame: UInt64 {
-        max(monitor.snapshot.frame, monitor.snapshot.lastReceivedFrame)
+        epochClock.frame
     }
 
+    var epochClock: NodeEpochClock { monitor.snapshot.epochClock }
+
     var currentEpoch: UInt64 {
-        if monitor.snapshot.epoch > 0 { return monitor.snapshot.epoch }
-        return effectiveFrame / max(monitor.snapshot.epochLength, 1)
+        epochClock.epoch
     }
 
     var epochProgress: Double {
-        let length = max(monitor.snapshot.epochLength, 1)
-        return min(max(Double(effectiveFrame % length) / Double(length), 0), 1)
+        epochClock.progress
     }
 
     var framesUntilEpoch: UInt64 {
-        let length = max(monitor.snapshot.epochLength, 1)
-        if monitor.snapshot.nextEpochFrame > effectiveFrame {
-            return monitor.snapshot.nextEpochFrame - effectiveFrame
-        }
-        let remainder = effectiveFrame % length
-        return remainder == 0 ? length : length - remainder
+        epochClock.framesRemaining
     }
 
     var epochCompactETA: String {
-        if chainProgress.state == .archiveRecovery { return "Waiting on archives" }
-        return EpochEstimateFormatter.compact(
-            framesRemaining: framesUntilEpoch,
-            framesPerMinute: monitor.snapshot.framesPerMinute
-        )
+        EpochEstimateFormatter.compact(snapshot: monitor.snapshot)
     }
 
     var chainProgress: ChainProgressAssessment {

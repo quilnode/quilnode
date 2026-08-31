@@ -30,37 +30,23 @@ struct MenuBarPresentation {
     }
 
     var effectiveFrame: UInt64 {
-        max(snapshot.frame, snapshot.lastReceivedFrame)
+        snapshot.epochClock.frame
     }
 
     var epoch: UInt64 {
-        snapshot.epoch > 0
-            ? snapshot.epoch
-            : effectiveFrame / max(snapshot.epochLength, 1)
+        snapshot.epochClock.epoch
     }
 
     var epochProgress: Double {
-        let length = max(snapshot.epochLength, 1)
-        return min(max(Double(effectiveFrame % length) / Double(length), 0), 1)
+        snapshot.epochClock.progress
     }
 
     var framesUntilEpoch: UInt64 {
-        let length = max(snapshot.epochLength, 1)
-        if snapshot.nextEpochFrame > effectiveFrame {
-            return snapshot.nextEpochFrame - effectiveFrame
-        }
-        let remainder = effectiveFrame % length
-        return remainder == 0 ? length : length - remainder
+        snapshot.epochClock.framesRemaining
     }
 
     var epochETA: String {
-        if chainProgress.state == .archiveRecovery {
-            return "Waiting on archives"
-        }
-        return EpochEstimateFormatter.compact(
-            framesRemaining: framesUntilEpoch,
-            framesPerMinute: snapshot.framesPerMinute
-        )
+        EpochEstimateFormatter.compact(snapshot: snapshot)
     }
 
     var participationTitle: String {
