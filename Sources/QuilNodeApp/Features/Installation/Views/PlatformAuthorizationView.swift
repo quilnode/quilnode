@@ -93,6 +93,15 @@ struct PlatformAuthorizationView: View {
                 .padding(15)
                 .controlSurface(tint: theme.colors.accent)
 
+                if installer.isWorking, let startedAt = installer.progress?.startedAt {
+                    OnboardingWaitPanel(
+                        title: installer.progress?.phase ?? "Waiting for macOS authorization",
+                        detail: installer.progress?.detail
+                            ?? OnboardingWaitPresentation.platformAuthorizationGuidance,
+                        startedAt: startedAt
+                    )
+                }
+
                 if let error = installer.error {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)

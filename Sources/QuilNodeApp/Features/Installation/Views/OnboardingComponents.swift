@@ -221,6 +221,42 @@ struct OnboardingProgressPanel: View {
     }
 }
 
+struct OnboardingWaitPanel: View {
+    @Environment(\.quilTheme) private var theme
+
+    let title: String
+    let detail: String
+    let startedAt: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 9) {
+                    ProgressView().controlSize(.small)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(
+                        InstallationOperationPresentation.elapsedDescription(
+                            from: startedAt,
+                            to: context.date
+                        )
+                    )
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(theme.colors.secondaryText)
+                }
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(13)
+        .controlSurface(tint: theme.colors.info)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct OnboardingSectionLabel: View {
     @Environment(\.quilTheme) private var theme
     let text: String

@@ -116,4 +116,13 @@ final class OnboardingPresentationTests: XCTestCase {
         XCTAssertFalse(official.allowsInteractiveAuthorization)
         XCTAssertTrue(source.allowsInteractiveAuthorization)
     }
+
+    func testAuthorizationGuidanceNamesBothVisibleWaitBoundaries() {
+        XCTAssertTrue(
+            OnboardingWaitPresentation.platformAuthorizationGuidance.contains("behind")
+        )
+        XCTAssertTrue(
+            OnboardingWaitPresentation.identityTransactionGuidance.contains("3 minutes")
+        )
+    }
 }

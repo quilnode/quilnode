@@ -15,6 +15,7 @@ final class WalletManager: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isWorking = false
     @Published private(set) var operationTitle: String?
+    @Published private(set) var operationStartedAt: Date?
     @Published private(set) var message: String?
     @Published private(set) var error: String?
     @Published private(set) var requiresServiceAuthorization = false
@@ -99,10 +100,12 @@ final class WalletManager: ObservableObject {
         guard !isWorking else { return }
         isWorking = true
         operationTitle = "Authorizing Identity Recovery"
+        operationStartedAt = Date()
         error = nil
         defer {
             isWorking = false
             operationTitle = nil
+            operationStartedAt = nil
         }
         let result = await Task.detached(priority: .userInitiated) {
             ReleaseChecker.authorizeServiceMigration(controllerUID: getuid())
@@ -252,11 +255,13 @@ final class WalletManager: ObservableObject {
         guard !isWorking else { return false }
         isWorking = true
         operationTitle = title
+        operationStartedAt = Date()
         error = nil
         message = nil
         defer {
             isWorking = false
             operationTitle = nil
+            operationStartedAt = nil
         }
         let ownsStage = suppliedStage == nil
         var ownedStage: URL?

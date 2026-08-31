@@ -107,12 +107,13 @@ struct IdentityTransactionAssistantView: View {
     @ViewBuilder
     private var operationState: some View {
         if walletManager.isWorking {
-            QuilLoadingIndicator(
-                label: walletManager.operationTitle ?? "Protecting identity",
-                detail: "The signed local service is executing the confirmed transaction and its health gate."
-            )
-            .padding(12)
-            .controlSurface(tint: theme.colors.info)
+            if let startedAt = walletManager.operationStartedAt {
+                OnboardingWaitPanel(
+                    title: walletManager.operationTitle ?? "Protecting identity",
+                    detail: OnboardingWaitPresentation.identityTransactionGuidance,
+                    startedAt: startedAt
+                )
+            }
         } else if didSubmit, let error = walletManager.error {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Transaction did not complete", systemImage: "exclamationmark.triangle.fill")

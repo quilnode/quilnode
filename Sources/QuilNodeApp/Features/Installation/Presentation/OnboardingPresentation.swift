@@ -226,3 +226,11 @@ struct OnboardingRuntimeProgress: Equatable {
         }
     }
 }
+
+enum OnboardingWaitPresentation {
+    static let platformAuthorizationGuidance =
+        "Complete the macOS administrator confirmation. If it is not visible, check behind the QuilNode window."
+
+    static let identityTransactionGuidance =
+        "Complete the macOS confirmation if it is visible. After approval, identity validation and the node health gate can take up to 3 minutes."
+}

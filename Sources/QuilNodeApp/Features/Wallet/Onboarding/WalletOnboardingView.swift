@@ -139,12 +139,13 @@ struct WalletOnboardingView: View {
     @ViewBuilder
     private var operationState: some View {
         if walletManager.isWorking {
-            QuilLoadingIndicator(
-                label: walletManager.operationTitle ?? "Securing identity",
-                detail: "The local service is validating the requested transaction."
-            )
-            .padding(13)
-            .controlSurface(tint: theme.colors.accent)
+            if let startedAt = walletManager.operationStartedAt {
+                OnboardingWaitPanel(
+                    title: walletManager.operationTitle ?? "Securing identity",
+                    detail: OnboardingWaitPresentation.identityTransactionGuidance,
+                    startedAt: startedAt
+                )
+            }
         }
         if let error = walletManager.error {
             VStack(alignment: .leading, spacing: 10) {
