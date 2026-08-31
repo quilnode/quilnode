@@ -56,11 +56,11 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
     }
 
     var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
+        AppVersion.current.displayVersion
     }
 
     var currentBuild: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+        AppVersion.current.build
     }
 
     var lastCheckedAt: Date? { controller.updater.lastUpdateCheckDate }

@@ -117,6 +117,16 @@ struct QuilNodeCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About QuilNode") {
+                let version = AppVersion.current
+                NSApp.orderFrontStandardAboutPanel(options: [
+                    .applicationVersion: version.displayVersion,
+                    .version: version.build,
+                ])
+            }
+        }
+
         CommandGroup(after: .appInfo) {
             Button("Check for QuilNode Updates…", systemImage: "arrow.down.app") {
                 appUpdates.checkNow()
