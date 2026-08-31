@@ -5,8 +5,8 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 114
-    public static let minimumSupportedServiceBuild = 114
+    public static let currentServiceBuild = 115
+    public static let minimumSupportedServiceBuild = 115
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
 }
@@ -102,8 +102,11 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     public var firewallOutput: String?
     public var qclientOutput: String?
     public var operationID: String?
+    public var operationAction: PrivilegedServiceAction?
     public var operationState: String?
     public var operationStage: PrivilegedOperationStage?
+    public var operationStartedAt: Date?
+    public var operationUpdatedAt: Date?
     public var serviceBuild: Int?
     /// Set only when the authenticated service deliberately refuses a
     /// passwordless high-risk operation and requires fresh macOS user presence.
@@ -123,8 +126,11 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         firewallOutput: String? = nil,
         qclientOutput: String? = nil,
         operationID: String? = nil,
+        operationAction: PrivilegedServiceAction? = nil,
         operationState: String? = nil,
         operationStage: PrivilegedOperationStage? = nil,
+        operationStartedAt: Date? = nil,
+        operationUpdatedAt: Date? = nil,
         serviceBuild: Int? = nil,
         authorizationRequired: Bool? = nil,
         nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil
@@ -141,8 +147,11 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.firewallOutput = firewallOutput
         self.qclientOutput = qclientOutput
         self.operationID = operationID
+        self.operationAction = operationAction
         self.operationState = operationState
         self.operationStage = operationStage
+        self.operationStartedAt = operationStartedAt
+        self.operationUpdatedAt = operationUpdatedAt
         self.serviceBuild = serviceBuild
         self.authorizationRequired = authorizationRequired
         self.nodeUpdatePolicy = nodeUpdatePolicy

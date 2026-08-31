@@ -133,6 +133,18 @@ final class ServiceOperationCoordinator: @unchecked Sendable {
         return current
     }
 
+    /// Returns only an operation that is still in flight. Completed receipts
+    /// remain addressable by ID, but must not pull a later app launch back into
+    /// an already-finished onboarding flow.
+    func runningRecord() throws -> ServiceOperationRecord {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let current, current.state == .running else {
+            throw ServiceOperationError.notFound
+        }
+        return current
+    }
+
     private func finish(id: String, state: ServiceOperationState, message: String) {
         lock.lock()
         defer { lock.unlock() }

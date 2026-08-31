@@ -15,6 +15,16 @@ extension PrivilegedServiceClient {
         }
     }
 
+    public struct OperationSnapshot: Equatable, Sendable {
+        public var id: String
+        public var action: PrivilegedServiceAction
+        public var state: String
+        public var stage: PrivilegedOperationStage?
+        public var message: String
+        public var startedAt: Date
+        public var updatedAt: Date
+    }
+
     public static func request(
         _ action: PrivilegedServiceAction,
         manifestPath: String? = nil,
@@ -88,6 +98,53 @@ extension PrivilegedServiceClient {
             return (accepted.message, 0)
         }
 
+        return followOperation(
+            id: operationID,
+            initialResponse: accepted,
+            timeout: timeout,
+            progress: progress
+        )
+    }
+
+    /// Finds daemon-owned onboarding work after the GUI relaunches. A request
+    /// without an operation ID returns only a currently running operation, so
+    /// stale success receipts cannot reopen completed onboarding.
+    public static func runningOperation(timeout: TimeInterval = 5) -> OperationSnapshot? {
+        let result = response(.operationStatus, timeout: timeout)
+        guard result.exitCode == 0, let response = result.response else { return nil }
+        return operationSnapshot(from: response)
+    }
+
+    public static func followOperation(
+        _ snapshot: OperationSnapshot,
+        timeout: TimeInterval = 420,
+        progress: (@Sendable (OperationProgress) -> Void)? = nil
+    ) -> (output: String, exitCode: Int32) {
+        let initial = PrivilegedServiceResponse(
+            success: snapshot.state != OperationState.failed.rawValue,
+            message: snapshot.message,
+            operationID: snapshot.id,
+            operationAction: snapshot.action,
+            operationState: snapshot.state,
+            operationStage: snapshot.stage,
+            operationStartedAt: snapshot.startedAt,
+            operationUpdatedAt: snapshot.updatedAt
+        )
+        return followOperation(
+            id: snapshot.id,
+            initialResponse: initial,
+            timeout: timeout,
+            progress: progress
+        )
+    }
+
+    private static func followOperation(
+        id operationID: String,
+        initialResponse accepted: PrivilegedServiceResponse,
+        timeout: TimeInterval,
+        progress: (@Sendable (OperationProgress) -> Void)?
+    ) -> (output: String, exitCode: Int32) {
+
         let deadline = Date().addingTimeInterval(timeout)
         var lastMessage = accepted.message
         var lastProgress = OperationProgress(
@@ -130,6 +187,26 @@ extension PrivilegedServiceClient {
         }
         return (
             "\(lastMessage) The privileged operation is still owned by the service and can be checked again safely.", 76
+        )
+    }
+
+    private static func operationSnapshot(
+        from response: PrivilegedServiceResponse
+    ) -> OperationSnapshot? {
+        guard let id = response.operationID,
+            let action = response.operationAction,
+            let state = response.operationState,
+            let startedAt = response.operationStartedAt,
+            let updatedAt = response.operationUpdatedAt
+        else { return nil }
+        return OperationSnapshot(
+            id: id,
+            action: action,
+            state: state,
+            stage: response.operationStage,
+            message: response.message,
+            startedAt: startedAt,
+            updatedAt: updatedAt
         )
     }
 

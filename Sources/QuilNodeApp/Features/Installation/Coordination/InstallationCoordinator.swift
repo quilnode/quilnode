@@ -7,22 +7,25 @@ import Foundation
 
 @MainActor
 final class InstallationCoordinator: ObservableObject {
-    @Published private(set) var preflight: InstallationPreflight?
-    @Published private(set) var phase: FirstInstallPhase = .inspecting
-    @Published private(set) var progress: NodeUpdateProgress?
-    @Published private(set) var signedRelease: SignedReleaseInfo?
-    @Published private(set) var qclientRelease: OfficialQClientRelease?
-    @Published private(set) var identityPlan: FirstInstallIdentityPlan? = nil
-    @Published private(set) var error: String?
-    @Published private(set) var message: String?
+    // The coordinator is module-internal. Setters remain available only to its
+    // focused coordination extensions, which keeps recovery logic out of this
+    // already dense primary workflow file.
+    @Published var preflight: InstallationPreflight?
+    @Published var phase: FirstInstallPhase = .inspecting
+    @Published var progress: NodeUpdateProgress?
+    @Published var signedRelease: SignedReleaseInfo?
+    @Published var qclientRelease: OfficialQClientRelease?
+    @Published var identityPlan: FirstInstallIdentityPlan? = nil
+    @Published var error: String?
+    @Published var message: String?
     @Published var showsAuthorizationExplanation = false
     /// True only when this app session installed the node from scratch. It
     /// lets the first-run flow continue into network setup without forcing an
     /// onboarding sheet onto existing operators after an app upgrade.
-    @Published private(set) var didCompleteInstallationThisRun = false
+    @Published var didCompleteInstallationThisRun = false
 
     private var stagedManifestURL: URL?
-    private var started = false
+    var started = false
 
     init() {}
 
@@ -50,12 +53,6 @@ final class InstallationCoordinator: ObservableObject {
 
     func clearIdentityPlan() {
         identityPlan = nil
-    }
-
-    func start() {
-        guard !started else { return }
-        started = true
-        Task { await refreshPreflight() }
     }
 
     func refreshPreflight() async {

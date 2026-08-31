@@ -212,8 +212,10 @@ extension QuilNodeHelper {
                 }
             )
         case .operationStatus:
-            guard let operationID = request.operationID else { throw HelperFailure.usage }
-            return operationResponse(try serviceOperations.record(id: operationID))
+            if let operationID = request.operationID {
+                return operationResponse(try serviceOperations.record(id: operationID))
+            }
+            return operationResponse(try serviceOperations.runningRecord())
         }
     }
 
@@ -234,8 +236,11 @@ extension QuilNodeHelper {
             message: operation.message,
             nodePID: currentNodePID(),
             operationID: operation.id,
+            operationAction: PrivilegedServiceAction(rawValue: operation.action),
             operationState: operation.state.rawValue,
-            operationStage: operation.stage
+            operationStage: operation.stage,
+            operationStartedAt: operation.startedAt,
+            operationUpdatedAt: operation.updatedAt
         )
     }
 

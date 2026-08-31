@@ -27,13 +27,18 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
     }
 
     func testResponseRoundTripsSecurityBoundaryFields() throws {
+        let startedAt = Date(timeIntervalSince1970: 2_000_000_000)
+        let updatedAt = startedAt.addingTimeInterval(12)
         let response = PrivilegedServiceResponse(
             success: false,
             message: "Fresh authorization is required.",
             serviceUser: nil,
             operationID: "operation-id",
+            operationAction: .qclientInstall,
             operationState: "failed",
             operationStage: .probingRuntime,
+            operationStartedAt: startedAt,
+            operationUpdatedAt: updatedAt,
             serviceBuild: PrivilegedServiceProtocol.currentServiceBuild,
             authorizationRequired: true,
             nodeUpdatePolicy: .signedStable
@@ -49,8 +54,11 @@ final class PrivilegedServiceProtocolTests: XCTestCase {
         XCTAssertFalse(decoded.success)
         XCTAssertNil(decoded.serviceUser)
         XCTAssertEqual(decoded.operationID, "operation-id")
+        XCTAssertEqual(decoded.operationAction, .qclientInstall)
         XCTAssertEqual(decoded.operationState, "failed")
         XCTAssertEqual(decoded.operationStage, .probingRuntime)
+        XCTAssertEqual(decoded.operationStartedAt, startedAt)
+        XCTAssertEqual(decoded.operationUpdatedAt, updatedAt)
         XCTAssertEqual(
             decoded.serviceBuild,
             PrivilegedServiceProtocol.currentServiceBuild
