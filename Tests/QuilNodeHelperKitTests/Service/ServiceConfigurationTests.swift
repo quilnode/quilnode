@@ -61,4 +61,17 @@ final class ServiceConfigurationTests: XCTestCase {
         let encoded = try JSONEncoder().encode(staged)
         XCTAssertEqual(try JSONDecoder().decode(ServiceOperationRecord.self, from: encoded).stage, .probingRuntime)
     }
+
+    func testInProcessMutationLockStopsWaitingAtItsDeadline() {
+        QuilNodeHelper.mutationLock.lock()
+        defer { QuilNodeHelper.mutationLock.unlock() }
+
+        let startedAt = Date()
+        let acquired = QuilNodeHelper.acquireInProcessMutationLock(
+            until: QuilNodeHelper.monotonicDeadline(after: 0.02)
+        )
+
+        XCTAssertFalse(acquired)
+        XCTAssertLessThan(Date().timeIntervalSince(startedAt), 0.5)
+    }
 }
