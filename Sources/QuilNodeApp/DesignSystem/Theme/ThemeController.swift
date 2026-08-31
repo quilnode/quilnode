@@ -80,6 +80,15 @@ final class ThemeController: ObservableObject {
         objectWillChange.send()
     }
 
+    #if DEBUG
+        /// No preference migration, directory creation, or watchers in visual fixtures.
+        init(previewTheme: QuilTheme) {
+            themesDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            selectedThemeID = previewTheme.familyID
+            appearancePreference = previewTheme.appearance == .light ? .light : .dark
+        }
+    #endif
+
     func reload() {
         let builtIns = QuilTheme.builtIns
         var resolved = Dictionary(uniqueKeysWithValues: builtIns.map { ($0.id, $0) })

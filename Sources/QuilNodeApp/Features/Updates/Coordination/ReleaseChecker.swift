@@ -102,6 +102,13 @@ final class ReleaseChecker: ObservableObject {
         lastCheckDuration = savedCheckDuration > 0 ? savedCheckDuration : nil
     }
 
+    #if DEBUG
+        /// Isolated visual fixture: no journal recovery or saved policy reads.
+        init(preview: Void) {
+            policy = .manual
+        }
+    #endif
+
     deinit {
         automationTask?.cancel()
         signalTask?.cancel()

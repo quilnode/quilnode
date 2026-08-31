@@ -62,6 +62,17 @@ public final class NodeMonitor: ObservableObject {
         proverTelemetryTask?.cancel()
     }
 
+    #if DEBUG
+        /// Visual tests inject public telemetry without probing the operator's
+        /// node or starting the collection loop. Unavailable in release builds.
+        public convenience init(previewSnapshot: NodeSnapshot) {
+            self.init()
+            snapshot = previewSnapshot
+            observationPhase = .ready
+            hasCompletedInitialRefresh = true
+        }
+    #endif
+
     public func start() {
         guard loopTask == nil else { return }
         loopTask = Task { [weak self] in

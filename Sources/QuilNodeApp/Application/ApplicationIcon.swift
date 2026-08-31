@@ -78,12 +78,21 @@ struct ApplicationBrandMark: View {
     }
 
     private func layer(_ name: String, color: Color) -> some View {
-        Image(name)
+        image(named: name)
             .resizable()
             .renderingMode(.template)
             .foregroundStyle(color)
             .aspectRatio(1, contentMode: .fit)
             .frame(width: size, height: size)
+    }
+
+    private func image(named name: String) -> Image {
+        #if DEBUG
+            // SwiftPM visual tests register the source SVGs because they do
+            // not package the Xcode asset catalog. Release lookup is unchanged.
+            if let image = NSImage(named: name) { return Image(nsImage: image) }
+        #endif
+        return Image(name)
     }
 }
 
