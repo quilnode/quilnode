@@ -137,7 +137,8 @@ fi
 if ! rg -q 'O_RDONLY \| O_CLOEXEC \| O_NOFOLLOW \| O_NONBLOCK' Sources/QuilNodeHelperKit ||
    ! rg -q 'before\.st_nlink == 1' Sources/QuilNodeHelperKit ||
    ! rg -q 'static func withMutationLock' Sources/QuilNodeHelperKit ||
-   ! rg -q 'flock\(descriptor, LOCK_EX\) == 0' Sources/QuilNodeHelperKit; then
+   ! rg -q 'acquireInProcessMutationLock\(until: deadline\)' Sources/QuilNodeHelperKit ||
+   ! rg -q 'flock\(descriptor, LOCK_EX \| LOCK_NB\) == 0' Sources/QuilNodeHelperKit; then
     echo "FAIL: descriptor-safe input or cross-process mutation lock invariant is missing" >&2
     failures=$((failures + 1))
 fi
@@ -150,8 +151,8 @@ if ! rg -q 'authorizationRequired\(' Sources/QuilNodeHelperKit ||
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'currentServiceBuild = 113' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
-   ! rg -q 'minimumSupportedServiceBuild = 112' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+if ! rg -q 'currentServiceBuild = 114' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+   ! rg -q 'minimumSupportedServiceBuild = 114' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'PrivilegedServiceProtocol\.minimumSupportedServiceBuild' Sources/QuilNodeCore/Infrastructure/IPC/PrivilegedServiceClient.swift ||
    [[ "$(rg -o 'serviceBuild: verifierReady \? PrivilegedServiceProtocol\.currentServiceBuild : nil' Sources/QuilNodeHelperKit | wc -l | tr -d ' ')" -ne 1 ]]; then
     echo "FAIL: privileged service compatibility floor is inconsistent" >&2

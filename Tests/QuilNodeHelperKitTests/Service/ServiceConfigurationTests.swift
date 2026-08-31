@@ -40,9 +40,17 @@ final class ServiceConfigurationTests: XCTestCase {
     }
 
     func testDurableOperationRecordDecodesBeforeAndAfterStageReporting() throws {
-        let legacy = Data(
-            #"{"id":"op","action":"qclientInstall","state":"running","message":"Accepted","startedAt":0,"updatedAt":0}"#.utf8
-        )
+        let legacyJSON = """
+            {
+              "id": "op",
+              "action": "qclientInstall",
+              "state": "running",
+              "message": "Accepted",
+              "startedAt": 0,
+              "updatedAt": 0
+            }
+            """
+        let legacy = Data(legacyJSON.utf8)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         let legacyRecord = try decoder.decode(ServiceOperationRecord.self, from: legacy)
@@ -59,7 +67,10 @@ final class ServiceConfigurationTests: XCTestCase {
             updatedAt: Date(timeIntervalSince1970: 2)
         )
         let encoded = try JSONEncoder().encode(staged)
-        XCTAssertEqual(try JSONDecoder().decode(ServiceOperationRecord.self, from: encoded).stage, .probingRuntime)
+        XCTAssertEqual(
+            try JSONDecoder().decode(ServiceOperationRecord.self, from: encoded).stage,
+            .probingRuntime
+        )
     }
 
     func testInProcessMutationLockStopsWaitingAtItsDeadline() {
