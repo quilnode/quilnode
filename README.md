@@ -44,6 +44,26 @@ they are not an independent security audit or certification. Public source
 allows inspection, but neither source availability nor any review can guarantee
 safety. Operator review complements—not replaces—maintainer testing and fixes.
 
+## Operator guide
+
+Use the [operator guide](https://quilnode.com/guide/) for step-by-step instructions:
+
+- [Download and verify](https://quilnode.com/guide/#download-and-verify), then
+  [install and handle macOS first-open prompts](https://quilnode.com/guide/#first-open).
+- [Set up the node and authorize its local service](https://quilnode.com/guide/#node-setup),
+  then [check firewall and router readiness](https://quilnode.com/guide/#network).
+- [Update the app or node](https://quilnode.com/guide/#updates)—they are separate
+  update systems with different approval policies.
+- [Create an independent backup and restore an identity](https://quilnode.com/guide/#recovery).
+  Verified recovery exports are not encrypted by QuilNode; use encrypted storage
+  you control and test restoration before relying on it.
+- [Understand security and privacy](https://quilnode.com/guide/#security) and
+  [troubleshoot or report a problem](https://quilnode.com/guide/#troubleshooting).
+
+The DMG installs the app by dragging it into Applications. The app then guides
+node setup; users do not need to clone this repository or compile the app.
+Closing or quitting QuilNode does not stop the separate background node service.
+
 ## What QuilNode does
 
 QuilNode brings node operation into one native macOS application:
@@ -116,10 +136,14 @@ presentation boundary—not encryption or network anonymity.
 
 ## Requirements
 
+To run a downloaded release:
+
 - Apple Silicon Mac
 - macOS 14 or later
-- Xcode 16 or later for source builds
-- XcodeGen for the signed application bundle
+
+To build the application from source, also install Xcode 16 or later and
+XcodeGen for the signed application bundle. These developer tools are not
+required to run the DMG release.
 
 The official node-install path does not require Homebrew, Rust, Cargo, CMake,
 `protoc`, or a compiler toolchain. Development/source-node channels may require
