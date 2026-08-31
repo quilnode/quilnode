@@ -91,6 +91,8 @@ struct NodeUpdateProgress: Equatable, Sendable {
     var updatedAt: Date = Date()
     var completedUnits: Int?
     var totalUnits: Int?
+    var transferredBytes: Int64?
+    var totalBytes: Int64?
     var isEstimate: Bool = true
     var logURL: URL?
 

@@ -1,5 +1,25 @@
 import Foundation
 
+struct BoundedDownloadProgress: Equatable, Sendable {
+    let bytesReceived: Int64
+    let totalBytes: Int64?
+
+    var fraction: Double? {
+        guard let totalBytes, totalBytes > 0 else { return nil }
+        return min(max(Double(bytesReceived) / Double(totalBytes), 0), 1)
+    }
+
+    var byteDescription: String {
+        let received = ByteCountFormatter.string(
+            fromByteCount: max(bytesReceived, 0),
+            countStyle: .file
+        )
+        guard let totalBytes, totalBytes > 0 else { return received }
+        let total = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        return "\(received) of \(total)"
+    }
+}
+
 func boundedResponseBodyIsValid(statusCode: Int, data: Data) -> Bool {
     statusCode == 304 || !data.isEmpty
 }
@@ -15,25 +35,28 @@ extension ReleaseChecker {
     nonisolated static func downloadSynchronously(
         _ url: URL,
         to destination: URL,
-        maximumBytes: Int
+        maximumBytes: Int,
+        resourceTimeout: TimeInterval = 30 * 60,
+        progress: (@Sendable (BoundedDownloadProgress) -> Void)? = nil
     ) throws {
-        guard maximumBytes > 0,
+        guard maximumBytes > 0, resourceTimeout > 0,
             !FileManager.default.fileExists(atPath: destination.path)
         else { throw UpdateCenterError.downloadFailed }
         let delegate = BoundedFileDownloadDelegate(
             expectedURL: url,
             destination: destination,
-            maximumBytes: maximumBytes
+            maximumBytes: maximumBytes,
+            progress: progress
         )
         let session = URLSession(
-            configuration: ephemeralConfiguration(),
+            configuration: ephemeralConfiguration(resourceTimeout: resourceTimeout),
             delegate: delegate,
             delegateQueue: nil
         )
         defer { session.invalidateAndCancel() }
         let task = session.downloadTask(with: url)
         task.resume()
-        guard delegate.wait(timeout: 10 * 60) else {
+        guard delegate.wait(timeout: resourceTimeout) else {
             task.cancel()
             throw UpdateCenterError.downloadTimedOut
         }

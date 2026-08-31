@@ -123,11 +123,19 @@ final class BoundedFileDownloadDelegate: BoundedDownloadState<Void>, URLSessionD
     private let expectedURL: URL
     private let destination: URL
     private let maximumBytes: Int64
+    private let progress: (@Sendable (BoundedDownloadProgress) -> Void)?
+    private var lastProgressReport = Date.distantPast
 
-    init(expectedURL: URL, destination: URL, maximumBytes: Int) {
+    init(
+        expectedURL: URL,
+        destination: URL,
+        maximumBytes: Int,
+        progress: (@Sendable (BoundedDownloadProgress) -> Void)? = nil
+    ) {
         self.expectedURL = expectedURL
         self.destination = destination
         self.maximumBytes = Int64(maximumBytes)
+        self.progress = progress
     }
 
     func urlSession(
@@ -153,7 +161,18 @@ final class BoundedFileDownloadDelegate: BoundedDownloadState<Void>, URLSessionD
         {
             downloadTask.cancel()
             finish(.failure(UpdateCenterError.downloadFailed))
+            return
         }
+        let now = Date()
+        let completed = totalBytesExpectedToWrite > 0 && totalBytesWritten >= totalBytesExpectedToWrite
+        guard completed || now.timeIntervalSince(lastProgressReport) >= 0.2 else { return }
+        lastProgressReport = now
+        progress?(
+            BoundedDownloadProgress(
+                bytesReceived: totalBytesWritten,
+                totalBytes: totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : nil
+            )
+        )
     }
 
     func urlSession(

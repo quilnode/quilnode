@@ -12,7 +12,7 @@ extension ReleaseChecker {
         _ release: SignedReleaseInfo,
         baseURL: URL,
         startedAt: Date,
-        progress: @Sendable (NodeUpdateProgress) -> Void
+        progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> URL {
         guard release.digestPublished,
             release.signatureIndices.count >= ReleaseTrustPolicy.minimumSignatures
@@ -24,12 +24,14 @@ extension ReleaseChecker {
             [release.binaryFileName, "\(release.binaryFileName).dgst"]
             + release.signatureIndices.map { "\(release.binaryFileName).dgst.sig.\($0)" }
         for (index, name) in names.enumerated() {
+            let fileStart = 0.05 + (Double(index) / Double(names.count)) * 0.58
+            let fileSpan = 0.58 / Double(names.count)
             progress(
                 NodeUpdateProgress(
                     step: .acquire,
                     phase: index == 0 ? "Downloading signed binary" : "Downloading trust files",
                     detail: "File \(index + 1) of \(names.count): \(name)",
-                    fraction: 0.05 + (Double(index) / Double(names.count)) * 0.58,
+                    fraction: fileStart,
                     startedAt: startedAt,
                     completedUnits: index,
                     totalUnits: names.count,
@@ -38,7 +40,23 @@ extension ReleaseChecker {
             try downloadSynchronously(
                 baseURL.appendingPathComponent(name),
                 to: directory.appendingPathComponent(name),
-                maximumBytes: name == release.binaryFileName ? 600_000_000 : 8_192
+                maximumBytes: name == release.binaryFileName ? 600_000_000 : 8_192,
+                progress: { transfer in
+                    progress(
+                        NodeUpdateProgress(
+                            step: .acquire,
+                            phase: index == 0 ? "Downloading signed binary" : "Downloading trust files",
+                            detail: "File \(index + 1) of \(names.count): \(transfer.byteDescription)",
+                            fraction: fileStart + (transfer.fraction ?? 0) * fileSpan,
+                            startedAt: startedAt,
+                            completedUnits: index,
+                            totalUnits: names.count,
+                            transferredBytes: transfer.bytesReceived,
+                            totalBytes: transfer.totalBytes,
+                            isEstimate: transfer.totalBytes == nil
+                        )
+                    )
+                }
             )
         }
         let binary = directory.appendingPathComponent(release.binaryFileName)
@@ -82,7 +100,7 @@ extension ReleaseChecker {
         _ release: OfficialQClientRelease,
         baseURL: URL,
         startedAt: Date,
-        progress: @Sendable (NodeUpdateProgress) -> Void
+        progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> URL {
         let directory = try newStagingDirectory(prefix: "qclient-\(release.releaseVersion)")
         let artifact = try stageQClientArtifact(
@@ -99,7 +117,7 @@ extension ReleaseChecker {
         qclient: OfficialQClientRelease,
         baseURL: URL,
         startedAt: Date,
-        progress: @Sendable (NodeUpdateProgress) -> Void
+        progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> URL {
         guard node.digestPublished,
             node.signatureIndices.count >= ReleaseTrustPolicy.minimumSignatures
@@ -154,7 +172,7 @@ extension ReleaseChecker {
         startedAt: Date,
         progressStart: Double,
         progressSpan: Double,
-        progress: @Sendable (NodeUpdateProgress) -> Void
+        progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> SignedArtifactActivation {
         guard release.digestPublished,
             release.signatureIndices.count >= ReleaseTrustPolicy.minimumSignatures
@@ -207,22 +225,40 @@ extension ReleaseChecker {
         progressStart: Double,
         progressSpan: Double,
         label: String,
-        progress: @Sendable (NodeUpdateProgress) -> Void
+        progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws {
         for (index, name) in names.enumerated() {
+            let fileStart = progressStart + Double(index) / Double(max(names.count, 1)) * progressSpan
+            let fileSpan = progressSpan / Double(max(names.count, 1))
             progress(
                 NodeUpdateProgress(
                     step: .acquire,
                     phase: "Downloading official \(label)",
                     detail: "File \(index + 1) of \(names.count): \(name)",
-                    fraction: progressStart + Double(index) / Double(max(names.count, 1)) * progressSpan,
+                    fraction: fileStart,
                     startedAt: startedAt, completedUnits: index,
                     totalUnits: names.count, isEstimate: true
                 ))
             try downloadSynchronously(
                 baseURL.appendingPathComponent(name),
                 to: directory.appendingPathComponent(name),
-                maximumBytes: name == binaryName ? maximumBinaryBytes : 8_192
+                maximumBytes: name == binaryName ? maximumBinaryBytes : 8_192,
+                progress: { transfer in
+                    progress(
+                        NodeUpdateProgress(
+                            step: .acquire,
+                            phase: "Downloading official \(label)",
+                            detail: "File \(index + 1) of \(names.count): \(transfer.byteDescription)",
+                            fraction: fileStart + (transfer.fraction ?? 0) * fileSpan,
+                            startedAt: startedAt,
+                            completedUnits: index,
+                            totalUnits: names.count,
+                            transferredBytes: transfer.bytesReceived,
+                            totalBytes: transfer.totalBytes,
+                            isEstimate: transfer.totalBytes == nil
+                        )
+                    )
+                }
             )
         }
         try FileManager.default.setAttributes(

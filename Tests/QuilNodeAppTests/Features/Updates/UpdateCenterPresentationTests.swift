@@ -4,6 +4,16 @@ import XCTest
 @testable import QuilNodeCore
 
 final class UpdateCenterPresentationTests: XCTestCase {
+    func testBoundedDownloadProgressReportsKnownAndUnknownTransferSizes() {
+        let known = BoundedDownloadProgress(bytesReceived: 65_255_961, totalBytes: 130_511_922)
+        XCTAssertEqual(known.fraction ?? -1, 0.5, accuracy: 0.000_001)
+        XCTAssertTrue(known.byteDescription.contains("of"))
+
+        let unknown = BoundedDownloadProgress(bytesReceived: 1_024, totalBytes: nil)
+        XCTAssertNil(unknown.fraction)
+        XCTAssertFalse(unknown.byteDescription.contains("of"))
+    }
+
     func testAutomaticPoliciesMapToNarrowPrivilegedCapabilities() {
         XCTAssertEqual(NodeUpdatePolicy.manual.privilegedAutomaticPolicy, .signedStable)
         XCTAssertEqual(NodeUpdatePolicy.signedStable.privilegedAutomaticPolicy, .signedStable)
