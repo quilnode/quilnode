@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://github.com/quilnode/quilnode/releases/tag/v0.1.0-alpha.1">Download QuilNode 0.1.0-alpha.1</a></strong>
+  <strong><a href="https://github.com/quilnode/quilnode/releases/tag/v0.1.0-alpha.2">Download QuilNode 0.1.0-alpha.2</a></strong>
   · Apple silicon · macOS 14+
 </p>
 
@@ -228,9 +228,9 @@ the repository.
 Release artifacts are built locally by a fail-closed pipeline; this project
 does not depend on GitHub Actions.
 
-The orphan `release-feed` branch is a minimal publication surface for the
-signed application-update feed. It is intentionally separate from `main`, is
-not a feature branch, and must not be merged through a pull request.
+The signed application-update feed is published as one static file at
+`https://www.quilnode.com/appcast.xml`, after the referenced immutable release
+has passed post-upload verification. No non-source branch is required.
 
 ### Release packaging
 
@@ -248,7 +248,7 @@ After confirming that fingerprint through a trusted channel, verify a release
 tag with the public-only signer list:
 
 ```sh
-git -c gpg.ssh.allowedSignersFile=config/release/allowed-signers tag -v v0.1.0-alpha.1
+git -c gpg.ssh.allowedSignersFile=config/release/allowed-signers tag -v v0.1.0-alpha.2
 ```
 
 For packaging, set `QUILNODE_RELEASE_TAG_ALLOWED_SIGNERS` to the absolute path

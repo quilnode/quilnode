@@ -8,8 +8,8 @@ The app contacts only:
 - `releases.quilibrium.com` for official release metadata and signed artifacts;
 - `github.com/QuilibriumNetwork/monorepo` when the operator uses source-update
   channels or protocol-milestone discovery.
-- `raw.githubusercontent.com/quilnode/quilnode` for the signed QuilNode
-  application-update feed, and `github.com/quilnode/quilnode/releases` only
+- `www.quilnode.com` for the signed QuilNode application-update feed, and
+  `github.com/quilnode/quilnode/releases` only
   after an operator accepts an available application update.
 
 Quilscan links are opened in the operator's browser only after an explicit

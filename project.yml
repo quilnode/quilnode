@@ -90,11 +90,11 @@ targets:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "111"
-        QuilNodeReleaseVersion: "0.1.0-alpha.1"
+        CFBundleVersion: "112"
+        QuilNodeReleaseVersion: "0.1.0-alpha.2"
         NSHighResolutionCapable: true
         NSHumanReadableCopyright: Copyright © 2026 QuilNode contributors. AGPL-3.0-only.
-        SUFeedURL: https://raw.githubusercontent.com/quilnode/quilnode/release-feed/appcast.xml
+        SUFeedURL: https://www.quilnode.com/appcast.xml
         SUPublicEDKey: DJIxXBjq/gVQx7fUypBouvqtsS1Qx7SKvBUAi/yKZp8=
         SUEnableAutomaticChecks: false
         SUAllowsAutomaticUpdates: false
