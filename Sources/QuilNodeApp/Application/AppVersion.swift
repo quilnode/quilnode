@@ -10,7 +10,8 @@ struct AppVersion: Equatable {
     static var current: Self { Self(info: Bundle.main.infoDictionary ?? [:]) }
 
     init(info: [String: Any]) {
-        displayVersion = Self.text(info["QuilNodeReleaseVersion"])
+        displayVersion =
+            Self.text(info["QuilNodeReleaseVersion"])
             ?? Self.text(info["CFBundleShortVersionString"])
             ?? "Development"
         build = Self.text(info["CFBundleVersion"]) ?? "—"

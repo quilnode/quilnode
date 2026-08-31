@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "scope": "Shipped application and third-party distributions. Apple-provided frameworks and toolchain-only software are excluded. Vendored Sparkle code is covered by its aggregate license notice.",
+  "components": [
+    {
+      "id": "quilnode",
+      "name": "QuilNode",
+      "supplier": "QuilNode contributors",
+      "license": "AGPL-3.0-only",
+      "licenseSource": "LICENSE",
+      "licenseFile": "QuilNode.txt",
+      "licenseSHA256": "4df3c306dddaaf4baffdff5ca820cc679ac8cd6dc263c6a74517783e42fa7a3b",
+      "source": "https://github.com/quilnode/quilnode"
+    },
+    {
+      "id": "sparkle",
+      "name": "Sparkle",
+      "supplier": "Sparkle Project",
+      "version": "2.9.6",
+      "revision": "ac2def288cbff5cfc7df3ffef6abdf45b72bcb0a",
+      "license": "MIT AND BSD-2-Clause AND Zlib",
+      "licenseSource": "Resources/Licenses/Sparkle.txt",
+      "licenseFile": "Sparkle.txt",
+      "licenseSHA256": "389a4e4e9a32f059775b13a06e25a591445ba229d2838d26dd3e7c0c45127cfe",
+      "source": "https://github.com/sparkle-project/Sparkle",
+      "archiveURL": "https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-for-Swift-Package-Manager.zip",
+      "archiveSHA256": "8d5fb41d960b43f4a68aa14126bf62b098544ec8d191cdcc73eb14e63a8e7606"
+    },
+    {
+      "id": "openssl",
+      "name": "OpenSSL",
+      "supplier": "The OpenSSL Project",
+      "version": "3.5.8",
+      "license": "Apache-2.0",
+      "licenseSource": "Resources/Licenses/OpenSSL.txt",
+      "licenseFile": "OpenSSL.txt",
+      "licenseSHA256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+      "source": "https://github.com/openssl/openssl",
+      "archiveURL": "https://github.com/openssl/openssl/releases/download/openssl-3.5.8/openssl-3.5.8.tar.gz",
+      "archiveSHA256": "a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2"
+    }
+  ]
+}

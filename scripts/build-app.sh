@@ -170,6 +170,8 @@ if [[ -f "$PROJECT_DIR/project.yml" && -x "$(command -v xcodegen)" ]]; then
     chmod 644 "$BUILT_RESOURCES/QuilNodeReleaseSigning.cer"
     cp "$PROJECT_DIR/Resources/AppIcon.icns" "$BUILT_RESOURCES/AppIcon.icns"
     chmod 644 "$BUILT_RESOURCES/AppIcon.icns"
+    # Licenses and the static-link receipt become part of the signed bundle.
+    python3 -B "$PROJECT_DIR/scripts/release/release-evidence.py" prepare-bundle "$BUILT_APP" "$OPENSSL_PREFIX"
     # Git does not preserve xattrs, but local source and dependency caches can.
     # Strip them before signing so Finder metadata, quarantine, provenance, and
     # resource forks cannot become release inputs.
@@ -205,6 +207,7 @@ if [[ -f "$PROJECT_DIR/project.yml" && -x "$(command -v xcodegen)" ]]; then
     fi
     ditto --norsrc --noextattr --noqtn "$BUILT_APP" "$APP_DIR"
     "$PROJECT_DIR/scripts/release/audit-app-bundle.sh" "$APP_DIR" "$SIGNING_NAME"
+    python3 -B "$PROJECT_DIR/scripts/release/release-evidence.py" inventory "$APP_DIR"
     signed_authority="$(codesign -dvv "$APP_DIR" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
     if [[ "$signed_authority" != "$SIGNING_NAME" ]]; then
         echo "Built application authority mismatch: $signed_authority" >&2
