@@ -26,6 +26,15 @@ final class AppUpdateOutcomeTests: XCTestCase {
         }
     }
 
+    func testEmptyFeedDoesNotProveTheAppIsCurrent() {
+        let error = NSError(
+            domain: SUSparkleErrorDomain, code: Int(SUError.noUpdateError.rawValue),
+            userInfo: [SPUNoUpdateFoundReasonKey: NSNumber(value: SPUNoUpdateFoundReason.onLatestVersion.rawValue)])
+        guard case .unavailable = AppUpdateOutcome.classify(error) else {
+            return XCTFail("An empty feed has no release version to compare")
+        }
+    }
+
     func testErrorDomainsMustMatchBeforeCodesAreInterpreted() {
         let error = NSError(domain: "fixture.unrelated", code: Int(SUError.noUpdateError.rawValue))
         guard case .failed = AppUpdateOutcome.classify(error) else {
@@ -91,7 +100,10 @@ final class AppUpdateOutcomeTests: XCTestCase {
     private func noUpdate(_ reason: SPUNoUpdateFoundReason) -> NSError {
         NSError(
             domain: SUSparkleErrorDomain, code: Int(SUError.noUpdateError.rawValue),
-            userInfo: [SPUNoUpdateFoundReasonKey: NSNumber(value: reason.rawValue)])
+            userInfo: [
+                SPUNoUpdateFoundReasonKey: NSNumber(value: reason.rawValue),
+                SPULatestAppcastItemFoundKey: SUAppcastItem.empty(),
+            ])
     }
 
     private func sparkle(_ code: SUError, underlying: NSError? = nil) -> NSError {

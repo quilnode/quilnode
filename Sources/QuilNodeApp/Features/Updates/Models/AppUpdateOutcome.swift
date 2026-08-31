@@ -17,6 +17,11 @@ enum AppUpdateOutcome: Equatable {
             switch reason {
             case Int(SPUNoUpdateFoundReason.onLatestVersion.rawValue),
                 Int(SPUNoUpdateFoundReason.onNewerThanLatestVersion.rawValue):
+                // Sparkle also reports "latest" for an empty/app-inapplicable
+                // feed. Require an actual comparison item before claiming it.
+                guard root.userInfo[SPULatestAppcastItemFoundKey] is SUAppcastItem else {
+                    return .unavailable("The signed feed has no application release available for this Mac.")
+                }
                 return .current
             case Int(SPUNoUpdateFoundReason.systemIsTooOld.rawValue):
                 return .unavailable("The available release requires a newer macOS version.")
