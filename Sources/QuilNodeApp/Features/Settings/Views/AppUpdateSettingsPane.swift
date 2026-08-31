@@ -24,7 +24,7 @@ struct AppUpdateSettingsPane: View {
 
                 SettingsPreferenceRow(
                     systemImage: "clock.arrow.circlepath",
-                    title: "Last checked",
+                    title: "Last attempt",
                     detail: checkFreshnessDetail
                 ) {
                     Button {
@@ -72,7 +72,7 @@ struct AppUpdateSettingsPane: View {
                         systemImage: "archivebox.fill",
                         title: "Archive and code signature",
                         detail:
-                            "The downloaded archive is verified before extraction; code signing preserves service identity.",
+                            "The archive is verified before extraction, then the application code signature is checked.",
                         state: "Verified first",
                         tint: theme.colors.accent
                     )
@@ -114,16 +114,17 @@ struct AppUpdateSettingsPane: View {
     }
 
     private var checkFreshnessDetail: String {
-        guard let checkedAt = appUpdates.lastCheckedAt else {
-            return "No completed application update check has been recorded yet."
+        guard let checkedAt = appUpdates.lastAttemptAt else {
+            return "No application update check has been attempted yet."
         }
-        return "Verified \(checkedAt.formatted(.relative(presentation: .named))) from the signed release feed."
+        return
+            "Attempted \(checkedAt.formatted(.relative(presentation: .named))). Check the status above for the result."
     }
 
     private var statusTint: Color {
         switch appUpdates.phase {
         case .failed: theme.colors.danger
-        case .updateAvailable: theme.colors.warning
+        case .updateAvailable, .unavailable: theme.colors.warning
         case .current: theme.colors.success
         default: theme.colors.accent
         }
@@ -134,7 +135,11 @@ struct AppUpdateSettingsPane: View {
         case .failed: "exclamationmark.triangle.fill"
         case .updateAvailable: "arrow.down.app.fill"
         case .current: "checkmark.seal.fill"
+        case .unavailable: "info.circle"
         case .checking: "arrow.triangle.2.circlepath"
+        case .downloading: "arrow.down.circle"
+        case .preparing: "checkmark.shield"
+        case .installing: "shippingbox"
         case .ready: "app.badge.checkmark"
         }
     }

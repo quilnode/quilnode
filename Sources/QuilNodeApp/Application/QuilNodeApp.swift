@@ -42,7 +42,7 @@ struct QuilNodeApp: App {
         let networkReadiness = NetworkReadinessCoordinator()
         let commandCenter = DashboardCommandCenter()
         let milestoneVisibility = ProtocolMilestoneVisibilityStore()
-        let appUpdates = AppUpdateController()
+        let appUpdates = AppUpdateController(startingUpdater: designPreviewMode == nil)
         _monitor = StateObject(wrappedValue: monitor)
         _services = StateObject(wrappedValue: services)
         _lifecycle = StateObject(wrappedValue: lifecycle)

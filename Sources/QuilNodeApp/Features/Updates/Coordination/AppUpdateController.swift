@@ -1,98 +1,131 @@
+import Combine
 import Foundation
 import Sparkle
 
-enum AppUpdatePhase: Equatable {
-    case ready
-    case checking
-    case updateAvailable(version: String)
-    case current
-    case failed(message: String)
-
-    var title: String {
-        switch self {
-        case .ready: "Ready to check"
-        case .checking: "Checking for QuilNode updates…"
-        case .updateAvailable(let version): "QuilNode \(version) is available"
-        case .current: "QuilNode is up to date"
-        case .failed: "Update check failed"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .ready:
-            "Application updates are separate from Quilibrium node updates."
-        case .checking:
-            "Reading the signed QuilNode release feed."
-        case .updateAvailable:
-            "Sparkle verified the signed release metadata and will verify the archive before extraction."
-        case .current:
-            "No newer signed application release was found."
-        case .failed(let message):
-            message
-        }
-    }
-}
-
-/// App-lifetime owner for QuilNode's own update channel.
-///
-/// Node updates remain owned by `ReleaseChecker`; mixing the two lifecycles
-/// would let dashboard navigation accidentally affect an application install.
-/// Sparkle owns scheduling and installation while this controller contributes
-/// observable state for the dashboard and settings surfaces.
+/// App-lifetime Sparkle owner. It has no dependency on node lifecycle or custody.
+/// Injecting a disposable bundle and user driver permits real updater tests
+/// without targeting the installed app or opening production update windows.
 @MainActor
 final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     @Published private(set) var phase: AppUpdatePhase = .ready
+    @Published private(set) var canCheck = false
+    @Published private(set) var lastAttemptAt: Date?
 
-    private lazy var controller = SPUStandardUpdaterController(
-        startingUpdater: true,
-        updaterDelegate: self,
-        userDriverDelegate: nil
+    private let bundle: Bundle
+    private let userDriver: any SPUUserDriver
+    private var observations: Set<AnyCancellable> = []
+    private var candidateVersion: String?
+    private var started = false
+    private lazy var updater = SPUUpdater(
+        hostBundle: bundle, applicationBundle: bundle, userDriver: userDriver, delegate: self
     )
 
-    override init() {
+    init(bundle: Bundle = .main, userDriver: (any SPUUserDriver)? = nil, startingUpdater: Bool = true) {
+        self.bundle = bundle
+        self.userDriver = userDriver ?? SPUStandardUserDriver(hostBundle: bundle, delegate: nil)
         super.init()
-        _ = controller
+        updater.publisher(for: \.canCheckForUpdates)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.canCheck = $0 }
+            .store(in: &observations)
+        updater.publisher(for: \.lastUpdateCheckDate)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.lastAttemptAt = $0 }
+            .store(in: &observations)
+        if startingUpdater { start() }
     }
 
-    var currentVersion: String {
-        AppVersion.current.displayVersion
-    }
+    var currentVersion: String { AppVersion(info: bundle.infoDictionary ?? [:]).displayVersion }
+    var currentBuild: String { AppVersion(info: bundle.infoDictionary ?? [:]).build }
+    var automaticallyChecks: Bool { updater.automaticallyChecksForUpdates }
 
-    var currentBuild: String {
-        AppVersion.current.build
+    func start() {
+        guard !started else { return }
+        do {
+            try updater.start()
+            started = true
+        } catch {
+            apply(error)
+        }
     }
-
-    var lastCheckedAt: Date? { controller.updater.lastUpdateCheckDate }
-    var canCheck: Bool { controller.updater.canCheckForUpdates }
-    var automaticallyChecks: Bool { controller.updater.automaticallyChecksForUpdates }
 
     func setAutomaticallyChecks(_ enabled: Bool) {
-        controller.updater.automaticallyChecksForUpdates = enabled
-        if enabled {
-            controller.updater.resetUpdateCycleAfterShortDelay()
-        }
+        updater.automaticallyChecksForUpdates = enabled
+        if enabled { updater.resetUpdateCycleAfterShortDelay() }
         objectWillChange.send()
     }
 
     func checkNow() {
+        guard started, updater.canCheckForUpdates else { return }
+        // During an existing session Sparkle focuses its window. Do not replace
+        // download/install progress with a misleading new "checking" state.
+        if !updater.sessionInProgress { phase = .checking }
+        updater.checkForUpdates()
+    }
+
+    func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         phase = .checking
-        controller.checkForUpdates(nil)
-        objectWillChange.send()
     }
 
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        candidateVersion = item.displayVersionString
         phase = .updateAvailable(version: item.displayVersionString)
-        objectWillChange.send()
     }
 
-    func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
-        phase = .current
-        objectWillChange.send()
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {
+        candidateVersion = nil
+        apply(error)
+    }
+
+    func updater(_ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem, with request: NSMutableURLRequest) {
+        phase = .downloading
+    }
+
+    func updater(_ updater: SPUUpdater, willExtractUpdate item: SUAppcastItem) {
+        phase = .preparing
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        phase = .installing
+    }
+
+    func userDidCancelDownload(_ updater: SPUUpdater) {
+        restoreAvailableUpdate()
+    }
+
+    func updater(
+        _ updater: SPUUpdater, userDidMake choice: SPUUserUpdateChoice,
+        forUpdate item: SUAppcastItem, state: SPUUserUpdateState
+    ) {
+        if choice == .skip {
+            candidateVersion = nil
+            phase = .ready
+        }
     }
 
     func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
-        phase = .failed(message: error.localizedDescription)
-        objectWillChange.send()
+        apply(error)
+    }
+
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+        if let error {
+            apply(error)
+        } else if phase == .checking {
+            // A dismissed/cancelled check is not evidence that the app is current.
+            phase = .ready
+        }
+    }
+
+    private func apply(_ error: any Error) {
+        switch AppUpdateOutcome.classify(error) {
+        case .current: phase = .current
+        case .unavailable(let message): phase = .unavailable(message: message)
+        case .cancelled: restoreAvailableUpdate()
+        case .failed(let message): phase = .failed(message: message)
+        }
+    }
+
+    private func restoreAvailableUpdate() {
+        phase = candidateVersion.map { .updateAvailable(version: $0) } ?? .ready
     }
 }
