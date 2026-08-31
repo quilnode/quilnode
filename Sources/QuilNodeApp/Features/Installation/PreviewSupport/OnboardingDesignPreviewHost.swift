@@ -21,6 +21,7 @@
     struct OnboardingDesignPreviewHost: View {
         @StateObject private var walletManager: WalletManager
         @StateObject private var installer: InstallationCoordinator
+        @StateObject private var privacyMode = PrivacyModeController()
         private let mode: OnboardingDesignPreviewMode
 
         init(mode: OnboardingDesignPreviewMode = .identityExisting) {
@@ -79,6 +80,7 @@
                 }
             }
             .quilThemed(.quilNode)
+            .environmentObject(privacyMode)
             .onAppear {
                 DispatchQueue.main.async {
                     NSApplication.shared.activate(ignoringOtherApps: true)

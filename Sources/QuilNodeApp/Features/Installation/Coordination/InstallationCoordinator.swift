@@ -79,7 +79,7 @@ final class InstallationCoordinator: ObservableObject {
         } else {
             phase = snapshot.productionReady ? .ready : .failed
             if !snapshot.productionReady {
-                error = "This Mac does not meet the production node requirements shown below."
+                markFailure("This Mac does not meet the production node requirements shown below.")
             }
         }
         // qclient is a required local dependency, not an optional user update.
@@ -119,8 +119,7 @@ final class InstallationCoordinator: ObservableObject {
             return
         }
         guard result.exitCode == 0 else {
-            phase = .failed
-            error = result.output.isEmpty ? "The secure local service could not be upgraded." : result.output
+            markFailure(result.output.isEmpty ? "The secure local service could not be upgraded." : result.output)
             return
         }
         var refreshed = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
@@ -137,8 +136,7 @@ final class InstallationCoordinator: ObservableObject {
                 ? "The secure local service is current. Supported platform operations are passwordless."
                 : "The secure local service is current. QuilNode can now install the qclient that matches this node without another password prompt."
         } else {
-            phase = .failed
-            error = "macOS completed authorization, but the upgraded local service could not be verified."
+            markFailure("macOS completed authorization, but the upgraded local service could not be verified.")
         }
     }
 
@@ -184,8 +182,7 @@ final class InstallationCoordinator: ObservableObject {
             )
             showsAuthorizationExplanation = true
         } catch {
-            phase = .failed
-            self.error = error.localizedDescription
+            markFailure(error.localizedDescription)
         }
     }
 
@@ -238,8 +235,11 @@ final class InstallationCoordinator: ObservableObject {
                 )
             }.value
             guard result.exitCode == 0 else {
-                phase = .failed
-                error = result.output
+                markFailure(
+                    result.output.isEmpty
+                        ? "The qclient installation did not complete."
+                        : result.output
+                )
                 return
             }
             let refreshed = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
@@ -247,9 +247,9 @@ final class InstallationCoordinator: ObservableObject {
             guard refreshed.qclientStatus?.isReady == true,
                 refreshed.qclientCompatibleWithNode
             else {
-                phase = .failed
-                error =
+                markFailure(
                     "qclient installation returned successfully but its root-owned provenance could not be re-verified."
+                )
                 return
             }
             phase = .complete
@@ -264,8 +264,7 @@ final class InstallationCoordinator: ObservableObject {
             )
             message = result.output
         } catch {
-            phase = .failed
-            self.error = error.localizedDescription
+            markFailure(error.localizedDescription)
         }
     }
 
@@ -295,10 +294,10 @@ final class InstallationCoordinator: ObservableObject {
             return
         }
         guard authorization.exitCode == 0 else {
-            phase = .failed
-            error =
+            markFailure(
                 authorization.output.isEmpty
-                ? "The secure local service could not be authorized." : authorization.output
+                    ? "The secure local service could not be authorized." : authorization.output
+            )
             return
         }
 
@@ -327,8 +326,7 @@ final class InstallationCoordinator: ObservableObject {
             )
         }.value
         guard result.exitCode == 0 else {
-            phase = .failed
-            error = result.output.isEmpty ? "The first installation did not complete." : result.output
+            markFailure(result.output.isEmpty ? "The first installation did not complete." : result.output)
             return
         }
 
@@ -344,8 +342,9 @@ final class InstallationCoordinator: ObservableObject {
         let refreshed = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
         preflight = refreshed
         guard refreshed.nodeInstalled, refreshed.secureServiceReady else {
-            phase = .failed
-            error = "Installation returned successfully, but the local service or node could not be re-verified."
+            markFailure(
+                "Installation returned successfully, but the local service or node could not be re-verified."
+            )
             return
         }
         phase = .complete

@@ -46,7 +46,7 @@ enum OnboardingStage: Int, CaseIterable, Identifiable {
     }
 
     static func current(for phase: FirstInstallPhase) -> OnboardingStage {
-        switch phase {
+        return switch phase {
         case .inspecting, .ready, .failed:
             .host
         case .downloading, .verifying, .awaitingAuthorization, .authorizing, .installing, .validating, .complete:
@@ -157,8 +157,14 @@ struct OnboardingRuntimeProgress: Equatable {
     let total: Int
     let title: String
 
-    static func firstInstall(phase: FirstInstallPhase) -> Self {
-        switch phase {
+    static func firstInstall(
+        phase: FirstInstallPhase,
+        progress: NodeUpdateProgress? = nil
+    ) -> Self {
+        if phase == .failed, let progress {
+            return firstInstall(step: progress.step)
+        }
+        return switch phase {
         case .inspecting, .ready, .failed:
             .init(step: 1, total: 6, title: "Inspect this Mac")
         case .downloading:
@@ -174,8 +180,14 @@ struct OnboardingRuntimeProgress: Equatable {
         }
     }
 
-    static func qclient(phase: FirstInstallPhase) -> Self {
-        switch phase {
+    static func qclient(
+        phase: FirstInstallPhase,
+        progress: NodeUpdateProgress? = nil
+    ) -> Self {
+        if phase == .failed, let progress {
+            return qclient(step: progress.step)
+        }
+        return switch phase {
         case .inspecting, .ready, .failed:
             .init(step: 1, total: 4, title: "Resolve matching client")
         case .downloading:
@@ -183,6 +195,33 @@ struct OnboardingRuntimeProgress: Equatable {
         case .verifying, .awaitingAuthorization, .authorizing:
             .init(step: 3, total: 4, title: "Verify provenance")
         case .installing, .validating, .complete:
+            .init(step: 4, total: 4, title: "Install & re-check")
+        }
+    }
+
+    private static func firstInstall(step: NodeUpdateStep) -> Self {
+        switch step {
+        case .selectCandidate, .acquire:
+            .init(step: 2, total: 6, title: "Acquire signed artifacts")
+        case .verifyTrust, .inspectArtifact, .client, .sealPlan,
+            .resolveDependencies, .compileNode, .linkNode:
+            .init(step: 3, total: 6, title: "Verify release trust")
+        case .switchRuntime:
+            .init(step: 5, total: 6, title: "Install restricted runtime")
+        case .healthGate:
+            .init(step: 6, total: 6, title: "Validate local health")
+        }
+    }
+
+    private static func qclient(step: NodeUpdateStep) -> Self {
+        switch step {
+        case .selectCandidate:
+            .init(step: 1, total: 4, title: "Resolve matching client")
+        case .acquire, .resolveDependencies, .compileNode, .linkNode, .client:
+            .init(step: 2, total: 4, title: "Acquire or build client")
+        case .verifyTrust, .inspectArtifact, .sealPlan:
+            .init(step: 3, total: 4, title: "Verify provenance")
+        case .switchRuntime, .healthGate:
             .init(step: 4, total: 4, title: "Install & re-check")
         }
     }

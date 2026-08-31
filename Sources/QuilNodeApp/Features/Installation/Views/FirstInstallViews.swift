@@ -151,11 +151,15 @@ struct FirstInstallView: View {
                 .padding(14)
                 .controlSurface()
 
-                let runtimeProgress = OnboardingRuntimeProgress.firstInstall(phase: installer.phase)
+                let runtimeProgress = OnboardingRuntimeProgress.firstInstall(
+                    phase: installer.phase,
+                    progress: installer.progress
+                )
                 OnboardingProgressPanel(
                     progress: runtimeProgress,
                     detail: installer.progress?.detail ?? "No runtime changes begin until this Mac passes inspection.",
                     fraction: installer.progress?.boundedFraction,
+                    isEstimate: installer.progress?.isEstimate ?? true,
                     startedAt: installer.isWorking ? installer.progress?.startedAt : nil
                 )
 

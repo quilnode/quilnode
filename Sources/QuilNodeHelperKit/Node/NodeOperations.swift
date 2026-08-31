@@ -144,7 +144,10 @@ extension QuilNodeHelper {
                 try runLaunchctl(["bootstrap", "system", plistPath])
             }
             progress?(.validatingHealth, "Validating the node process, version, and local metrics.")
-            try restartAndValidate(expectedVersion: manifest.reportedVersion ?? manifest.version)
+            try restartAndValidate(
+                expectedVersion: manifest.reportedVersion ?? manifest.version,
+                progress: progress
+            )
         } catch {
             _ = try? runLaunchctl(["bootout", "system", plistPath])
             throw HelperFailure.healthCheck(
@@ -182,7 +185,10 @@ extension QuilNodeHelper {
             try switchLinks(to: installedBinary, manifest: manifest)
             progress?(.activatingRuntime, "Switching to the verified node runtime.")
             progress?(.validatingHealth, "Validating the updated node and local metrics.")
-            try restartAndValidate(expectedVersion: manifest.reportedVersion ?? manifest.version)
+            try restartAndValidate(
+                expectedVersion: manifest.reportedVersion ?? manifest.version,
+                progress: progress
+            )
             try? refreshManagedFirewallAfterUpdate()
             if let qclient = manifest.qclient {
                 _ = try installManagedQClient(qclient, stage: stage, progress: progress)

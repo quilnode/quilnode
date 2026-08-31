@@ -2,6 +2,16 @@ import Foundation
 
 @MainActor
 extension InstallationCoordinator {
+    func markFailure(_ detail: String) {
+        phase = .failed
+        error = detail
+        if var current = progress {
+            current.status = .failed
+            current.updatedAt = Date()
+            progress = current
+        }
+    }
+
     var requiresFirstInstall: Bool {
         guard let preflight else { return false }
         return !preflight.nodeInstalled

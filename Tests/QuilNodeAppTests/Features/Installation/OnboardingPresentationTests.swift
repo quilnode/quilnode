@@ -61,6 +61,19 @@ final class OnboardingPresentationTests: XCTestCase {
             OnboardingRuntimeProgress.qclient(phase: .installing),
             .init(step: 4, total: 4, title: "Install & re-check")
         )
+
+        let failedBuild = NodeUpdateProgress(
+            workflow: .qclient,
+            step: .client,
+            phase: "Compiler stopped",
+            detail: "Build failed",
+            fraction: 0.4,
+            startedAt: Date()
+        )
+        XCTAssertEqual(
+            OnboardingRuntimeProgress.qclient(phase: .failed, progress: failedBuild),
+            .init(step: 2, total: 4, title: "Acquire or build client")
+        )
     }
 
     func testPrivilegedQClientStagesRemainVisibleAndDeterministic() {

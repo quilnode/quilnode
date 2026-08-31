@@ -7,6 +7,7 @@ import SwiftUI
 struct QClientSetupView: View {
     @Environment(\.quilTheme) private var theme
     @EnvironmentObject private var installer: InstallationCoordinator
+    @EnvironmentObject private var privacyMode: PrivacyModeController
 
     private var isSourceRuntime: Bool {
         installer.preflight?.installedNodeBuild?.kind == .source
@@ -35,7 +36,7 @@ struct QClientSetupView: View {
                     if installer.isWorking {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text("Preparing qclient…")
+                            Text(installer.progress?.phase ?? "Preparing qclient…")
                         }
                     } else {
                         Label("Verify & install", systemImage: "checkmark.shield.fill")
@@ -77,13 +78,25 @@ struct QClientSetupView: View {
                 .foregroundStyle(theme.colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-                let runtimeProgress = OnboardingRuntimeProgress.qclient(phase: installer.phase)
+                let runtimeProgress = OnboardingRuntimeProgress.qclient(
+                    phase: installer.phase,
+                    progress: installer.progress
+                )
                 OnboardingProgressPanel(
                     progress: runtimeProgress,
                     detail: installer.progress?.detail ?? "Resolving the client provenance that matches this runtime.",
                     fraction: installer.progress?.boundedFraction,
+                    isEstimate: installer.progress?.isEstimate ?? true,
                     startedAt: installer.isWorking ? installer.progress?.startedAt : nil
                 )
+
+                if let logURL = installer.progress?.logURL {
+                    InlineBuildLogView(
+                        logURL: logURL,
+                        isLive: installer.isWorking,
+                        privacyModeEnabled: privacyMode.isEnabled
+                    )
+                }
 
                 if let error = installer.error {
                     Label(error, systemImage: "exclamationmark.triangle.fill")

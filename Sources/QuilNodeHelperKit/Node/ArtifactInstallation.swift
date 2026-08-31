@@ -190,21 +190,36 @@ extension QuilNodeHelper {
         return plist
     }
 
-    static func restartAndValidate(expectedVersion: String?) throws {
+    static func restartAndValidate(
+        expectedVersion: String?,
+        progress: ServiceOperationReporter? = nil
+    ) throws {
         try performLifecycle(.restart)
         // Store recovery and first metrics collection can legitimately exceed
         // 90 seconds after a development update. The operation runs inside the
         // daemon and is polled by the app, so this longer bound does not hold a
         // UI connection or trigger another authorization prompt.
-        let deadline = Date().addingTimeInterval(180)
+        let startedAt = Date()
+        let deadline = startedAt.addingTimeInterval(180)
         var lastDetail = "waiting for process"
         while Date() < deadline {
             Thread.sleep(forTimeInterval: 3)
-            guard isLoaded(), nodeProcessIsRunning() else { continue }
+            let elapsed = min(Int(Date().timeIntervalSince(startedAt)), 180)
+            guard isLoaded(), nodeProcessIsRunning() else {
+                progress?(
+                    .validatingHealth,
+                    "Waiting for the node process · health check \(elapsed)s of 180s"
+                )
+                continue
+            }
             do {
                 let version = try runNodeTool(["--version"], timeout: 10)
                 if let expectedVersion, !version.contains(expectedVersion) {
                     lastDetail = "running binary reports \(version.trimmingCharacters(in: .whitespacesAndNewlines))"
+                    progress?(
+                        .validatingHealth,
+                        "Node is running; waiting for the expected version · \(elapsed)s of 180s"
+                    )
                     continue
                 }
                 let metrics = try runNodeTool(
@@ -213,8 +228,16 @@ extension QuilNodeHelper {
                 )
                 if metrics.contains("libp2p_connected_peers") { return }
                 lastDetail = "local metrics are not ready"
+                progress?(
+                    .validatingHealth,
+                    "Node is running; waiting for local metrics · \(elapsed)s of 180s"
+                )
             } catch {
                 lastDetail = "\(error)"
+                progress?(
+                    .validatingHealth,
+                    "Node startup is still settling · health check \(elapsed)s of 180s"
+                )
             }
         }
         throw HelperFailure.healthCheck("Node did not pass its 180-second local startup check (\(lastDetail)).")

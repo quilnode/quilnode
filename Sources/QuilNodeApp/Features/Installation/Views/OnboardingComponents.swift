@@ -174,6 +174,7 @@ struct OnboardingProgressPanel: View {
     let progress: OnboardingRuntimeProgress
     let detail: String
     var fraction: Double?
+    var isEstimate = true
     var startedAt: Date?
 
     var body: some View {
@@ -197,8 +198,14 @@ struct OnboardingProgressPanel: View {
                     }
                 }
             }
-            ProgressView(value: resolvedFraction, total: 1)
-                .tint(theme.colors.accent)
+            if isEstimate {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(theme.colors.accent)
+            } else {
+                ProgressView(value: resolvedFraction, total: 1)
+                    .tint(theme.colors.accent)
+            }
             Text(detail)
                 .font(.caption2)
                 .foregroundStyle(theme.colors.secondaryText)
