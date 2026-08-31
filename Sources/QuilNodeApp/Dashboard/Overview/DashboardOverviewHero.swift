@@ -79,7 +79,7 @@ extension DashboardView {
                         design: theme.typography.resolvedHeroDesign
                     )
                 )
-                .tracking(-1.4)
+                .tracking(theme.typography.resolvedHeroDesign == .monospaced ? -1.4 : -0.4)
                 .lineLimit(compact ? 2 : 1)
                 .minimumScaleFactor(0.78)
 
@@ -223,7 +223,7 @@ extension DashboardView {
             .padding(.top, 6)
 
             ProgressView(value: nodeObservation.hasLiveTelemetry ? epochProgress : 0)
-                .tint(theme.colors.frame)
+                .progressViewStyle(QuilLinearProgressStyle(tint: theme.colors.frame))
                 .padding(.top, 7)
 
             Text(
