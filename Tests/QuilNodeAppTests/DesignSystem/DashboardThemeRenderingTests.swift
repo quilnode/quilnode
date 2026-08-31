@@ -29,7 +29,7 @@ final class DashboardThemeRenderingTests: XCTestCase {
         let images = try registerBrandImages()
         defer { images.forEach { $0.setName(nil) } }
 
-        for theme in [QuilTheme.classic, .classicLight, .quilNode, .quilNodeLight] {
+        for theme in QuilTheme.builtIns {
             let themes = ThemeController(previewTheme: theme)
             for width in [820.0, 980.0, 1416.0] {
                 let content = DashboardView()
