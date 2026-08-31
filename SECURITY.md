@@ -1,7 +1,7 @@
 # Security policy
 
 QuilNode controls a local node that may hold valuable self-custodied identity
-material. Please do not open a public issue for a suspected vulnerability.
+material. Do not post vulnerability details in public issues or pull requests.
 
 ## Supported versions
 
@@ -23,11 +23,20 @@ code distribution capability, not merely a metadata-signing key.
 
 ## Reporting a vulnerability
 
-Use this repository's **Report a vulnerability** form. Include the affected
-version, macOS version, reproduction steps, and impact. Do not include real
-`config.yml`, `keys.yml`, private keys, passwords, wallet exports, or unredacted
-diagnostic bundles. If the private form is unavailable, do not publish the
-report or attach sensitive evidence to a public issue.
+Use **Report a vulnerability** under
+[Security → Advisories](https://github.com/quilnode/quilnode/security/advisories)
+when the private reporting form is enabled. Include the affected version,
+macOS version, reproduction steps using disposable test data, and impact.
+Do not include real `config.yml`, `keys.yml`, private keys, passwords, wallet
+exports, or unredacted diagnostic bundles, even in a private report.
+
+If the form is unavailable, open a contact-only
+[issue](https://github.com/quilnode/quilnode/issues) titled **Security contact
+request**, asking for a private reporting channel. Include no vulnerability
+description, reproduction steps, logs, screenshots, or attachments. Wait for a
+private channel before sharing the report. This follows
+[GitHub's private-reporting guidance](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/report-privately);
+a public contact request is not a public vulnerability report.
 
 ## Security boundary
 

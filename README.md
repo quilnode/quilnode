@@ -9,17 +9,40 @@
 </p>
 
 > [!WARNING]
-> QuilNode is an independent, unofficial community project. It is not
-> affiliated with, endorsed by, audited by, or supported by Quilibrium Inc. or
-> the Quilibrium protocol maintainers. It cannot guarantee protocol
-> eligibility, seniority, uptime, rewards, token value, or fitness for valuable
-> infrastructure.
+> **Alpha software — not production-ready.** Bugs, security issues, and breaking
+> changes are possible. QuilNode manages a privileged local service and can
+> change node software and identity files. Failures can cause downtime, data
+> loss, loss of access to an identity, or missed rewards.
+>
+> **Review before use and keep independent, tested recovery backups.** Do not
+> rely on this alpha for critical infrastructure or use an identity whose loss
+> or compromise you cannot accept.
 
-## Status
+QuilNode is an independent, unofficial community project. It is not affiliated
+with, endorsed by, audited by, or supported by Quilibrium Inc. or the Quilibrium
+protocol maintainers. See [NOTICE.md](NOTICE.md) for the project statement and
+license warranty terms.
 
-QuilNode is under active development. Install it only from this repository's
-official releases, verify the published checksums and signatures, and keep an
-independent recovery copy of every node identity before operating the node.
+## Before you run it
+
+- **Review the risks.** Read the source and [security model](SECURITY.md), or ask
+  a qualified reviewer you trust to assess them. Review feedback is welcome,
+  including from contributors who cannot run macOS.
+- **Start with a test identity.** Evaluate installation, updates, and recovery
+  in an isolated test environment before adopting an existing node.
+- **Keep your own recovery path.** Back up identity material and essential node
+  configuration independently of QuilNode. Verify restoration in an isolated
+  environment before importing, migrating, or switching a valuable identity.
+  An app-managed backup is not a substitute for an independent recovery copy.
+- **Verify what you install.** Use this repository's
+  [published releases](https://github.com/quilnode/quilnode/releases), check the
+  release notes, and verify the published checksums and signatures. A signature
+  establishes integrity and signing authority, not freedom from vulnerabilities.
+
+Automated tests, static analysis, and AI-assisted reviews are useful checks;
+they are not an independent security audit or certification. Public source
+allows inspection, but neither source availability nor any review can guarantee
+safety. Operator review complements—not replaces—maintainer testing and fixes.
 
 ## What QuilNode does
 
@@ -38,7 +61,7 @@ Operational data comes from the installed node, its loopback interfaces, and
 its locally managed matching `qclient`. QuilNode does not use an explorer or a
 hosted monitoring service to populate the dashboard.
 
-## Self-custody by construction
+## Local self-custody model
 
 The graphical application never opens, parses, hashes, copies, modifies,
 displays, or transmits private-key bytes.
@@ -73,6 +96,12 @@ QuilNode application updates use a separate Ed25519 update identity and a
 signed Sparkle feed. Automatic installation is disabled; an operator approves
 each application replacement. The application-signing identity, update key,
 node identity, and GitHub identity are separate trust domains.
+
+Community-signed QuilNode releases use the project's certificate, not Apple
+Developer ID, and are not notarized by Apple. macOS may block the first open.
+Read [Apple's guidance](https://support.apple.com/en-us/102445) before deciding
+whether to allow the app. Never disable Gatekeeper globally or bypass a warning
+that software is damaged or will harm your Mac.
 
 ## Privacy Mode
 
@@ -191,13 +220,15 @@ Rehearsal verification also requires `--rehearsal`. Run
 
 ## Contributing and security
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Never attach
-real identities, keysets, node configuration, wallet exports, stores, logs, or
-unredacted diagnostics to a public issue.
+Code reviews, usability feedback, and reproducible bug reports are welcome.
+For non-security bugs, open an [issue](https://github.com/quilnode/quilnode/issues)
+with the app version, macOS version, reproduction steps, and expected versus
+actual behavior. Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change.
+Never attach real identities, keysets, node configuration, wallet exports,
+stores, logs, or unredacted diagnostics to a public issue.
 
 Suspected vulnerabilities must be reported privately as described in
-[SECURITY.md](SECURITY.md). Security review reduces risk; no software can make a
-credible promise of zero vulnerabilities.
+[SECURITY.md](SECURITY.md), not in public bug reports or pull requests.
 
 ## License
 
