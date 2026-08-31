@@ -54,11 +54,7 @@ struct ThemedWindowChrome<Actions: View>: View {
                         design: theme.typography.displayDesign
                     )
                 )
-            if theme.recipes.hero == .topology || theme.recipes.hero == .orbital {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(theme.colors.secondaryText)
-            } else {
+            if theme.recipes.hero != .topology && theme.recipes.hero != .orbital {
                 Text("/")
                     .foregroundStyle(theme.colors.border)
                 pageIdentity
