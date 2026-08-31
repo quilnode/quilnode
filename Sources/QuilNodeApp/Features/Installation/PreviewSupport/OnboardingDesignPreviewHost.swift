@@ -93,17 +93,6 @@
             }
             .quilThemed(.quilNode)
             .environmentObject(privacyMode)
-            .onAppear {
-                DispatchQueue.main.async {
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    guard let window = NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first else {
-                        return
-                    }
-                    window.setContentSize(NSSize(width: 900, height: 680))
-                    window.center()
-                    window.makeKeyAndOrderFront(nil)
-                }
-            }
         }
 
         private static let cleanMacPreflight = InstallationPreflight(
