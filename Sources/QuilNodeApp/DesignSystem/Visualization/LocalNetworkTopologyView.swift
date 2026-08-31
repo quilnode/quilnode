@@ -43,15 +43,15 @@ struct LocalNetworkTopologyView: View {
             .background(theme.colors.canvas.opacity(0.88), in: Circle())
             .overlay {
                 Circle()
-                    .strokeBorder(theme.colors.info.opacity(0.72), lineWidth: 1)
+                    .strokeBorder(theme.colors.accent.opacity(0.72), lineWidth: 1)
             }
-            .shadow(color: theme.colors.info.opacity(0.22), radius: 18)
+            .shadow(color: theme.colors.accent.opacity(0.22), radius: 18)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("LOCAL TOPOLOGY")
                     .font(.system(size: compact ? 7 : 8.5, weight: .bold, design: .monospaced))
                     .tracking(1.35)
-                    .foregroundStyle(theme.colors.info)
+                    .foregroundStyle(theme.colors.accent)
                 if !compact {
                     Text("Observed relationships · not a global map")
                         .font(.system(size: 9.5))

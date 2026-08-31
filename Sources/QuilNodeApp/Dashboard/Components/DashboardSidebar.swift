@@ -21,9 +21,7 @@ struct DashboardSidebar: View {
     }
 
     private var railAccent: Color {
-        theme.recipes.hero == .topology || theme.recipes.hero == .orbital
-            ? theme.colors.info
-            : theme.colors.accent
+        theme.colors.accent
     }
 
     /// A single invariant for the rail: brand, navigation glyphs, status, and

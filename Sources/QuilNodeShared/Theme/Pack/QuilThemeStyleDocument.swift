@@ -133,10 +133,14 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
         public var scale: Double?
         public var displayDesign: String?
         public var dataDesign: String?
-        public init(scale: Double? = nil, displayDesign: String? = nil, dataDesign: String? = nil) {
+        public var heroDesign: String?
+        public init(
+            scale: Double? = nil, displayDesign: String? = nil, dataDesign: String? = nil, heroDesign: String? = nil
+        ) {
             self.scale = scale
             self.displayDesign = displayDesign
             self.dataDesign = dataDesign
+            self.heroDesign = heroDesign
         }
     }
 
@@ -273,6 +277,9 @@ public struct QuilThemeStyleDocument: Codable, Hashable, Sendable {
         }
         if let value = typography.dataDesign, !["default", "rounded", "serif", "monospaced"].contains(value) {
             issues.append("style.typography.dataDesign must be default, rounded, serif, or monospaced.")
+        }
+        if let value = typography.heroDesign, !["default", "rounded", "serif", "monospaced"].contains(value) {
+            issues.append("style.typography.heroDesign must be default, rounded, serif, or monospaced.")
         }
         if let value = effects.backdrop, !["solid", "gradient", "spotlight"].contains(value) {
             issues.append("style.effects.backdrop must be solid, gradient, or spotlight.")

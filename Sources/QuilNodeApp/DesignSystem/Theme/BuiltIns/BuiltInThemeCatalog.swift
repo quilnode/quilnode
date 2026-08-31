@@ -62,7 +62,7 @@ extension QuilTheme {
             colors: palette,
             style: style
         )
-        let resolved = classic.applying(pack)
+        let resolved = builtInDefaults.applying(pack)
         return .init(
             id: resolved.id, familyID: familyID ?? resolved.familyID, name: resolved.name, author: resolved.author,
             version: resolved.version,

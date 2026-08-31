@@ -27,7 +27,7 @@ extension QuilTheme {
             surfaces: .init(
                 treatment: "solid", borderStyle: "solid", surfaceOpacity: 0.90, elevatedOpacity: 1, borderOpacity: 0.66,
                 heroAccentOpacity: 0.07),
-            typography: .init(scale: 1, displayDesign: "default", dataDesign: "monospaced"),
+            typography: .init(scale: 1, displayDesign: "default", dataDesign: "monospaced", heroDesign: "monospaced"),
             effects: .init(
                 backdrop: "solid", decoration: "none", decorationOpacity: 0, shadow: "none", shadowOpacity: 0,
                 accentTreatment: "solid", motionScale: 1, scene: "none", sceneOpacity: 0),

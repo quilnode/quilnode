@@ -44,7 +44,7 @@ extension DashboardView {
                 title: "Archive sources",
                 value: nodeObservation.value(monitor.snapshot.archiveSourceValue),
                 detail: nodeObservation.detail(monitor.snapshot.archiveSourceDetail),
-                tint: protocolSignal,
+                tint: theme.colors.info,
                 privacyField: nil
             ),
             ProtocolMetricDescriptor(
@@ -52,7 +52,7 @@ extension DashboardView {
                 title: "Network peers",
                 value: nodeObservation.value(String(monitor.snapshot.peers)),
                 detail: nodeObservation.detail(DashboardCopy.Activity.liveMesh),
-                tint: protocolSignal,
+                tint: theme.colors.info,
                 privacyField: nil
             ),
             ProtocolMetricDescriptor(

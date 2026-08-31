@@ -135,12 +135,16 @@ struct QuilTheme: Identifiable {
         var scale: CGFloat
         var displayDesign: Font.Design
         var dataDesign: Font.Design
+        var heroDesign: Font.Design? = nil
+
+        var resolvedHeroDesign: Font.Design { heroDesign ?? displayDesign }
 
         func applying(_ overrides: QuilThemeTypographyOverrides) -> Self {
             .init(
                 scale: overrides.scale.map { CGFloat($0) } ?? scale,
                 displayDesign: Font.Design(themeValue: overrides.displayDesign) ?? displayDesign,
-                dataDesign: Font.Design(themeValue: overrides.dataDesign) ?? dataDesign
+                dataDesign: Font.Design(themeValue: overrides.dataDesign) ?? dataDesign,
+                heroDesign: Font.Design(themeValue: overrides.displayDesign) ?? heroDesign
             )
         }
 
@@ -148,7 +152,9 @@ struct QuilTheme: Identifiable {
             .init(
                 scale: style.typography.scale.map { CGFloat($0) } ?? scale,
                 displayDesign: Font.Design(themeValue: style.typography.displayDesign) ?? displayDesign,
-                dataDesign: Font.Design(themeValue: style.typography.dataDesign) ?? dataDesign
+                dataDesign: Font.Design(themeValue: style.typography.dataDesign) ?? dataDesign,
+                heroDesign: Font.Design(themeValue: style.typography.heroDesign ?? style.typography.displayDesign)
+                    ?? heroDesign
             )
         }
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension DashboardView {
-    var protocolSignal: Color { theme.colors.info }
+    var protocolSignal: Color { theme.colors.accent }
 
     func protocolRule(opacity: Double) -> some View {
         Rectangle()

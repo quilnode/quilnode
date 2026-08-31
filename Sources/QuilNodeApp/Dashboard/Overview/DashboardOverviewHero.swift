@@ -14,7 +14,7 @@ extension DashboardView {
             }
         }
         .frame(height: dashboardLayoutClass.isWide ? 326 : 548)
-        .background(theme.colors.canvas.opacity(0.84))
+        .background { ThemeHeroBackground() }
         .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
         .clipped()
     }
@@ -76,7 +76,7 @@ extension DashboardView {
                     .system(
                         size: (compact ? 29 : 34) * theme.typography.scale,
                         weight: .bold,
-                        design: .monospaced
+                        design: theme.typography.resolvedHeroDesign
                     )
                 )
                 .tracking(-1.4)
@@ -156,7 +156,7 @@ extension DashboardView {
                 ? "Mesh connected" : "Finding peers",
             systemImage: "antenna.radiowaves.left.and.right",
             tint: nodeObservation.hasLiveTelemetry && monitor.snapshot.peers > 0
-                ? protocolSignal : theme.colors.secondaryText
+                ? theme.colors.info : theme.colors.secondaryText
         )
         ProtocolStatusCheck(
             title: nodeObservation.hasLiveTelemetry ? rewardStatusTitle : "Reading reward state",
@@ -168,7 +168,7 @@ extension DashboardView {
     private var protocolFramePanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(nodeObservation.hasLiveTelemetry ? "EPOCH \(currentEpoch.grouped)" : "EPOCH")
-                .protocolLabelStyle(color: protocolSignal)
+                .protocolLabelStyle(color: theme.colors.frame)
 
             Text(nodeObservation.hasLiveTelemetry ? "→ \(epochClock.nextEpoch?.grouped ?? "—")" : "reading")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced).monospacedDigit())
@@ -184,10 +184,10 @@ extension DashboardView {
                     .system(
                         size: 34 * theme.typography.scale,
                         weight: .regular,
-                        design: .monospaced
+                        design: theme.typography.dataDesign
                     ).monospacedDigit()
                 )
-                .foregroundStyle(protocolSignal)
+                .foregroundStyle(theme.colors.frame)
                 .lineLimit(1)
                 .minimumScaleFactor(0.64)
                 .padding(.top, 7)
@@ -216,14 +216,14 @@ extension DashboardView {
                 .system(
                     size: 30 * theme.typography.scale,
                     weight: .regular,
-                    design: .monospaced
+                    design: theme.typography.dataDesign
                 ).monospacedDigit()
             )
-            .foregroundStyle(protocolSignal)
+            .foregroundStyle(theme.colors.frame)
             .padding(.top, 6)
 
             ProgressView(value: nodeObservation.hasLiveTelemetry ? epochProgress : 0)
-                .tint(protocolSignal)
+                .tint(theme.colors.frame)
                 .padding(.top, 7)
 
             Text(
