@@ -59,7 +59,10 @@ extension ReleaseChecker {
             await work()
             guard let self else { return }
             self.operationTask = nil
-            UpdateActivityGuard.shared.finishInstalling()
+            if let token = self.operationActivityToken {
+                UpdateActivityGuard.shared.finishInstalling(token)
+                self.operationActivityToken = nil
+            }
             // A signal observed during a long build takes precedence over the
             // ordinary post-install refresh. The automatic reconciliation is
             // itself a full refresh and can safely act on a second candidate.
@@ -72,7 +75,7 @@ extension ReleaseChecker {
                 self.beginCheck(origin: .user)
             }
         }
-        UpdateActivityGuard.shared.beginInstalling { [weak self] in
+        operationActivityToken = UpdateActivityGuard.shared.beginInstalling { [weak self] in
             await self?.stopOperationForApplicationTermination()
         }
     }

@@ -71,6 +71,7 @@ final class ReleaseChecker: ObservableObject {
     var checkTask: Task<Void, Never>?
     var checkGeneration = UUID()
     var operationTask: Task<Void, Never>?
+    var operationActivityToken: UpdateActivityGuard.Token?
     var policySynchronizationTask: Task<Void, Never>?
     var policySynchronizationGeneration = UUID()
     var operationJournal: UpdateOperationJournal?

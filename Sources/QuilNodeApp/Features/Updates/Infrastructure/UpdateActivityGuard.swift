@@ -12,22 +12,31 @@ import Foundation
 
 @MainActor
 final class UpdateActivityGuard {
-    static let shared = UpdateActivityGuard()
-    private(set) var isInstalling = false
-    private var terminationHandler: (@MainActor () async -> Void)?
-
-    func beginInstalling(terminationHandler: @escaping @MainActor () async -> Void) {
-        isInstalling = true
-        self.terminationHandler = terminationHandler
+    struct Token: Hashable {
+        fileprivate let id = UUID()
     }
 
-    func finishInstalling() {
-        isInstalling = false
-        terminationHandler = nil
+    static let shared = UpdateActivityGuard()
+    private var terminationHandlers: [Token: @MainActor () async -> Void] = [:]
+
+    var isInstalling: Bool { !terminationHandlers.isEmpty }
+
+    @discardableResult
+    func beginInstalling(terminationHandler: @escaping @MainActor () async -> Void) -> Token {
+        let token = Token()
+        terminationHandlers[token] = terminationHandler
+        return token
+    }
+
+    func finishInstalling(_ token: Token) {
+        terminationHandlers[token] = nil
     }
 
     func stopAtSafePointForTermination() async {
-        await terminationHandler?()
+        let handlers = Array(terminationHandlers.values)
+        for handler in handlers {
+            await handler()
+        }
     }
 }
 

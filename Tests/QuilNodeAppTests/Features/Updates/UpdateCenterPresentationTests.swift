@@ -256,16 +256,21 @@ final class UpdateCenterPresentationTests: XCTestCase {
     @MainActor
     func testQuitGuardStopsAtRegisteredSafePoint() async {
         let activityGuard = UpdateActivityGuard.shared
-        var reachedSafePoint = false
-        activityGuard.beginInstalling {
-            reachedSafePoint = true
+        var reachedSafePoints: Set<String> = []
+        let updateToken = activityGuard.beginInstalling {
+            reachedSafePoints.insert("update")
+        }
+        let onboardingToken = activityGuard.beginInstalling {
+            reachedSafePoints.insert("onboarding")
         }
         XCTAssertTrue(activityGuard.isInstalling)
 
         await activityGuard.stopAtSafePointForTermination()
 
-        XCTAssertTrue(reachedSafePoint)
-        activityGuard.finishInstalling()
+        XCTAssertEqual(reachedSafePoints, ["update", "onboarding"])
+        activityGuard.finishInstalling(updateToken)
+        XCTAssertTrue(activityGuard.isInstalling)
+        activityGuard.finishInstalling(onboardingToken)
         XCTAssertFalse(activityGuard.isInstalling)
     }
 
