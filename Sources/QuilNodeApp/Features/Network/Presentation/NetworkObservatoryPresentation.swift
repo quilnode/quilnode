@@ -62,12 +62,16 @@ struct NetworkShardPresentation: Identifiable, Equatable {
         }
     }
 
-    func matches(_ query: String) -> Bool {
+    func matches(_ query: String, includesLocalAssignments: Bool = true) -> Bool {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !normalized.isEmpty else { return true }
-        return observation.filter.lowercased().contains(normalized)
+        let publicMatch =
+            observation.filter.lowercased().contains(normalized)
             || coverage.label.lowercased().contains(normalized)
             || "ring \(observation.ring)".contains(normalized)
+        guard !publicMatch, includesLocalAssignments else { return publicMatch }
+        return observation.worker?.lowercased().contains(normalized) == true
+            || "worker \(observation.worker ?? "")".contains(normalized)
     }
 }
 
@@ -90,6 +94,9 @@ struct NetworkObservatoryPresentation {
     let nextEpoch: UInt64?
     let observedAt: Date?
     let evidenceState: EvidenceState
+    let proverMemberships: Int
+    let ringDistribution: NetworkRingDistribution
+    let localNode: NetworkLocalNodePresentation
 
     static func make(snapshot: NodeSnapshot, now: Date = Date()) -> Self {
         let shards = (snapshot.networkShards ?? [])
@@ -118,22 +125,30 @@ struct NetworkObservatoryPresentation {
         let effectiveFrame = max(snapshot.epochClock.frame, snapshot.networkShardSummary?.frame ?? 0)
         let epochClock = NodeEpochClock(frame: effectiveFrame, epochLength: snapshot.epochLength)
 
+        let localNode = NetworkLocalNodePresentation.make(snapshot: snapshot, shards: shards)
         return Self(
             shards: shards,
             summary: snapshot.networkShardSummary,
             peers: snapshot.peers,
             archiveSources: snapshot.archiveEndpointCount,
-            localAllocationCount: snapshot.shardAllocations.count,
+            localAllocationCount: localNode.totalAllocations,
             frame: effectiveFrame,
             epoch: epochClock.epoch,
             epochProgress: epochClock.progress,
             nextEpoch: epochClock.nextEpoch,
             observedAt: observedAt,
-            evidenceState: evidenceState
+            evidenceState: evidenceState,
+            proverMemberships: shards.reduce(0) { $0 + max($1.observation.activeProvers, 0) },
+            ringDistribution: NetworkRingDistribution(shards: shards),
+            localNode: localNode
         )
     }
 
-    func visibleShards(filter: NetworkObservatoryFilter, query: String) -> [NetworkShardPresentation] {
+    func visibleShards(
+        filter: NetworkObservatoryFilter,
+        query: String,
+        includesLocalAssignments: Bool = true
+    ) -> [NetworkShardPresentation] {
         shards.filter { shard in
             let isIncluded =
                 switch filter {
@@ -141,7 +156,7 @@ struct NetworkObservatoryPresentation {
                 case .local: shard.observation.isAllocated
                 case .attention: shard.coverage != .healthy
                 }
-            return isIncluded && shard.matches(query)
+            return isIncluded && shard.matches(query, includesLocalAssignments: includesLocalAssignments)
         }
     }
 

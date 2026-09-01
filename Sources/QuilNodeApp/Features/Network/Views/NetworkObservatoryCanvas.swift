@@ -10,7 +10,10 @@ struct NetworkObservatoryCanvas: View {
 
     let shards: [NetworkShardPresentation]
     let featuredIDs: Set<String>
-    @Binding var selectedID: String?
+    let selectedID: String?
+    let isLocalNodeSelected: Bool
+    let onSelectShard: (String) -> Void
+    let onSelectLocalNode: () -> Void
     let zoom: CGFloat
     let archiveSources: Int?
     let localAllocationCount: Int
@@ -42,7 +45,7 @@ struct NetworkObservatoryCanvas: View {
                 ForEach(shards) { shard in
                     if let layout = layouts[shard.id] {
                         Button {
-                            selectedID = shard.id
+                            onSelectShard(shard.id)
                         } label: {
                             NetworkShardHitTarget(
                                 shard: shard,
@@ -58,7 +61,7 @@ struct NetworkObservatoryCanvas: View {
                     }
                 }
 
-                localNodeLabel(size: geometry.size)
+                localNodeControl(size: geometry.size)
 
                 if (archiveSources ?? 0) > 0 {
                     archivePoolLabel(size: geometry.size)
@@ -369,20 +372,39 @@ struct NetworkObservatoryCanvas: View {
         }
     }
 
-    private func localNodeLabel(size: CGSize) -> some View {
-        VStack(spacing: 2) {
-            Text("My node")
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(theme.colors.primaryText)
-            PrivacyProtectedText(value: "\(localAllocationCount) allocations", field: .allocationCount)
-                .font(.system(size: 8.5, design: .monospaced).monospacedDigit())
-                .foregroundStyle(theme.colors.secondaryText)
+    private func localNodeControl(size: CGSize) -> some View {
+        Button(action: onSelectLocalNode) {
+            VStack(spacing: 2) {
+                Spacer(minLength: 0)
+                Text("My node")
+                    .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(theme.colors.primaryText)
+                PrivacyProtectedText(value: "\(localAllocationCount) allocations", field: .allocationCount)
+                    .font(.system(size: 8.5, design: .monospaced).monospacedDigit())
+                    .foregroundStyle(theme.colors.secondaryText)
+            }
+            .padding(.bottom, 3)
+            .frame(width: 112, height: 98)
+            .contentShape(Rectangle())
+            .background(
+                isLocalNodeSelected ? theme.colors.accent.opacity(0.08) : .clear,
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay {
+                if isLocalNodeSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(theme.colors.accent.opacity(0.38), lineWidth: 0.7)
+                }
+            }
         }
+        .buttonStyle(.plain)
         .position(
             x: ShardConstellationLayout.localNodePoint(size: size).x,
-            y: ShardConstellationLayout.localNodePoint(size: size).y + 53
+            y: ShardConstellationLayout.localNodePoint(size: size).y + 23
         )
-        .allowsHitTesting(false)
+        .accessibilityLabel("Inspect my local node")
+        .accessibilityAddTraits(isLocalNodeSelected ? .isSelected : [])
+        .help("Inspect local workers, allocations and reward evidence")
     }
 
     private func archivePoolLabel(size: CGSize) -> some View {

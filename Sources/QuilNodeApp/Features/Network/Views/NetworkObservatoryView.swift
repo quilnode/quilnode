@@ -10,7 +10,7 @@ struct NetworkObservatoryView: View {
     @Environment(\.redactionReasons) private var redactionReasons
     @EnvironmentObject private var monitor: NodeMonitor
 
-    @State private var selectedID: String?
+    @State private var selection: NetworkObservatorySelection? = .localNode
     @State private var filter = NetworkObservatoryFilter.all
     @State private var query = ""
     @State private var zoom: CGFloat = 1
@@ -20,7 +20,11 @@ struct NetworkObservatoryView: View {
     }
 
     private var visibleShards: [NetworkShardPresentation] {
-        presentation.visibleShards(filter: filter, query: query)
+        presentation.visibleShards(
+            filter: filter,
+            query: query,
+            includesLocalAssignments: !redactionReasons.contains(.privacy)
+        )
     }
 
     private var availableFilters: [NetworkObservatoryFilter] {
@@ -35,15 +39,21 @@ struct NetworkObservatoryView: View {
     }
 
     private var selectedShard: NetworkShardPresentation? {
-        visibleShards.first { $0.id == selectedID }
-            ?? presentation.shards.first { $0.id == selectedID }
+        guard case .shard(let id) = selection else { return nil }
+        return visibleShards.first { $0.id == id }
+            ?? presentation.shards.first { $0.id == id }
+    }
+
+    private var selectedShardID: String? {
+        guard case .shard(let id) = selection else { return nil }
+        return id
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            NetworkObservatoryMetricStrip(presentation: presentation)
-
             observatoryHeader
+            NetworkObservatoryScopeGuide()
+            NetworkObservatoryMetricStrip(presentation: presentation)
 
             switch presentation.evidenceState {
             case .loading:
@@ -58,6 +68,7 @@ struct NetworkObservatoryView: View {
         }
         .onAppear { ensureSelection() }
         .onChange(of: visibleShards.map(\.id)) { _, _ in ensureSelection() }
+        .onChange(of: query) { _, _ in ensureSelection() }
         .onChange(of: redactionReasons) { _, reasons in
             if reasons.contains(.privacy), filter == .local { filter = .all }
             ensureSelection()
@@ -80,9 +91,9 @@ struct NetworkObservatoryView: View {
 
     private var headerTitle: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("Shard constellation")
+            Text("Network observatory")
                 .font(.headline)
-            Text("Real shard state from this node · stable layout, not geography")
+            Text("Shared shard state through this node · stable layout, not geography")
                 .font(.caption)
                 .foregroundStyle(theme.colors.secondaryText)
         }
@@ -90,14 +101,36 @@ struct NetworkObservatoryView: View {
 
     private var headerControls: some View {
         HStack(spacing: 10) {
-            Picker("Shard scope", selection: $filter) {
-                ForEach(availableFilters) { filter in
-                    Text(filter.title).tag(filter)
+            Menu {
+                ForEach(availableFilters) { candidate in
+                    Button {
+                        filter = candidate
+                    } label: {
+                        if candidate == filter {
+                            Label(candidate.title, systemImage: "checkmark")
+                        } else {
+                            Text(candidate.title)
+                        }
+                    }
                 }
+            } label: {
+                HStack(spacing: 7) {
+                    Text(filter.title)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(theme.colors.secondaryText)
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(theme.colors.primaryText)
+                .padding(.horizontal, 9)
+                .frame(width: 144, height: 28)
+                .contentShape(Rectangle())
+                .controlSurface()
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(width: 144)
+            .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
             .accessibilityLabel("Shard scope")
             searchField
             zoomControls
@@ -108,7 +141,7 @@ struct NetworkObservatoryView: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(theme.colors.secondaryText)
-            TextField("Filter or ring", text: $query)
+            TextField("Shard, ring or worker", text: $query)
                 .textFieldStyle(.plain)
             if !query.isEmpty {
                 Button {
@@ -122,8 +155,9 @@ struct NetworkObservatoryView: View {
             }
         }
         .padding(.horizontal, 9)
-        .frame(width: 170, height: 28)
+        .frame(width: 190, height: 28)
         .controlSurface()
+        .help("Searches the shard table retained by this node, including local worker assignments")
     }
 
     private var zoomControls: some View {
@@ -158,14 +192,14 @@ struct NetworkObservatoryView: View {
         if layoutClass.isWide {
             HStack(alignment: .top, spacing: 12) {
                 topology
-                NetworkObservatoryInspector(shard: selectedShard)
+                inspector
                     .frame(width: 282)
             }
             .frame(height: 510)
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 topology.frame(height: layoutClass.isCompact ? 360 : 420)
-                NetworkObservatoryInspector(shard: selectedShard)
+                inspector
                     .frame(minHeight: 250)
             }
         }
@@ -176,17 +210,29 @@ struct NetworkObservatoryView: View {
             NetworkObservatoryCanvas(
                 shards: visibleShards,
                 featuredIDs: featuredShardIDs.intersection(visibleShards.map(\.id)),
-                selectedID: $selectedID,
+                selectedID: selectedShardID,
+                isLocalNodeSelected: selection == .localNode,
+                onSelectShard: { selection = .shard($0) },
+                onSelectLocalNode: { selection = .localNode },
                 zoom: zoom,
                 archiveSources: presentation.archiveSources,
                 localAllocationCount: presentation.localAllocationCount
             )
 
-            if visibleShards.isEmpty {
+            if visibleShards.isEmpty
+                && !presentation.localNode.matches(
+                    query,
+                    includesPrivateIdentifiers: !redactionReasons.contains(.privacy)
+                )
+            {
                 ContentUnavailableView(
-                    "No matching shards",
+                    query.isEmpty ? "No matching shards" : "Not in this local observation",
                     systemImage: "scope",
-                    description: Text("Change the scope or clear the filter.")
+                    description: Text(
+                        query.isEmpty
+                            ? "Change the scope or clear the filter."
+                            : "Search covers known shards and this node's worker assignments. Arbitrary network identities require a separate index."
+                    )
                 )
                 .foregroundStyle(theme.colors.secondaryText)
             }
@@ -205,6 +251,18 @@ struct NetworkObservatoryView: View {
                 .padding(14)
                 .allowsHitTesting(false)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var inspector: some View {
+        switch selection {
+        case .localNode:
+            NetworkLocalNodeInspector(node: presentation.localNode)
+        case .shard:
+            NetworkShardObservatoryInspector(shard: selectedShard)
+        case nil:
+            NetworkShardObservatoryInspector(shard: nil)
         }
     }
 
@@ -246,18 +304,36 @@ struct NetworkObservatoryView: View {
 
     private func ensureSelection() {
         let hidesLocalAssociation = redactionReasons.contains(.privacy)
-        let currentSelectionIsEligible = visibleShards.contains { shard in
-            shard.id == selectedID && (!hidesLocalAssociation || !shard.observation.isAllocated)
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !normalizedQuery.isEmpty,
+            presentation.localNode.matches(
+                normalizedQuery,
+                includesPrivateIdentifiers: !hidesLocalAssociation
+            )
+        {
+            selection = .localNode
+            return
         }
-        guard !currentSelectionIsEligible else { return }
+
+        if case .localNode = selection, normalizedQuery.isEmpty { return }
+        if case .shard(let selectedID) = selection {
+            let currentSelectionIsEligible = visibleShards.contains { shard in
+                shard.id == selectedID && (!hidesLocalAssociation || !shard.observation.isAllocated)
+            }
+            if currentSelectionIsEligible { return }
+        }
+
         if hidesLocalAssociation {
-            selectedID =
-                visibleShards.first(where: { !$0.observation.isAllocated })?.id
-                ?? visibleShards.first?.id
+            selection =
+                visibleShards.first(where: { !$0.observation.isAllocated })
+                .map { .shard($0.id) }
+                ?? visibleShards.first.map { .shard($0.id) }
         } else {
-            selectedID =
-                visibleShards.first(where: { $0.observation.isAllocated })?.id
-                ?? visibleShards.first?.id
+            selection =
+                visibleShards.first(where: { $0.observation.isAllocated })
+                .map { .shard($0.id) }
+                ?? visibleShards.first.map { .shard($0.id) }
         }
     }
 }

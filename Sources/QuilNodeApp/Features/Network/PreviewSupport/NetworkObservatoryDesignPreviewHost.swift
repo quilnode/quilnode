@@ -46,17 +46,33 @@
                 )
             }
             let observedAt = Date(timeIntervalSince1970: 1_788_268_800)
+            let allocatedShards = shards.filter(\.isAllocated)
             return NodeSnapshot(
                 collectedAt: observedAt,
                 isRunning: true,
                 version: "2.1.0.25",
+                peerID: "QmPreviewPeerIdentity4nB3pQ7z5b8R2s6Y9t1V",
+                proverAddress: "QmPreviewProverIdentity8kD3mP6w2X7c5T9n1L",
+                quilBalance: "124.37500000",
+                quilAccount: "0xPreviewQuilAccount8c4d2a6f9b3e7d1a",
+                balanceUpdatedAt: observedAt,
+                lastRewardCreditFrame: 779_760,
+                lastRewardCreditAt: observedAt.addingTimeInterval(-820),
+                proverStatusUpdatedAt: observedAt,
+                seniority: 13_219_200,
+                allocatedWorkers: 9,
                 epoch: 1_083,
-                shardAllocations: shards.filter(\.isAllocated).enumerated().map { index, shard in
+                shardAllocations: allocatedShards.enumerated().map { index, shard in
                     ShardAllocation(
                         index: index,
                         filter: shard.filter,
-                        status: "active",
-                        worker: shard.worker
+                        status: index < 4 ? "active" : "joining",
+                        worker: shard.worker,
+                        activeProvers: shard.activeProvers,
+                        ring: shard.ring,
+                        estimatedRewardPerFrame: shard.estimatedRewardPerFrame,
+                        shardSize: shard.shardSize,
+                        dataShards: shard.dataShards
                     )
                 },
                 networkShards: shards,
@@ -69,11 +85,20 @@
                 ),
                 frame: 779_842,
                 peers: 238,
+                inboundConnectionsEstablished: 91,
+                outboundConnectionsEstablished: 407,
+                localWorkerCount: 9,
                 archivePeers: 5,
                 archiveEndpointCount: 5,
-                activeShards: allocated.count,
+                pendingJoins: 5,
+                activeShards: 4,
                 totalAllocations: allocated.count,
-                metricsUpdatedAt: observedAt
+                cpuPercent: 37.4,
+                memoryMB: 4_892,
+                processUptime: "3h 42m",
+                metricsUpdatedAt: observedAt,
+                frameLastAdvancedAt: observedAt,
+                framesPerMinute: 6.18
             )
         }()
     }

@@ -27,6 +27,7 @@ enum PrivacyField: String, CaseIterable {
     case shardAllocation
     case seniority
     case quilBalance
+    case rewardActivity
     case nodeUptime
     case hardwareProfile
     case networkIdentifier
@@ -41,7 +42,8 @@ enum PrivacyField: String, CaseIterable {
             .compact
         case .networkIdentifier, .shardAllocation:
             .identifier
-        case .networkPort, .seniority, .quilBalance, .nodeUptime, .recoveryMetadata, .localTimestamp:
+        case .networkPort, .seniority, .quilBalance, .rewardActivity, .nodeUptime, .recoveryMetadata,
+            .localTimestamp:
             .standard
         }
     }
@@ -53,6 +55,7 @@ enum PrivacyField: String, CaseIterable {
         case .shardAllocation: "Shard allocation"
         case .seniority: "Seniority"
         case .quilBalance: "QUIL balance"
+        case .rewardActivity: "Reward activity"
         case .nodeUptime: "Node uptime"
         case .hardwareProfile: "Hardware detail"
         case .networkIdentifier: "Network identifier"

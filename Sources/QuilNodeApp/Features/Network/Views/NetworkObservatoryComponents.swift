@@ -4,6 +4,65 @@ import SwiftUI
     import QuilNodeCore
 #endif
 
+struct NetworkObservatoryScopeGuide: View {
+    @Environment(\.quilTheme) private var theme
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 0) { scopeCells }
+            VStack(spacing: 0) { scopeCells }
+        }
+        .controlSurface()
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var scopeCells: some View {
+        scopeCell(
+            title: "Observed network",
+            detail: "Shared shard table returned by this local qclient",
+            systemImage: "point.3.connected.trianglepath.dotted",
+            tint: theme.colors.accentSecondary
+        )
+        scopeCell(
+            title: "My node",
+            detail: "Local workers, allocations, runtime and reward evidence",
+            systemImage: "desktopcomputer",
+            tint: theme.colors.info
+        )
+    }
+
+    private func scopeCell(
+        title: String,
+        detail: String,
+        systemImage: String,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.colors.primaryText)
+                Text(detail)
+                    .font(.system(size: 9.2))
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .overlay(alignment: .trailing) {
+            Rectangle().fill(theme.colors.border.opacity(0.38)).frame(width: 0.5)
+        }
+    }
+}
+
 struct NetworkObservatoryMetricStrip: View {
     @Environment(\.quilTheme) private var theme
 
@@ -22,6 +81,12 @@ struct NetworkObservatoryMetricStrip: View {
         metric(
             title: "Network shards", value: String(presentation.summary?.totalShards ?? presentation.shards.count),
             tint: theme.colors.accentSecondary)
+        metric(
+            title: "Prover memberships",
+            value: String(presentation.proverMemberships),
+            tint: theme.colors.info,
+            help: "Sum of per-shard prover memberships in this observation; not a unique-prover count"
+        )
         metric(title: "Healthy", value: String(presentation.summary?.healthyShards ?? 0), tint: theme.colors.success)
         metric(
             title: "Needs coverage",
@@ -34,7 +99,13 @@ struct NetworkObservatoryMetricStrip: View {
             privacyField: .allocationCount)
     }
 
-    private func metric(title: String, value: String, tint: Color, privacyField: PrivacyField? = nil) -> some View {
+    private func metric(
+        title: String,
+        value: String,
+        tint: Color,
+        privacyField: PrivacyField? = nil,
+        help: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
                 .font(.system(size: 8.5, weight: .bold, design: .monospaced))
@@ -51,10 +122,11 @@ struct NetworkObservatoryMetricStrip: View {
         .overlay(alignment: .trailing) {
             Rectangle().fill(theme.colors.border.opacity(0.42)).frame(width: 0.5)
         }
+        .help(help ?? title)
     }
 }
 
-struct NetworkObservatoryInspector: View {
+struct NetworkShardObservatoryInspector: View {
     @Environment(\.quilTheme) private var theme
     @Environment(\.redactionReasons) private var redactionReasons
 
@@ -79,7 +151,8 @@ struct NetworkObservatoryInspector: View {
                             .font(.headline)
                         PrivacyProtectedText(
                             value: shard.shortFilter,
-                            field: shard.observation.isAllocated ? .shardAllocation : nil
+                            field: hidesLocalAssociation
+                                ? nil : (shard.observation.isAllocated ? .shardAllocation : nil)
                         )
                         .font(.system(size: 10.5, design: .monospaced))
                         .foregroundStyle(theme.colors.secondaryText)
@@ -188,11 +261,8 @@ struct NetworkObservatoryEvidenceRail: View {
     let presentation: NetworkObservatoryPresentation
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 0) { telemetryCells }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 142), spacing: 0)], spacing: 0) {
-                telemetryCells
-            }
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 142), spacing: 0)], spacing: 0) {
+            telemetryCells
         }
         .controlSurface()
     }
@@ -209,14 +279,14 @@ struct NetworkObservatoryEvidenceRail: View {
         telemetryCell(
             title: "Observed peers",
             value: String(presentation.peers),
-            detail: "Local peer table",
+            detail: "Known by this node",
             tint: theme.colors.info,
             privacyField: .networkActivity
         )
         telemetryCell(
             title: "Archive sources",
             value: presentation.archiveSources.map(String.init) ?? "—",
-            detail: "Known locally",
+            detail: "Known by this node",
             tint: theme.colors.success,
             privacyField: .networkActivity
         )
@@ -225,6 +295,19 @@ struct NetworkObservatoryEvidenceRail: View {
             value: presentation.summary?.worldState ?? "—",
             detail: "Reported by qclient",
             tint: theme.colors.wallet
+        )
+        telemetryCell(
+            title: "Difficulty",
+            value: presentation.summary?.difficulty?.formatted(.number.grouping(.automatic)) ?? "—",
+            detail: "Shard table footer",
+            tint: theme.colors.warning
+        )
+        telemetryCell(
+            title: "Ring distribution",
+            value:
+                "\(presentation.ringDistribution.ring0)/\(presentation.ringDistribution.ring1)/\(presentation.ringDistribution.ring2)/\(presentation.ringDistribution.ring3Plus)",
+            detail: "R0 / R1 / R2 / R3+",
+            tint: theme.colors.accentSecondary
         )
         observationCell
     }

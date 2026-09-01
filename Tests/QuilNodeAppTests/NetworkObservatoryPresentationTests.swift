@@ -30,13 +30,91 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.epoch, 13)
         XCTAssertEqual(presentation.epochProgress, 639.0 / 720.0, accuracy: 0.0001)
         XCTAssertEqual(presentation.localAllocationCount, 1)
+        XCTAssertEqual(presentation.proverMemberships, 14)
+        XCTAssertEqual(presentation.ringDistribution.compactLabel, "R0 4 · R1 0 · R2 0 · R3+ 0")
         XCTAssertEqual(presentation.visibleShards(filter: .local, query: "").map(\.id), ["local"])
         XCTAssertEqual(
             Set(presentation.visibleShards(filter: .attention, query: "").map(\.id)),
             Set(["local", "risk", "empty"])
         )
         XCTAssertEqual(presentation.visibleShards(filter: .all, query: "ring 0").count, 4)
+        XCTAssertEqual(presentation.visibleShards(filter: .all, query: "worker 1").map(\.id), ["local"])
         XCTAssertEqual(presentation.preferredSelection, "local")
+    }
+
+    func testKeepsWorkerAllocationCoverageAndRewardEvidenceIndependent() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let shards = [
+            NetworkShardObservation(
+                filter: "local-a",
+                shardSize: "4 GB",
+                dataShards: 1,
+                activeProvers: 7,
+                ring: 0,
+                estimatedRewardPerFrame: "0.001",
+                isAllocated: true,
+                worker: "1"
+            ),
+            NetworkShardObservation(
+                filter: "local-b",
+                shardSize: "4 GB",
+                dataShards: 1,
+                activeProvers: 2,
+                ring: 1,
+                estimatedRewardPerFrame: "0.002",
+                isAllocated: true,
+                worker: "2"
+            ),
+        ]
+        let snapshot = NodeSnapshot(
+            collectedAt: observedAt,
+            isRunning: true,
+            peerID: "private-local-peer",
+            quilBalance: "12.50000000",
+            lastRewardCreditFrame: 9_900,
+            seniority: 1_234,
+            allocatedWorkers: 7,
+            networkShards: shards,
+            networkShardSummary: NetworkShardSummary(shards: shards, observedAt: observedAt),
+            localWorkerCount: 9,
+            pendingJoins: 5,
+            activeShards: 4,
+            totalAllocations: 9
+        )
+
+        let node = NetworkObservatoryPresentation.make(snapshot: snapshot, now: observedAt).localNode
+
+        XCTAssertEqual(node.runningWorkers, 9)
+        XCTAssertEqual(node.allocatedWorkers, 7)
+        XCTAssertEqual(node.activeAllocations, 4)
+        XCTAssertEqual(node.joiningAllocations, 5)
+        XCTAssertEqual(node.totalAllocations, 9)
+        XCTAssertEqual(node.allocationCoverage.healthy, 1)
+        XCTAssertEqual(node.allocationCoverage.atRisk, 1)
+        XCTAssertEqual(node.estimatedRewardPerFrame, "0.003")
+        XCTAssertEqual(node.estimatedRewardPerTargetDay, "25.92")
+        XCTAssertEqual(node.lastRewardCreditFrame, 9_900)
+        XCTAssertTrue(node.matches("private-local-peer"))
+        XCTAssertFalse(node.matches("private-local-peer", includesPrivateIdentifiers: false))
+    }
+
+    func testPrivacySearchDoesNotUseLocalWorkerAssignments() {
+        let shards = [shard("local", provers: 7, allocated: true)]
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: NodeSnapshot(isRunning: true, networkShards: shards)
+        )
+
+        XCTAssertEqual(
+            presentation.visibleShards(filter: .all, query: "worker 1").map(\.id),
+            ["local"]
+        )
+        XCTAssertTrue(
+            presentation.visibleShards(
+                filter: .all,
+                query: "worker 1",
+                includesLocalAssignments: false
+            ).isEmpty
+        )
     }
 
     func testFeaturedShardsDoNotUsePrivateAllocationEvidenceInPrivacyMode() {

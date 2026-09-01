@@ -39,7 +39,7 @@ struct NetworkWorkspaceView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Network")
                 .font(.system(size: 24 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign))
-            Text("Observe shard coverage or verify this Mac's inbound path.")
+            Text("Explore locally observed network state or verify this Mac's inbound path.")
                 .font(.subheadline)
                 .foregroundStyle(theme.colors.secondaryText)
         }

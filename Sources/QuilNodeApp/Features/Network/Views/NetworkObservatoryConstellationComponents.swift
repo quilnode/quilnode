@@ -6,6 +6,7 @@ import SwiftUI
 
 struct NetworkShardHitTarget: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.redactionReasons) private var redactionReasons
 
     let shard: NetworkShardPresentation
     let layout: ShardConstellationNodeLayout
@@ -20,7 +21,7 @@ struct NetworkShardHitTarget: View {
                 VStack(spacing: 1) {
                     PrivacyProtectedText(
                         value: shard.shortFilter,
-                        field: shard.observation.isAllocated ? .shardAllocation : nil
+                        field: privacyField
                     )
                     .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(theme.colors.primaryText)
@@ -50,6 +51,14 @@ struct NetworkShardHitTarget: View {
         case .atRisk: theme.colors.danger
         case .unassigned: theme.colors.muted
         }
+    }
+
+    /// The shard identifier is public network data once the local allocation
+    /// link is hidden. Masking only local rows would itself disclose that
+    /// private relationship.
+    private var privacyField: PrivacyField? {
+        guard shard.observation.isAllocated, !redactionReasons.contains(.privacy) else { return nil }
+        return .shardAllocation
     }
 }
 
