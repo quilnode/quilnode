@@ -80,6 +80,25 @@ final class OverviewWorkerRosterPresentationTests: XCTestCase {
             [.awaitingAllocation, .awaitingAllocation, .awaitingAllocation]
         )
         XCTAssertEqual(presentation.reportedRunningCount, 3)
+        XCTAssertFalse(presentation.isAwaitingEvidence)
+    }
+
+    func testRunningNodeWaitsForWorkerTelemetryInsteadOfClaimingNoWorkers() {
+        let presentation = OverviewWorkerRosterPresentation.make(
+            snapshot: NodeSnapshot(isRunning: true, localWorkerCount: nil, localWorkers: nil)
+        )
+
+        XCTAssertTrue(presentation.workers.isEmpty)
+        XCTAssertTrue(presentation.isAwaitingEvidence)
+    }
+
+    func testStoppedNodeMayTruthfullyReportAnEmptyRoster() {
+        let presentation = OverviewWorkerRosterPresentation.make(
+            snapshot: NodeSnapshot(isRunning: false, localWorkerCount: nil, localWorkers: nil)
+        )
+
+        XCTAssertTrue(presentation.workers.isEmpty)
+        XCTAssertFalse(presentation.isAwaitingEvidence)
     }
 
     func testOrdersWorkersDeterministicallyAndCapsTheOverviewProjection() {

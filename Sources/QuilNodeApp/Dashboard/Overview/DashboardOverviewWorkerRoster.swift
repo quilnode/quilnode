@@ -23,7 +23,7 @@ extension DashboardView {
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
-                if !nodeObservation.hasLiveTelemetry {
+                if overviewWorkerRosterPhase(presentation) == .loading {
                     ProgressView()
                         .controlSize(.small)
                         .tint(theme.colors.info)
@@ -121,7 +121,9 @@ extension DashboardView {
     private func overviewWorkerRosterPhase(
         _ presentation: OverviewWorkerRosterPresentation
     ) -> OverviewWorkerRosterPhase {
-        if !nodeObservation.hasLiveTelemetry { return .loading }
+        if !nodeObservation.hasLiveTelemetry || presentation.isAwaitingEvidence {
+            return .loading
+        }
         if privacyModeEnabled { return .privacy }
         return presentation.workers.isEmpty ? .empty : .workers
     }

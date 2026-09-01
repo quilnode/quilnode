@@ -33,6 +33,7 @@ struct OverviewWorkerRosterPresentation: Equatable {
 
     let workers: [Worker]
     let reportedRunningCount: Int?
+    let isAwaitingEvidence: Bool
 
     static func make(snapshot: NodeSnapshot) -> Self {
         let observedWorkers = (snapshot.localWorkers ?? []).sorted { $0.coreID < $1.coreID }
@@ -69,7 +70,10 @@ struct OverviewWorkerRosterPresentation: Equatable {
 
         return Self(
             workers: workers,
-            reportedRunningCount: snapshot.localWorkerCount ?? (workers.isEmpty ? nil : workers.count)
+            reportedRunningCount: snapshot.localWorkerCount ?? (workers.isEmpty ? nil : workers.count),
+            isAwaitingEvidence: snapshot.isRunning
+                && snapshot.localWorkers == nil
+                && snapshot.localWorkerCount == nil
         )
     }
 
