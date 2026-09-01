@@ -24,10 +24,13 @@ extension DashboardView {
             protocolHeroCopy(compact: false)
                 .frame(width: width * 0.38, alignment: .leading)
 
-            LocalNetworkTopologyView(
+            DashboardOverviewConstellation(
                 snapshot: monitor.snapshot,
-                hasLiveTelemetry: nodeObservation.hasLiveTelemetry
+                hasLiveTelemetry: nodeObservation.hasLiveTelemetry,
+                onOpenNetwork: { destination = .network }
             )
+            .padding(.horizontal, 9)
+            .padding(.vertical, 18)
             .frame(width: width * 0.42, height: 326)
             .clipped()
 
@@ -42,10 +45,12 @@ extension DashboardView {
                 .frame(maxWidth: .infinity, minHeight: 282, alignment: .leading)
 
             HStack(alignment: .center, spacing: 0) {
-                LocalNetworkTopologyView(
+                DashboardOverviewConstellation(
                     snapshot: monitor.snapshot,
-                    hasLiveTelemetry: nodeObservation.hasLiveTelemetry
+                    hasLiveTelemetry: nodeObservation.hasLiveTelemetry,
+                    onOpenNetwork: { destination = .network }
                 )
+                .padding(12)
                 .frame(maxWidth: .infinity, minHeight: 246)
                 .clipped()
 
