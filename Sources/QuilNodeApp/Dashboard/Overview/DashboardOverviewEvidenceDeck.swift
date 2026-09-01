@@ -5,7 +5,7 @@ import SwiftUI
 #endif
 
 extension DashboardView {
-    var overviewEvidenceDeck: some View {
+    func overviewEvidenceDeck(layoutClass: DashboardLayoutClass) -> some View {
         let evidence = overviewOperatorPresentation
         let cards = overviewEvidenceCards(evidence)
 
@@ -20,7 +20,7 @@ extension DashboardView {
             }
 
             Group {
-                if dashboardLayoutClass.isWide {
+                if layoutClass.isWide {
                     HStack(spacing: 10) {
                         ForEach(cards) { card in
                             OverviewEvidenceCard(card: card) {

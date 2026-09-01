@@ -70,7 +70,7 @@ struct DashboardView: View {
                                     alignment: .leading,
                                     spacing: theme.metrics.panelGap * theme.metrics.spacingScale
                                 ) {
-                                    destinationContent
+                                    destinationContent(layoutClass: resolvedLayoutClass)
                                 }
                                 .padding(.horizontal, destination == .overview ? 0 : theme.metrics.panelPadding + 8)
                                 .padding(.top, destination == .overview ? 0 : theme.metrics.panelPadding + 4)

@@ -12,7 +12,7 @@ private enum OverviewWorkerRosterPhase: Hashable {
 }
 
 extension DashboardView {
-    var overviewWorkerRoster: some View {
+    func overviewWorkerRoster(layoutClass: DashboardLayoutClass) -> some View {
         let presentation = OverviewWorkerRosterPresentation.make(snapshot: monitor.snapshot)
 
         return VStack(alignment: .leading, spacing: 11) {
@@ -42,12 +42,10 @@ extension DashboardView {
                 }
             }
 
-            ZStack(alignment: .topLeading) {
-                overviewWorkerRosterContent(presentation)
-                    .id(overviewWorkerRosterPhase(presentation))
-                    .transition(motion.revealTransition)
-            }
-            .animation(motion.contentReplacement, value: overviewWorkerRosterPhase(presentation))
+            overviewWorkerRosterContent(
+                presentation,
+                visibleCardCount: overviewWorkerCardCount(layoutClass: layoutClass)
+            )
         }
         .padding(.horizontal, 20)
         .padding(.top, 14)
@@ -55,15 +53,16 @@ extension DashboardView {
 
     @ViewBuilder
     private func overviewWorkerRosterContent(
-        _ presentation: OverviewWorkerRosterPresentation
+        _ presentation: OverviewWorkerRosterPresentation,
+        visibleCardCount: Int
     ) -> some View {
         switch overviewWorkerRosterPhase(presentation) {
         case .loading:
-            overviewPlaceholderWorkerRows(label: "Reading")
+            overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Reading"))
                 .redacted(reason: .placeholder)
                 .allowsHitTesting(false)
         case .privacy:
-            overviewPlaceholderWorkerRows(label: "Hidden")
+            overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Hidden"))
         case .empty:
             Button {
                 destination = .network
@@ -95,26 +94,15 @@ extension DashboardView {
             .buttonStyle(QuilPressFeedbackButtonStyle())
             .quilHoverSurface(tint: theme.colors.info)
         case .workers:
-            ViewThatFits(in: .horizontal) {
-                overviewWorkerCardRow(presentation.visibleWorkers(limit: 5))
-                    .frame(minWidth: 1_050)
-                overviewWorkerCardRow(presentation.visibleWorkers(limit: 4))
-                    .frame(minWidth: 850)
-                overviewWorkerCardRow(presentation.visibleWorkers(limit: 3))
-            }
+            overviewWorkerCardRow(presentation.visibleWorkers(limit: visibleCardCount))
         }
     }
 
-    /// Keeps loading and privacy states geometrically identical to the live roster.
-    /// The visible placeholder count follows only the available width, never the
-    /// operator's real worker count.
-    private func overviewPlaceholderWorkerRows(label: String) -> some View {
-        ViewThatFits(in: .horizontal) {
-            overviewWorkerCardRow(placeholderWorkers(count: 5, label: label))
-                .frame(minWidth: 1_050)
-            overviewWorkerCardRow(placeholderWorkers(count: 4, label: label))
-                .frame(minWidth: 850)
-            overviewWorkerCardRow(placeholderWorkers(count: 3, label: label))
+    private func overviewWorkerCardCount(layoutClass: DashboardLayoutClass) -> Int {
+        switch layoutClass {
+        case .wide: 5
+        case .regular: 4
+        case .compact: 3
         }
     }
 

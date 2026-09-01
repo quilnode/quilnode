@@ -7,13 +7,13 @@ import SwiftUI
 
 extension DashboardView {
     @ViewBuilder
-    var destinationContent: some View {
+    func destinationContent(layoutClass: DashboardLayoutClass) -> some View {
         if destination.waitsForInitialTelemetry, !nodeObservation.hasLiveTelemetry {
             NodeObservationWaitingView(presentation: nodeObservation)
         } else {
             switch destination {
             case .overview:
-                overviewSection
+                overviewSection(layoutClass: layoutClass)
             case .activity:
                 ActivityDashboardView(snapshot: monitor.snapshot)
                 protocolMilestoneActivitySection

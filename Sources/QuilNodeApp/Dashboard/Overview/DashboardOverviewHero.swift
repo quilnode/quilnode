@@ -5,15 +5,15 @@ import SwiftUI
 #endif
 
 extension DashboardView {
-    var overviewHero: some View {
+    func overviewHero(layoutClass: DashboardLayoutClass) -> some View {
         GeometryReader { proxy in
-            if dashboardLayoutClass.isWide {
+            if layoutClass.isWide {
                 protocolHeroWide(width: proxy.size.width)
             } else {
                 protocolHeroCompact(width: proxy.size.width)
             }
         }
-        .frame(height: dashboardLayoutClass.isWide ? 326 : 548)
+        .frame(height: layoutClass.isWide ? 326 : 548)
         .background { ThemeHeroBackground() }
         .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
         .clipped()

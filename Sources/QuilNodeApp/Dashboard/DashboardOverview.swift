@@ -7,9 +7,9 @@ import SwiftUI
 #endif
 
 extension DashboardView {
-    var overviewSection: some View {
+    func overviewSection(layoutClass: DashboardLayoutClass) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            overviewHero
+            overviewHero(layoutClass: layoutClass)
             if chainProgress.state == .archiveRecovery {
                 archiveRecoveryCard
                     .padding(.horizontal, 20)
@@ -22,8 +22,8 @@ extension DashboardView {
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
             }
-            overviewEvidenceDeck
-            overviewWorkerRoster
+            overviewEvidenceDeck(layoutClass: layoutClass)
+            overviewWorkerRoster(layoutClass: layoutClass)
             if let selection = overviewMilestoneSelection {
                 ProtocolMilestoneOverviewSpotlight(
                     selection: selection,
