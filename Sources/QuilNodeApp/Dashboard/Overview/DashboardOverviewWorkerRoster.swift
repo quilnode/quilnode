@@ -59,11 +59,11 @@ extension DashboardView {
     ) -> some View {
         switch overviewWorkerRosterPhase(presentation) {
         case .loading:
-            overviewWorkerCardRow(loadingWorkers)
+            overviewPlaceholderWorkerRows(label: "Reading")
                 .redacted(reason: .placeholder)
                 .allowsHitTesting(false)
         case .privacy:
-            overviewWorkerCardRow(privacyWorkers)
+            overviewPlaceholderWorkerRows(label: "Hidden")
         case .empty:
             Button {
                 destination = .network
@@ -105,6 +105,19 @@ extension DashboardView {
         }
     }
 
+    /// Keeps loading and privacy states geometrically identical to the live roster.
+    /// The visible placeholder count follows only the available width, never the
+    /// operator's real worker count.
+    private func overviewPlaceholderWorkerRows(label: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            overviewWorkerCardRow(placeholderWorkers(count: 5, label: label))
+                .frame(minWidth: 1_050)
+            overviewWorkerCardRow(placeholderWorkers(count: 4, label: label))
+                .frame(minWidth: 850)
+            overviewWorkerCardRow(placeholderWorkers(count: 3, label: label))
+        }
+    }
+
     private func overviewWorkerCardRow(
         _ workers: [OverviewWorkerRosterPresentation.Worker]
     ) -> some View {
@@ -128,18 +141,11 @@ extension DashboardView {
         return presentation.workers.isEmpty ? .empty : .workers
     }
 
-    private var loadingWorkers: [OverviewWorkerRosterPresentation.Worker] {
-        placeholderWorkers(label: "Reading")
-    }
-
-    private var privacyWorkers: [OverviewWorkerRosterPresentation.Worker] {
-        placeholderWorkers(label: "Hidden")
-    }
-
     private func placeholderWorkers(
+        count: Int,
         label: String
     ) -> [OverviewWorkerRosterPresentation.Worker] {
-        (1...PrivacyLayoutPolicy.collectionPlaceholderCount).map { index in
+        (1...count).map { index in
             OverviewWorkerRosterPresentation.Worker(
                 coreID: index,
                 filter: "hidden",
