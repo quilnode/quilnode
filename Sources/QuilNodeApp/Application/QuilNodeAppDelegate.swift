@@ -58,6 +58,7 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                     || $0.hasPrefix("--design-preview=operator-interlock-")
                     || $0 == "--design-preview=theme-library"
                     || $0 == "--design-preview=build-evidence"
+                    || $0 == "--design-preview=app-update-sidebar"
             }
             guard let value else { return }
 
@@ -134,6 +135,9 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 ThemeLibraryDesignPreviewHost()
             } else if mode == "build-evidence" {
                 BuildEvidenceDesignPreviewHost()
+                    .quilThemed(.quilNode)
+            } else if mode == "app-update-sidebar" {
+                AppUpdateSidebarDesignPreviewHost()
                     .quilThemed(.quilNode)
             } else if mode.hasPrefix("operator-interlock-") {
                 let previewMode: OperatorInterlockPreviewMode =

@@ -195,6 +195,9 @@ struct QuilNodeApp: App {
             } else if designPreviewMode == "build-evidence" {
                 BuildEvidenceDesignPreviewHost()
                     .quilThemed(.quilNode)
+            } else if designPreviewMode == "app-update-sidebar" {
+                AppUpdateSidebarDesignPreviewHost()
+                    .quilThemed(.quilNode)
             } else {
                 dashboardSceneContent
             }
