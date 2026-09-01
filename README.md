@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://github.com/quilnode/quilnode/releases/tag/v0.1.0-alpha.2">Download QuilNode 0.1.0-alpha.2</a></strong>
+  <strong><a href="https://github.com/quilnode/quilnode/releases/tag/v0.1.0-alpha.3">Download QuilNode 0.1.0-alpha.3</a></strong>
   · Apple silicon · macOS 14+
 </p>
 
@@ -248,7 +248,7 @@ After confirming that fingerprint through a trusted channel, verify a release
 tag with the public-only signer list:
 
 ```sh
-git -c gpg.ssh.allowedSignersFile=config/release/allowed-signers tag -v v0.1.0-alpha.2
+git -c gpg.ssh.allowedSignersFile=config/release/allowed-signers tag -v v0.1.0-alpha.3
 ```
 
 For packaging, set `QUILNODE_RELEASE_TAG_ALLOWED_SIGNERS` to the absolute path

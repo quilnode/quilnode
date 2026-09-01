@@ -90,8 +90,8 @@ targets:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "112"
-        QuilNodeReleaseVersion: "0.1.0-alpha.2"
+        CFBundleVersion: "113"
+        QuilNodeReleaseVersion: "0.1.0-alpha.3"
         NSHighResolutionCapable: true
         NSHumanReadableCopyright: Copyright © 2026 QuilNode contributors. AGPL-3.0-only.
         SUFeedURL: https://www.quilnode.com/appcast.xml
