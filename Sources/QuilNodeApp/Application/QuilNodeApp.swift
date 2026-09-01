@@ -11,6 +11,7 @@ struct QuilNodeApp: App {
     @StateObject private var services: NodeServices
     @StateObject private var lifecycle: NodeLifecycleController
     @StateObject private var history: NodeHistoryStore
+    @StateObject private var networkShardHistory: NetworkShardHistoryStore
     @StateObject private var releaseChecker: ReleaseChecker
     @StateObject private var privacyMode: PrivacyModeController
     @StateObject private var themeController: ThemeController
@@ -36,6 +37,10 @@ struct QuilNodeApp: App {
         let services = NodeServices()
         let lifecycle = NodeLifecycleController()
         let history = NodeHistoryStore()
+        let networkShardHistory =
+            designPreviewMode == nil
+            ? NetworkShardHistoryStore()
+            : NetworkShardHistoryStore(fileURL: nil)
         let releaseChecker = ReleaseChecker()
         let walletManager = WalletManager()
         let installationCoordinator = InstallationCoordinator()
@@ -47,6 +52,7 @@ struct QuilNodeApp: App {
         _services = StateObject(wrappedValue: services)
         _lifecycle = StateObject(wrappedValue: lifecycle)
         _history = StateObject(wrappedValue: history)
+        _networkShardHistory = StateObject(wrappedValue: networkShardHistory)
         _releaseChecker = StateObject(wrappedValue: releaseChecker)
         _privacyMode = StateObject(wrappedValue: PrivacyModeController())
         _themeController = StateObject(wrappedValue: ThemeController())
@@ -221,6 +227,7 @@ struct QuilNodeApp: App {
             .environmentObject(services)
             .environmentObject(lifecycle)
             .environmentObject(history)
+            .environmentObject(networkShardHistory)
             .environmentObject(releaseChecker)
             .environmentObject(privacyMode)
             .environmentObject(themeController)

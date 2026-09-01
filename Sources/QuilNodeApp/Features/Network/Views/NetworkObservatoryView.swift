@@ -9,9 +9,10 @@ struct NetworkObservatoryView: View {
     @Environment(\.quilTheme) private var theme
     @Environment(\.redactionReasons) private var redactionReasons
     @EnvironmentObject private var monitor: NodeMonitor
+    @EnvironmentObject private var shardHistory: NetworkShardHistoryStore
 
     @State private var selection: NetworkObservatorySelection? = .localNode
-    @State private var filter = NetworkObservatoryFilter.all
+    @State private var lens = NetworkObservatoryLens.all
     @State private var query = ""
     @State private var zoom: CGFloat = 1
 
@@ -21,18 +22,26 @@ struct NetworkObservatoryView: View {
 
     private var visibleShards: [NetworkShardPresentation] {
         presentation.visibleShards(
-            filter: filter,
+            lens: lens,
             query: query,
-            includesLocalAssignments: !redactionReasons.contains(.privacy)
+            includesLocalAssignments: !redactionReasons.contains(.privacy),
+            recentChanges: recentChanges
         )
     }
 
-    private var availableFilters: [NetworkObservatoryFilter] {
-        redactionReasons.contains(.privacy) ? [.all, .attention] : NetworkObservatoryFilter.allCases
+    private var recentChanges: [String: NetworkShardChangeRecord] {
+        shardHistory.changes(at: presentation.observedAt ?? Date())
+    }
+
+    private var availableLenses: [NetworkObservatoryLens] {
+        redactionReasons.contains(.privacy)
+            ? NetworkObservatoryLens.allCases.filter { $0 != .local }
+            : NetworkObservatoryLens.allCases
     }
 
     private var featuredShardIDs: Set<String> {
         presentation.featuredShardIDs(
+            in: visibleShards,
             revealsLocalTopology: !redactionReasons.contains(.privacy),
             limit: layoutClass.isCompact ? 7 : 9
         )
@@ -66,11 +75,18 @@ struct NetworkObservatoryView: View {
 
             NetworkObservatoryEvidenceRail(presentation: presentation)
         }
-        .onAppear { ensureSelection() }
+        .onAppear {
+            recordObservation()
+            ensureSelection()
+        }
+        .onChange(of: presentation.observedAt) { _, _ in
+            recordObservation()
+            ensureSelection()
+        }
         .onChange(of: visibleShards.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: query) { _, _ in ensureSelection() }
         .onChange(of: redactionReasons) { _, reasons in
-            if reasons.contains(.privacy), filter == .local { filter = .all }
+            if reasons.contains(.privacy), lens == .local { lens = .all }
             ensureSelection()
         }
     }
@@ -80,11 +96,21 @@ struct NetworkObservatoryView: View {
             HStack(spacing: 12) {
                 headerTitle
                 Spacer(minLength: 8)
-                headerControls
+                NetworkObservatoryToolbar(
+                    lens: $lens,
+                    query: $query,
+                    zoom: $zoom,
+                    availableLenses: availableLenses
+                )
             }
             VStack(alignment: .leading, spacing: 10) {
                 headerTitle
-                headerControls
+                NetworkObservatoryToolbar(
+                    lens: $lens,
+                    query: $query,
+                    zoom: $zoom,
+                    availableLenses: availableLenses
+                )
             }
         }
     }
@@ -97,94 +123,6 @@ struct NetworkObservatoryView: View {
                 .font(.caption)
                 .foregroundStyle(theme.colors.secondaryText)
         }
-    }
-
-    private var headerControls: some View {
-        HStack(spacing: 10) {
-            Menu {
-                ForEach(availableFilters) { candidate in
-                    Button {
-                        filter = candidate
-                    } label: {
-                        if candidate == filter {
-                            Label(candidate.title, systemImage: "checkmark")
-                        } else {
-                            Text(candidate.title)
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 7) {
-                    Text(filter.title)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(theme.colors.secondaryText)
-                }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(theme.colors.primaryText)
-                .padding(.horizontal, 9)
-                .frame(width: 144, height: 28)
-                .contentShape(Rectangle())
-                .controlSurface()
-            }
-            .menuStyle(.borderlessButton)
-            .buttonStyle(.plain)
-            .accessibilityLabel("Shard scope")
-            searchField
-            zoomControls
-        }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(theme.colors.secondaryText)
-            TextField("Shard, ring or worker", text: $query)
-                .textFieldStyle(.plain)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(theme.colors.secondaryText)
-                .accessibilityLabel("Clear shard search")
-            }
-        }
-        .padding(.horizontal, 9)
-        .frame(width: 190, height: 28)
-        .controlSurface()
-        .help("Searches the shard table retained by this node, including local worker assignments")
-    }
-
-    private var zoomControls: some View {
-        HStack(spacing: 0) {
-            zoomButton("minus", adjustment: -0.1)
-            Text("\(Int(zoom * 100))%")
-                .font(.system(size: 9.5, weight: .semibold, design: .monospaced).monospacedDigit())
-                .foregroundStyle(theme.colors.secondaryText)
-                .frame(width: 42)
-            zoomButton("plus", adjustment: 0.1)
-        }
-        .frame(height: 28)
-        .controlSurface()
-    }
-
-    private func zoomButton(_ systemImage: String, adjustment: CGFloat) -> some View {
-        Button {
-            zoom = min(max(zoom + adjustment, 0.72), 1.18)
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 10, weight: .semibold))
-                .frame(width: 26, height: 26)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(theme.colors.accent)
-        .accessibilityLabel(adjustment > 0 ? "Zoom in" : "Zoom out")
     }
 
     @ViewBuilder
@@ -219,23 +157,17 @@ struct NetworkObservatoryView: View {
                 localAllocationCount: presentation.localAllocationCount
             )
 
-            if visibleShards.isEmpty
-                && !presentation.localNode.matches(
-                    query,
-                    includesPrivateIdentifiers: !redactionReasons.contains(.privacy)
-                )
-            {
+            if visibleShards.isEmpty {
                 ContentUnavailableView(
-                    query.isEmpty ? "No matching shards" : "Not in this local observation",
-                    systemImage: "scope",
-                    description: Text(
-                        query.isEmpty
-                            ? "Change the scope or clear the filter."
-                            : "Search covers known shards and this node's worker assignments. Arbitrary network identities require a separate index."
-                    )
+                    emptyStateTitle,
+                    systemImage: lens.systemImage,
+                    description: Text(emptyStateDetail)
                 )
                 .foregroundStyle(theme.colors.secondaryText)
+                .allowsHitTesting(false)
             }
+
+            lensBadge
 
             if redactionReasons.contains(.privacy) {
                 HStack(spacing: 6) {
@@ -260,9 +192,12 @@ struct NetworkObservatoryView: View {
         case .localNode:
             NetworkLocalNodeInspector(node: presentation.localNode)
         case .shard:
-            NetworkShardObservatoryInspector(shard: selectedShard)
+            NetworkShardObservatoryInspector(
+                shard: selectedShard,
+                recentChange: selectedShard.flatMap { recentChanges[$0.id] }
+            )
         case nil:
-            NetworkShardObservatoryInspector(shard: nil)
+            NetworkShardObservatoryInspector(shard: nil, recentChange: nil)
         }
     }
 
@@ -335,5 +270,65 @@ struct NetworkObservatoryView: View {
                 .map { .shard($0.id) }
                 ?? visibleShards.first.map { .shard($0.id) }
         }
+    }
+
+    private var lensBadge: some View {
+        HStack(spacing: 7) {
+            Image(systemName: lens.systemImage)
+                .foregroundStyle(theme.colors.accentSecondary)
+            Text(lens.title)
+                .fontWeight(.semibold)
+            Text("·")
+                .foregroundStyle(theme.colors.muted)
+            Text("\(visibleShards.count) shown")
+                .foregroundStyle(theme.colors.secondaryText)
+        }
+        .font(.system(size: 9.5, design: .monospaced).monospacedDigit())
+        .foregroundStyle(theme.colors.primaryText)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(theme.colors.canvas.opacity(0.90), in: Capsule())
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .padding(13)
+        .allowsHitTesting(false)
+        .accessibilityLabel("\(lens.title), \(visibleShards.count) shards shown")
+    }
+
+    private var emptyStateTitle: String {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "No matches in \(lens.title.lowercased())"
+        }
+        return switch lens {
+        case .all, .largestStorage, .highestReward: "No shard evidence"
+        case .local: "No local allocations"
+        case .attention: "No shards need coverage"
+        case .recentlyChanged:
+            shardHistory.hasBaseline ? "No recent shard changes" : "Building a local baseline"
+        }
+    }
+
+    private var emptyStateDetail: String {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Clear the search or choose another lens. Arbitrary network identities require a separate index."
+        }
+        return switch lens {
+        case .all, .largestStorage, .highestReward:
+            "The local qclient has not returned a usable shard table."
+        case .local:
+            "This node is not currently linked to any shard in the local observation."
+        case .attention:
+            "Every locally observed shard currently meets the six-prover target."
+        case .recentlyChanged:
+            shardHistory.hasBaseline
+                ? "No public shard metric changed during the last 24 hours of local observations."
+                : "Changes appear after QuilNode can compare two local shard observations."
+        }
+    }
+
+    private func recordObservation() {
+        shardHistory.observe(
+            monitor.snapshot.networkShards ?? [],
+            observedAt: presentation.observedAt
+        )
     }
 }

@@ -32,13 +32,13 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.localAllocationCount, 1)
         XCTAssertEqual(presentation.proverMemberships, 14)
         XCTAssertEqual(presentation.ringDistribution.compactLabel, "R0 4 · R1 0 · R2 0 · R3+ 0")
-        XCTAssertEqual(presentation.visibleShards(filter: .local, query: "").map(\.id), ["local"])
+        XCTAssertEqual(presentation.visibleShards(lens: .local, query: "").map(\.id), ["local"])
         XCTAssertEqual(
-            Set(presentation.visibleShards(filter: .attention, query: "").map(\.id)),
+            Set(presentation.visibleShards(lens: .attention, query: "").map(\.id)),
             Set(["local", "risk", "empty"])
         )
-        XCTAssertEqual(presentation.visibleShards(filter: .all, query: "ring 0").count, 4)
-        XCTAssertEqual(presentation.visibleShards(filter: .all, query: "worker 1").map(\.id), ["local"])
+        XCTAssertEqual(presentation.visibleShards(lens: .all, query: "ring 0").count, 4)
+        XCTAssertEqual(presentation.visibleShards(lens: .all, query: "worker 1").map(\.id), ["local"])
         XCTAssertEqual(presentation.preferredSelection, "local")
     }
 
@@ -114,15 +114,63 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            presentation.visibleShards(filter: .all, query: "worker 1").map(\.id),
+            presentation.visibleShards(lens: .all, query: "worker 1").map(\.id),
             ["local"]
         )
         XCTAssertTrue(
             presentation.visibleShards(
-                filter: .all,
+                lens: .all,
                 query: "worker 1",
                 includesLocalAssignments: false
             ).isEmpty
+        )
+    }
+
+    func testRankingLensesUseReportedStorageAndRewardValues() {
+        let shards = [
+            shard("small-rewarding", size: "900 MB", reward: "0.009"),
+            shard("large", size: "1.5 GB", reward: "0.002"),
+            shard("largest", size: "2 GiB", reward: "0.001"),
+        ]
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: NodeSnapshot(isRunning: true, networkShards: shards)
+        )
+
+        XCTAssertEqual(
+            presentation.visibleShards(lens: .largestStorage, query: "").map(\.id),
+            ["largest", "large", "small-rewarding"]
+        )
+        XCTAssertEqual(
+            presentation.visibleShards(lens: .highestReward, query: "").map(\.id),
+            ["small-rewarding", "large", "largest"]
+        )
+    }
+
+    func testRecentlyChangedLensUsesLocalChangeEvidenceAndNewestFirst() {
+        let shards = [shard("old"), shard("new"), shard("stable")]
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: NodeSnapshot(isRunning: true, networkShards: shards)
+        )
+        let changes = [
+            "old": NetworkShardChangeRecord(
+                filter: "old",
+                observedAt: Date(timeIntervalSince1970: 100),
+                fields: [.ring]
+            ),
+            "new": NetworkShardChangeRecord(
+                filter: "new",
+                observedAt: Date(timeIntervalSince1970: 200),
+                fields: [.activeProvers]
+            ),
+        ]
+
+        XCTAssertEqual(
+            presentation.visibleShards(
+                lens: .recentlyChanged,
+                query: "",
+                recentChanges: changes
+            ).map(\.id),
+            ["new", "old"]
         )
     }
 
@@ -204,14 +252,20 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         )
     }
 
-    private func shard(_ filter: String, provers: Int, allocated: Bool = false) -> NetworkShardObservation {
+    private func shard(
+        _ filter: String,
+        provers: Int = 6,
+        allocated: Bool = false,
+        size: String = "4 GB",
+        reward: String = "0.001"
+    ) -> NetworkShardObservation {
         NetworkShardObservation(
             filter: filter,
-            shardSize: "4 GB",
+            shardSize: size,
             dataShards: 1,
             activeProvers: provers,
             ring: 0,
-            estimatedRewardPerFrame: "0.001",
+            estimatedRewardPerFrame: reward,
             isAllocated: allocated,
             worker: allocated ? "1" : nil
         )

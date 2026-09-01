@@ -25,10 +25,13 @@ enum NetworkWorkspaceMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum NetworkObservatoryFilter: String, CaseIterable, Identifiable {
+enum NetworkObservatoryLens: String, CaseIterable, Identifiable {
     case all
     case local
     case attention
+    case largestStorage
+    case highestReward
+    case recentlyChanged
 
     var id: String { rawValue }
 
@@ -37,6 +40,31 @@ enum NetworkObservatoryFilter: String, CaseIterable, Identifiable {
         case .all: "All shards"
         case .local: "My allocations"
         case .attention: "Needs coverage"
+        case .largestStorage: "Largest storage"
+        case .highestReward: "Highest estimated reward"
+        case .recentlyChanged: "Recently changed"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .all: "Every shard returned by this local qclient"
+        case .local: "Only shards linked to this node"
+        case .attention: "Unassigned or below the six-prover target"
+        case .largestStorage: "Top 10 by locally reported storage"
+        case .highestReward: "Top 10 protocol reward estimates"
+        case .recentlyChanged: "Public metrics changed in the last 24 hours"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .all: "point.3.connected.trianglepath.dotted"
+        case .local: "location.fill"
+        case .attention: "exclamationmark.triangle.fill"
+        case .largestStorage: "externaldrive.fill"
+        case .highestReward: "sparkles"
+        case .recentlyChanged: "clock.arrow.circlepath"
         }
     }
 }
@@ -145,18 +173,37 @@ struct NetworkObservatoryPresentation {
     }
 
     func visibleShards(
-        filter: NetworkObservatoryFilter,
+        lens: NetworkObservatoryLens,
         query: String,
-        includesLocalAssignments: Bool = true
+        includesLocalAssignments: Bool = true,
+        recentChanges: [String: NetworkShardChangeRecord] = [:]
     ) -> [NetworkShardPresentation] {
-        shards.filter { shard in
-            let isIncluded =
-                switch filter {
-                case .all: true
-                case .local: shard.observation.isAllocated
-                case .attention: shard.coverage != .healthy
+        let scoped: [NetworkShardPresentation]
+        switch lens {
+        case .all:
+            scoped = shards
+        case .local:
+            scoped = shards.filter(\.observation.isAllocated)
+        case .attention:
+            scoped = shards.filter { $0.coverage != .healthy }
+        case .largestStorage:
+            scoped = Array(shards.sorted(by: Self.storageOrder).prefix(10))
+        case .highestReward:
+            scoped = Array(shards.sorted(by: Self.rewardOrder).prefix(10))
+        case .recentlyChanged:
+            scoped =
+                shards
+                .filter { recentChanges[$0.id] != nil }
+                .sorted { lhs, rhs in
+                    let lhsDate = recentChanges[lhs.id]?.observedAt ?? .distantPast
+                    let rhsDate = recentChanges[rhs.id]?.observedAt ?? .distantPast
+                    if lhsDate != rhsDate { return lhsDate > rhsDate }
+                    return lhs.fullFilter < rhs.fullFilter
                 }
-            return isIncluded && shard.matches(query, includesLocalAssignments: includesLocalAssignments)
+        }
+
+        return scoped.filter {
+            $0.matches(query, includesLocalAssignments: includesLocalAssignments)
         }
     }
 
@@ -167,9 +214,13 @@ struct NetworkObservatoryPresentation {
     /// Chooses the shards that deserve full visual treatment without hiding the
     /// rest of the locally observed network. Local allocations lead only when
     /// Privacy Mode permits that relationship to be shown.
-    func featuredShardIDs(revealsLocalTopology: Bool, limit: Int = 9) -> Set<String> {
+    func featuredShardIDs(
+        in candidates: [NetworkShardPresentation]? = nil,
+        revealsLocalTopology: Bool,
+        limit: Int = 9
+    ) -> Set<String> {
         guard limit > 0 else { return [] }
-        let ordered = shards.sorted { lhs, rhs in
+        let ordered = (candidates ?? shards).sorted { lhs, rhs in
             let lhsPriority = visualPriority(lhs, revealsLocalTopology: revealsLocalTopology)
             let rhsPriority = visualPriority(rhs, revealsLocalTopology: revealsLocalTopology)
             if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
@@ -199,6 +250,30 @@ struct NetworkObservatoryPresentation {
         }
     }
 
+    private static func storageOrder(
+        _ lhs: NetworkShardPresentation,
+        _ rhs: NetworkShardPresentation
+    ) -> Bool {
+        let lhsValue = NetworkReportedQuantity.storageBytes(lhs.observation.shardSize)
+        let rhsValue = NetworkReportedQuantity.storageBytes(rhs.observation.shardSize)
+        if lhsValue != rhsValue {
+            return (lhsValue ?? -1) > (rhsValue ?? -1)
+        }
+        return lhs.fullFilter < rhs.fullFilter
+    }
+
+    private static func rewardOrder(
+        _ lhs: NetworkShardPresentation,
+        _ rhs: NetworkShardPresentation
+    ) -> Bool {
+        let lhsValue = NetworkReportedQuantity.decimal(lhs.observation.estimatedRewardPerFrame)
+        let rhsValue = NetworkReportedQuantity.decimal(rhs.observation.estimatedRewardPerFrame)
+        if lhsValue != rhsValue {
+            return (lhsValue ?? -1) > (rhsValue ?? -1)
+        }
+        return lhs.fullFilter < rhs.fullFilter
+    }
+
     private func visualPriority(
         _ shard: NetworkShardPresentation,
         revealsLocalTopology: Bool
@@ -209,6 +284,39 @@ struct NetworkObservatoryPresentation {
         case .belowTarget: return 2
         case .unassigned: return 3
         case .healthy: return 4
+        }
+    }
+}
+
+private enum NetworkReportedQuantity {
+    private static let locale = Locale(identifier: "en_US_POSIX")
+
+    static func decimal(_ value: String) -> Decimal? {
+        Decimal(string: value.trimmingCharacters(in: .whitespacesAndNewlines), locale: locale)
+    }
+
+    static func storageBytes(_ value: String) -> Decimal? {
+        let components = value.split(whereSeparator: \Character.isWhitespace)
+        guard components.count == 2,
+            let quantity = Decimal(string: String(components[0]), locale: locale),
+            let multiplier = storageMultiplier(for: String(components[1]))
+        else { return nil }
+        return quantity * multiplier
+    }
+
+    private static func storageMultiplier(for unit: String) -> Decimal? {
+        switch unit.uppercased() {
+        case "B": 1
+        case "KB": 1_000
+        case "MB": 1_000_000
+        case "GB": 1_000_000_000
+        case "TB": 1_000_000_000_000
+        case "PB": 1_000_000_000_000_000
+        case "KIB": 1_024
+        case "MIB": 1_048_576
+        case "GIB": 1_073_741_824
+        case "TIB": 1_099_511_627_776
+        default: nil
         }
     }
 }

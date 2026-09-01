@@ -7,6 +7,7 @@
 
     struct NetworkObservatoryDesignPreviewHost: View {
         @StateObject private var monitor: NodeMonitor
+        @StateObject private var shardHistory: NetworkShardHistoryStore
         let privacyEnabled: Bool
         let layoutClass: DashboardLayoutClass
 
@@ -14,6 +15,7 @@
             self.privacyEnabled = privacyEnabled
             self.layoutClass = layoutClass
             _monitor = StateObject(wrappedValue: NodeMonitor(previewSnapshot: Self.previewSnapshot))
+            _shardHistory = StateObject(wrappedValue: NetworkShardHistoryStore(fileURL: nil))
         }
 
         var body: some View {
@@ -25,6 +27,7 @@
                 }
             }
             .environmentObject(monitor)
+            .environmentObject(shardHistory)
             .environment(\.dashboardLayoutClass, layoutClass)
             .redacted(reason: privacyEnabled ? .privacy : [])
             .frame(minWidth: layoutClass.isWide ? 1_180 : 680, minHeight: 760)
