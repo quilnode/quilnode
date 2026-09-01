@@ -95,9 +95,13 @@ extension DashboardView {
             .buttonStyle(QuilPressFeedbackButtonStyle())
             .quilHoverSurface(tint: theme.colors.info)
         case .workers:
-            overviewWorkerCardRow(
-                presentation.visibleWorkers(limit: overviewWorkerVisibleLimit)
-            )
+            ViewThatFits(in: .horizontal) {
+                overviewWorkerCardRow(presentation.visibleWorkers(limit: 5))
+                    .frame(minWidth: 1_050)
+                overviewWorkerCardRow(presentation.visibleWorkers(limit: 4))
+                    .frame(minWidth: 850)
+                overviewWorkerCardRow(presentation.visibleWorkers(limit: 3))
+            }
         }
     }
 
@@ -120,14 +124,6 @@ extension DashboardView {
         if !nodeObservation.hasLiveTelemetry { return .loading }
         if privacyModeEnabled { return .privacy }
         return presentation.workers.isEmpty ? .empty : .workers
-    }
-
-    private var overviewWorkerVisibleLimit: Int {
-        switch dashboardLayoutClass {
-        case .wide: 5
-        case .regular: 4
-        case .compact: 3
-        }
     }
 
     private var loadingWorkers: [OverviewWorkerRosterPresentation.Worker] {
