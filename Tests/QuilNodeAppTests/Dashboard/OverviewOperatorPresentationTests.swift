@@ -34,6 +34,7 @@ final class OverviewOperatorPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation.participation.activeAllocations, 1)
+        XCTAssertEqual(presentation.participation.joiningAllocations, 0)
         XCTAssertEqual(presentation.participation.runningWorkers, 3)
         XCTAssertEqual(presentation.participation.coverage, .healthy)
         XCTAssertEqual(presentation.network.peers, 81)

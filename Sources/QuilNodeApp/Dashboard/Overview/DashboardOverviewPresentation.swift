@@ -42,14 +42,6 @@ extension DashboardView {
         ChainProgressEvaluator.evaluate(monitor.snapshot)
     }
 
-    var balanceDetail: String {
-        DashboardCopy.balanceDetail(
-            hasBalance: monitor.snapshot.quilBalance != nil,
-            error: monitor.snapshot.balanceError,
-            isRunning: monitor.snapshot.isRunning
-        )
-    }
-
     var rewardStatusTitle: String {
         participationEvidence.rewardTitle
     }
@@ -71,7 +63,10 @@ extension DashboardView {
         ParticipationEvidencePresentation.make(snapshot: monitor.snapshot)
     }
 
-    var allocationLattice: AllocationLatticePresentation {
-        AllocationLatticePresentation.make(snapshot: monitor.snapshot)
+    var overviewOperatorPresentation: OverviewOperatorPresentation {
+        OverviewOperatorPresentation.make(
+            snapshot: monitor.snapshot,
+            activitySamples: history.activitySamples(since: ActivityTimeRange.oneDay.interval)
+        )
     }
 }

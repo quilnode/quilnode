@@ -11,6 +11,7 @@ import Foundation
 struct OverviewOperatorPresentation: Equatable {
     struct Participation: Equatable {
         let activeAllocations: Int
+        let joiningAllocations: Int
         let runningWorkers: Int?
         let coverage: ShardCoverageState?
 
@@ -46,6 +47,7 @@ struct OverviewOperatorPresentation: Equatable {
         return Self(
             participation: Participation(
                 activeAllocations: allocation.activeAllocations,
+                joiningAllocations: allocation.joiningAllocations,
                 runningWorkers: allocation.runningWorkers,
                 coverage: allocation.coverageState
             ),

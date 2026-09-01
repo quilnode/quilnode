@@ -22,8 +22,7 @@ extension DashboardView {
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
             }
-            overviewMetricStrip
-            protocolAllocationsSection
+            overviewEvidenceDeck
             if let selection = overviewMilestoneSelection {
                 ProtocolMilestoneOverviewSpotlight(
                     selection: selection,
@@ -41,7 +40,9 @@ extension DashboardView {
                 .padding(.top, 14)
                 .transition(motion.revealTransition)
             }
-            protocolRewardEvidenceSection
+            if let event = overviewOperatorPresentation.latestActivity {
+                overviewLatestActivity(event)
+            }
         }
     }
 

@@ -47,14 +47,4 @@ enum DashboardCopy {
         static let releaseChannels = "Release channels"
         static let nodeServiceRunning = "Node service running"
     }
-
-    static func balanceDetail(
-        hasBalance: Bool,
-        error: String?,
-        isRunning: Bool
-    ) -> String {
-        if hasBalance { return "Wallet · refreshed every 60s" }
-        if let error { return error }
-        return isRunning ? "Reading wallet…" : "Node offline"
-    }
 }
