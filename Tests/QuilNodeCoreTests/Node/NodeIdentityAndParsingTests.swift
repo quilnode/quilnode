@@ -45,6 +45,34 @@ final class NodeIdentityAndParsingTests: XCTestCase {
         XCTAssertTrue(snapshot.hasSeniorityObservation)
     }
 
+    func testNewerAsyncSenioritySurvivesAnOlderCollectorResult() {
+        let olderAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let newerAt = olderAt.addingTimeInterval(10)
+        var collectorResult = NodeSnapshot()
+        let rpcResult = NodeSnapshot(
+            seniority: 13_219_280,
+            seniorityUpdatedAt: newerAt,
+            seniorityEvidenceSource: .proverRPC,
+            seniorityEvidenceKind: .proverStatus
+        )
+
+        collectorResult.preferNewerSeniorityObservation(from: rpcResult)
+
+        XCTAssertEqual(collectorResult.seniority, 13_219_280)
+        XCTAssertEqual(collectorResult.seniorityUpdatedAt, newerAt)
+        XCTAssertEqual(collectorResult.seniorityEvidenceSource, .proverRPC)
+
+        let staleRegistry = NodeSnapshot(
+            seniority: 13_219_250,
+            seniorityUpdatedAt: olderAt,
+            seniorityEvidenceSource: .consensusRegistry,
+            seniorityEvidenceKind: .registrySnapshot
+        )
+        collectorResult.preferNewerSeniorityObservation(from: staleRegistry)
+        XCTAssertEqual(collectorResult.seniority, 13_219_280)
+        XCTAssertEqual(collectorResult.seniorityUpdatedAt, newerAt)
+    }
+
     func testBalanceProverRegistryAndSeniorityParsing() {
         let balanceOutput = """
             Loading node config...

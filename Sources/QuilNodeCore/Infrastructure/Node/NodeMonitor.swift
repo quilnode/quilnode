@@ -146,6 +146,7 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.quilAccount = snapshot.quilAccount
         nextSnapshot.balanceUpdatedAt = snapshot.balanceUpdatedAt
         nextSnapshot.balanceError = snapshot.balanceError
+        nextSnapshot.preferNewerSeniorityObservation(from: snapshot)
         nextSnapshot.peerScore = snapshot.peerScore
         nextSnapshot.reachable = snapshot.reachable
         nextSnapshot.allocatedWorkers = snapshot.allocatedWorkers
@@ -275,4 +276,24 @@ public final class NodeMonitor: ObservableObject {
         observationPhase = .loadingTelemetry
     }
 
+}
+
+extension NodeSnapshot {
+    /// Slow collector work and the independent prover RPC can overlap. Keep
+    /// whichever seniority observation is newer so a reply that arrives while
+    /// collection is in flight cannot be replaced by its older input snapshot.
+    mutating func preferNewerSeniorityObservation(from candidate: NodeSnapshot) {
+        guard candidate.hasSeniorityObservation else { return }
+        guard
+            !hasSeniorityObservation
+                || (candidate.seniorityUpdatedAt ?? .distantPast)
+                    > (seniorityUpdatedAt ?? .distantPast)
+        else { return }
+
+        seniority = candidate.seniority
+        previousSeniority = candidate.previousSeniority
+        seniorityUpdatedAt = candidate.seniorityUpdatedAt
+        seniorityEvidenceSource = candidate.seniorityEvidenceSource
+        seniorityEvidenceKind = candidate.seniorityEvidenceKind
+    }
 }
