@@ -23,6 +23,7 @@ extension DashboardView {
                     .padding(.top, 14)
             }
             overviewEvidenceDeck
+            overviewWorkerRoster
             if let selection = overviewMilestoneSelection {
                 ProtocolMilestoneOverviewSpotlight(
                     selection: selection,
