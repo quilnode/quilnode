@@ -136,7 +136,7 @@ extension DashboardView {
                 primary: OverviewEvidenceValue(
                     label: "Seniority",
                     value: nodeObservation.value(
-                        evidence.identity.seniority > 0 ? evidence.identity.seniority.grouped : "—"
+                        evidence.identity.seniorityIsObserved ? evidence.identity.seniority.grouped : "—"
                     ),
                     privacyField: .seniority
                 ),
@@ -144,7 +144,7 @@ extension DashboardView {
                 metadataLabel: "Source",
                 metadataValue: nodeObservation.detail(DashboardCopy.Overview.chainRegistry),
                 metadataPrivacyField: nil,
-                detail: "Consensus identity reported locally.",
+                detail: "Current chain value reported by the local prover.",
                 destination: .identity
             ),
             OverviewEvidenceCardDescriptor(

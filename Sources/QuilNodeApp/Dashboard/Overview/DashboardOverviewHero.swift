@@ -151,10 +151,10 @@ extension DashboardView {
         ProtocolStatusCheck(
             title: !nodeObservation.hasLiveTelemetry
                 ? "Reading chain value"
-                : monitor.snapshot.seniority > 0
+                : monitor.snapshot.hasSeniorityObservation
                     ? DashboardCopy.Overview.chainValueRead : "Reading chain value",
-            systemImage: monitor.snapshot.seniority > 0 ? "link" : "clock",
-            tint: monitor.snapshot.seniority > 0 ? theme.colors.success : theme.colors.secondaryText
+            systemImage: monitor.snapshot.hasSeniorityObservation ? "link" : "clock",
+            tint: monitor.snapshot.hasSeniorityObservation ? theme.colors.success : theme.colors.secondaryText
         )
         ProtocolStatusCheck(
             title: nodeObservation.hasLiveTelemetry && monitor.snapshot.peers > 0

@@ -65,6 +65,7 @@ struct NetworkLocalNodePresentation {
     let lastRewardCreditFrame: UInt64?
     let lastRewardCreditAt: Date?
     let seniority: Int64
+    let seniorityIsObserved: Bool
     let peerID: String?
     let proverAddress: String?
     let quilAccount: String?
@@ -108,6 +109,7 @@ struct NetworkLocalNodePresentation {
             lastRewardCreditFrame: snapshot.lastRewardCreditFrame,
             lastRewardCreditAt: snapshot.lastRewardCreditAt,
             seniority: snapshot.seniority,
+            seniorityIsObserved: snapshot.hasSeniorityObservation,
             peerID: snapshot.peerID,
             proverAddress: snapshot.proverAddress,
             quilAccount: snapshot.quilAccount,

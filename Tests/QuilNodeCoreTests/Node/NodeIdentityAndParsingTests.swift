@@ -5,6 +5,46 @@ import XCTest
 @testable import QuilNodeShared
 
 final class NodeIdentityAndParsingTests: XCTestCase {
+    @MainActor
+    func testProverRPCSeniorityBecomesCurrentSnapshotEvidence() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let telemetry = LocalProverTelemetry(
+            status: LocalProverStatus(seniority: 13_219_280),
+            observedAt: observedAt
+        )
+        var snapshot = NodeSnapshot(
+            seniority: 13_219_250,
+            seniorityUpdatedAt: observedAt.addingTimeInterval(-60),
+            seniorityEvidenceSource: .consensusRegistry,
+            seniorityEvidenceKind: .registrySnapshot
+        )
+
+        NodeMonitor().applyProverTelemetry(telemetry, to: &snapshot)
+
+        XCTAssertEqual(snapshot.seniority, 13_219_280)
+        XCTAssertEqual(snapshot.previousSeniority, 13_219_250)
+        XCTAssertEqual(snapshot.seniorityUpdatedAt, observedAt)
+        XCTAssertEqual(snapshot.seniorityEvidenceSource, .proverRPC)
+        XCTAssertEqual(snapshot.seniorityEvidenceKind, .proverStatus)
+        XCTAssertTrue(snapshot.hasSeniorityObservation)
+    }
+
+    @MainActor
+    func testProverRPCPreservesObservedZero() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let telemetry = LocalProverTelemetry(
+            status: LocalProverStatus(seniority: 0),
+            observedAt: observedAt
+        )
+        var snapshot = NodeSnapshot()
+
+        NodeMonitor().applyProverTelemetry(telemetry, to: &snapshot)
+
+        XCTAssertEqual(snapshot.seniority, 0)
+        XCTAssertEqual(snapshot.seniorityUpdatedAt, observedAt)
+        XCTAssertTrue(snapshot.hasSeniorityObservation)
+    }
+
     func testBalanceProverRegistryAndSeniorityParsing() {
         let balanceOutput = """
             Loading node config...
@@ -55,6 +95,11 @@ final class NodeIdentityAndParsingTests: XCTestCase {
         } else {
             XCTFail("local prover status parsing")
         }
+
+        let zeroSeniority = ProverStatusParser.parse("Seniority: 0\nLast Received: 500004")
+        expect(zeroSeniority?.seniority == 0, "observed zero seniority is retained")
+        let missingSeniority = ProverStatusParser.parse("Last Received: 500004")
+        expect(missingSeniority?.seniority == nil, "missing seniority stays unavailable")
 
         let registryLine =
             #"2030-01-02T05:06:07Z\tinfo\tprover_registry.rs:1145\tlocal prover appeared in registry\t{"address":"deadbeefcafefeed","allocations":3,"seniority":12345678,"status":"Joining"}"#

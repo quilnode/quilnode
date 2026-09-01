@@ -78,9 +78,9 @@ struct IdentitySummaryBand: View {
 
                 HStack(spacing: 6) {
                     IdentityStatusPill(
-                        title: presentation.seniority > 0 ? "Chain value read" : "Chain value pending",
-                        systemImage: presentation.seniority > 0 ? "checkmark.shield" : "clock",
-                        tint: presentation.seniority > 0 ? theme.colors.success : theme.colors.warning
+                        title: presentation.seniorityIsObserved ? "Chain value read" : "Chain value pending",
+                        systemImage: presentation.seniorityIsObserved ? "checkmark.shield" : "clock",
+                        tint: presentation.seniorityIsObserved ? theme.colors.success : theme.colors.warning
                     )
                     IdentityStatusPill(
                         title: "Local evidence",
@@ -101,10 +101,10 @@ struct IdentitySummaryBand: View {
                 .foregroundStyle(theme.colors.secondaryText)
 
             PrivacyProtectedText(
-                value: presentation.seniority > 0
+                value: presentation.seniorityIsObserved
                     ? presentation.seniority.formatted(.number.grouping(.automatic))
                     : "Reading…",
-                field: presentation.seniority > 0 ? .seniority : nil
+                field: presentation.seniorityIsObserved ? .seniority : nil
             )
             .font(.system(size: 17, weight: .bold, design: .monospaced))
             .lineLimit(1)

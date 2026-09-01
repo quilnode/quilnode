@@ -34,6 +34,7 @@ public enum NodeHealth: String, Codable, Sendable {
 public enum SeniorityEvidenceSource: String, Codable, Sendable {
     case consensusRegistry
     case nodeDiagnostic
+    case proverRPC
 }
 
 /// The kind of observation that established the current seniority value.
@@ -41,6 +42,7 @@ public enum SeniorityEvidenceKind: String, Codable, Sendable {
     case registrySnapshot
     case valueChanged
     case diagnostic
+    case proverStatus
 }
 
 public struct NodeSnapshot: Codable, Equatable, Sendable {
@@ -270,6 +272,13 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// values must never be presented as worker health.
     public var activeAllocations: Int { activeShards }
     public var joiningAllocations: Int { pendingJoins }
+
+    /// Distinguishes an observed zero from a value that has never been read.
+    /// Positive values written by older QuilNode builds remain observable even
+    /// when their snapshots predate explicit provenance fields.
+    public var hasSeniorityObservation: Bool {
+        seniority > 0 || seniorityEvidenceSource != nil || seniorityUpdatedAt != nil
+    }
 
     public var health: NodeHealth {
         guard isRunning else { return .stopped }

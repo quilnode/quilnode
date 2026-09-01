@@ -41,6 +41,7 @@ final class OverviewOperatorPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.network.archiveSources, 5)
         XCTAssertTrue(presentation.network.inboundObserved)
         XCTAssertEqual(presentation.identity.seniority, 42_000)
+        XCTAssertTrue(presentation.identity.seniorityIsObserved)
         XCTAssertEqual(presentation.rewards.balance, "12.50000000")
         XCTAssertEqual(presentation.rewards.lastCreditFrame, 1_950)
     }

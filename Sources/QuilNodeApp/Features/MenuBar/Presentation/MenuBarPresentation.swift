@@ -170,7 +170,7 @@ struct MenuBarPresentation {
     }
 
     var seniorityText: String {
-        guard hasLiveTelemetry, snapshot.seniority > 0 else { return "—" }
+        guard hasLiveTelemetry, snapshot.hasSeniorityObservation else { return "—" }
         return snapshot.seniority.formatted(.number.grouping(.automatic))
     }
 

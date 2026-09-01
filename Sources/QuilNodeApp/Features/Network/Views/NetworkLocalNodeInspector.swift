@@ -217,7 +217,11 @@ struct NetworkLocalNodeInspector: View {
 
     private var identitySection: some View {
         section("Identity evidence") {
-            datum("Seniority", node.seniority.grouped, privacyField: .seniority)
+            datum(
+                "Seniority",
+                node.seniorityIsObserved ? node.seniority.grouped : "—",
+                privacyField: node.seniorityIsObserved ? .seniority : nil
+            )
             if let proverAddress = node.proverAddress {
                 datum("Prover", proverAddress.compactIdentifier, privacyField: .networkIdentifier)
             }

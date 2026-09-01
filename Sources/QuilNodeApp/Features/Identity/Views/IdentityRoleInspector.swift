@@ -9,7 +9,11 @@ struct IdentityRoleInspector: View {
 
     let role: IdentityRolePresentation
     let seniority: Int64
+    let seniorityIsObserved: Bool
     let seniorityTrend: SeniorityTrend
+    let chainEvidenceSource: String
+    let chainEvidenceKind: String
+    let chainEvidenceAt: Date?
     let onCopy: (String?) -> Void
     let onOpen: (URL?) -> Void
 
@@ -128,10 +132,10 @@ struct IdentityRoleInspector: View {
                 VStack(alignment: .leading, spacing: 3) {
                     inspectorLabel("Chain seniority")
                     PrivacyProtectedText(
-                        value: seniority > 0
+                        value: seniorityIsObserved
                             ? seniority.formatted(.number.grouping(.automatic))
                             : "Reading…",
-                        field: seniority > 0 ? .seniority : nil
+                        field: seniorityIsObserved ? .seniority : nil
                     )
                     .font(.subheadline.bold().monospacedDigit())
                 }
@@ -150,12 +154,26 @@ struct IdentityRoleInspector: View {
             .font(.caption2)
             .foregroundStyle(theme.colors.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 5) {
+                Label(chainEvidenceSource, systemImage: "checkmark.circle.fill")
+                Text("·")
+                Text(chainEvidenceKind)
+                Spacer(minLength: 4)
+                PrivacyProtectedText(
+                    value: chainEvidenceAt.map(IdentityFreshnessFormatter.string) ?? "Pending",
+                    field: chainEvidenceAt == nil ? nil : .localTimestamp,
+                    mask: .compact
+                )
+            }
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(theme.colors.secondaryText)
         }
     }
 
     private var provenance: some View {
         VStack(alignment: .leading, spacing: 9) {
-            inspectorLabel("Evidence")
+            inspectorLabel(role.kind == .seniority ? "Historical identity evidence" : "Evidence")
             inspectorValueRow(
                 title: "Source",
                 value: role.evidenceSource,

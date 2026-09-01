@@ -83,7 +83,7 @@ final class NodeHistoryStore: ObservableObject {
                     || $0.lastRewardCreditFrame != snapshot.lastRewardCreditFrame
                     || $0.version != snapshot.version
                     || $0.chainProgressState != ChainProgressEvaluator.evaluate(snapshot, now: now).state
-                    || $0.seniority != positiveSeniority(in: snapshot)
+                    || $0.seniority != observedSeniority(in: snapshot)
                     || $0.seniorityObservedAt != snapshot.seniorityUpdatedAt
             } ?? true
         guard
@@ -101,7 +101,7 @@ final class NodeHistoryStore: ObservableObject {
                 cpuPercent: snapshot.cpuPercent ?? 0,
                 memoryMB: snapshot.memoryMB ?? 0,
                 isRunning: snapshot.isRunning,
-                seniority: positiveSeniority(in: snapshot),
+                seniority: observedSeniority(in: snapshot),
                 seniorityObservedAt: snapshot.seniorityUpdatedAt,
                 totalAllocations: snapshot.totalAllocations,
                 inboundConnections: snapshot.inboundConnectionsEstablished,
@@ -145,8 +145,8 @@ final class NodeHistoryStore: ObservableObject {
         )
     }
 
-    private func positiveSeniority(in snapshot: NodeSnapshot) -> Int64? {
-        snapshot.seniority > 0 ? snapshot.seniority : nil
+    private func observedSeniority(in snapshot: NodeSnapshot) -> Int64? {
+        snapshot.hasSeniorityObservation ? snapshot.seniority : nil
     }
 
     private func load() {

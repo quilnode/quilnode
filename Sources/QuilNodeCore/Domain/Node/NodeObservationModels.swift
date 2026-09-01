@@ -87,7 +87,10 @@ public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
 }
 
 public struct LocalProverStatus: Equatable, Sendable {
-    public var seniority: Int64
+    /// Current seniority emitted by the running node's GetNodeInfo RPC.
+    /// `nil` means the response did not contain the field; zero is a valid,
+    /// observed chain value and must not be collapsed into "unavailable".
+    public var seniority: Int64?
     public var peerScore: Double?
     public var runningWorkers: Int
     public var allocatedWorkers: Int
@@ -101,7 +104,7 @@ public struct LocalProverStatus: Equatable, Sendable {
     public var allocations: [ShardAllocation]
 
     public init(
-        seniority: Int64 = 0,
+        seniority: Int64? = nil,
         peerScore: Double? = nil,
         runningWorkers: Int = 0,
         allocatedWorkers: Int = 0,

@@ -90,7 +90,11 @@ struct IdentityOverviewView: View {
         IdentityRoleInspector(
             role: presentation.role(selectedRole),
             seniority: presentation.seniority,
+            seniorityIsObserved: presentation.seniorityIsObserved,
             seniorityTrend: presentation.seniorityTrend,
+            chainEvidenceSource: presentation.chainEvidenceSource,
+            chainEvidenceKind: presentation.chainEvidenceKind,
+            chainEvidenceAt: presentation.chainEvidenceAt,
             onCopy: IdentityActions.copy,
             onOpen: IdentityActions.open
         )

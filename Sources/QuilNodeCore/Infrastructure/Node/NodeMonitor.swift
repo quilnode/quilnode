@@ -221,11 +221,20 @@ public final class NodeMonitor: ObservableObject {
         lastRefreshError = nil
     }
 
-    private func applyProverTelemetry(
+    func applyProverTelemetry(
         _ telemetry: LocalProverTelemetry,
         to snapshot: inout NodeSnapshot
     ) {
         let status = telemetry.status
+        if let seniority = status.seniority {
+            if snapshot.hasSeniorityObservation, snapshot.seniority != seniority {
+                snapshot.previousSeniority = snapshot.seniority
+            }
+            snapshot.seniority = seniority
+            snapshot.seniorityUpdatedAt = telemetry.observedAt
+            snapshot.seniorityEvidenceSource = .proverRPC
+            snapshot.seniorityEvidenceKind = .proverStatus
+        }
         snapshot.peerScore = status.peerScore
         snapshot.reachable = status.reachable
         snapshot.allocatedWorkers = status.allocatedWorkers

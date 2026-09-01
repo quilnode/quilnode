@@ -15,7 +15,7 @@ enum IdentityRole: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .networkPeer: "Network peer"
-        case .seniority: "Seniority identity"
+        case .seniority: "Historical identity"
         case .prover: "Prover address"
         case .quilAccount: "QUIL account"
         }
@@ -24,7 +24,7 @@ enum IdentityRole: String, CaseIterable, Identifiable {
     var shortTitle: String {
         switch self {
         case .networkPeer: "Peer"
-        case .seniority: "Seniority"
+        case .seniority: "History"
         case .prover: "Prover"
         case .quilAccount: "Account"
         }
@@ -33,7 +33,7 @@ enum IdentityRole: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .networkPeer: "Current mesh identity"
-        case .seniority: "Legacy Ed448 history root"
+        case .seniority: "Legacy Ed448 continuity ID"
         case .prover: "Proof and allocation identity"
         case .quilAccount: "Spendable token account"
         }
@@ -42,7 +42,7 @@ enum IdentityRole: String, CaseIterable, Identifiable {
     var layer: String {
         switch self {
         case .networkPeer: "Transport layer"
-        case .seniority: "History layer"
+        case .seniority: "Legacy layer"
         case .prover: "Proving layer"
         case .quilAccount: "Account layer"
         }
@@ -71,7 +71,7 @@ enum IdentityRole: String, CaseIterable, Identifiable {
         case .networkPeer:
             "The network peer identifies the current transport session used to connect to the mesh. It can differ from the legacy identity that carries historical seniority."
         case .seniority:
-            "The network peer connects this node to the mesh. The legacy Ed448 identity is the history root the consensus registry uses when it reports chain seniority and merge history."
+            "This is the legacy Ed448 identity retained for continuity with earlier node history. It is an identifier, while chain seniority is the separate numeric value reported by the running prover."
         case .prover:
             "The prover address identifies proof and allocation activity. It is a separate public role from the legacy identity used to report historical seniority."
         case .quilAccount:
@@ -112,12 +112,14 @@ struct IdentityParticipationPresentation {
 struct IdentityWorkspacePresentation {
     let participation: IdentityParticipationPresentation
     let seniority: Int64
+    let seniorityIsObserved: Bool
     let seniorityTrend: SeniorityTrend
     let totalAllocations: Int
     let activeShards: Int
     let pendingJoins: Int
     let balance: String?
     let chainEvidenceSource: String
+    let chainEvidenceKind: String
     let chainEvidenceAt: Date?
     let roles: [IdentityRolePresentation]
 
@@ -144,12 +146,14 @@ struct IdentityWorkspacePresentation {
         return IdentityWorkspacePresentation(
             participation: participation(snapshot),
             seniority: snapshot.seniority,
+            seniorityIsObserved: snapshot.hasSeniorityObservation,
             seniorityTrend: seniorityTrend,
             totalAllocations: snapshot.totalAllocations,
             activeShards: snapshot.activeShards,
             pendingJoins: snapshot.pendingJoins,
             balance: snapshot.quilBalance,
             chainEvidenceSource: senioritySource,
+            chainEvidenceKind: seniorityKind,
             chainEvidenceAt: snapshot.seniorityUpdatedAt,
             roles: [
                 IdentityRolePresentation(
@@ -163,9 +167,9 @@ struct IdentityWorkspacePresentation {
                 IdentityRolePresentation(
                     kind: .seniority,
                     value: snapshot.legacyPeerID,
-                    evidenceSource: senioritySource,
-                    evidenceKind: seniorityKind,
-                    observedAt: snapshot.seniorityUpdatedAt,
+                    evidenceSource: "Local node",
+                    evidenceKind: "Legacy Ed448 identity",
+                    observedAt: nodeObservedAt,
                     externalURL: IdentityExplorerLink.peer(snapshot.legacyPeerID)
                 ),
                 IdentityRolePresentation(
@@ -210,6 +214,7 @@ struct IdentityWorkspacePresentation {
         switch source {
         case .consensusRegistry: "Chain registry"
         case .nodeDiagnostic: "Node diagnostic"
+        case .proverRPC: "Local prover RPC"
         case nil: "Local node"
         }
     }
@@ -219,6 +224,7 @@ struct IdentityWorkspacePresentation {
         case .registrySnapshot: "Registry snapshot"
         case .valueChanged: "Registry value changed"
         case .diagnostic: "Diagnostic value"
+        case .proverStatus: "Current prover status"
         case nil: "Evidence pending"
         }
     }

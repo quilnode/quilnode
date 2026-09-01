@@ -26,6 +26,7 @@ struct OverviewOperatorPresentation: Equatable {
 
     struct Identity: Equatable {
         let seniority: Int64
+        let seniorityIsObserved: Bool
     }
 
     struct Rewards: Equatable {
@@ -56,7 +57,10 @@ struct OverviewOperatorPresentation: Equatable {
                 archiveSources: snapshot.archiveEndpointCount,
                 inboundObserved: (snapshot.inboundConnectionsEstablished ?? 0) > 0
             ),
-            identity: Identity(seniority: snapshot.seniority),
+            identity: Identity(
+                seniority: snapshot.seniority,
+                seniorityIsObserved: snapshot.hasSeniorityObservation
+            ),
             rewards: Rewards(
                 balance: snapshot.quilBalance,
                 lastCreditFrame: snapshot.lastRewardCreditFrame

@@ -31,7 +31,35 @@ final class IdentityPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.role(.prover).value, "0xProver")
         XCTAssertEqual(presentation.role(.quilAccount).value, "0xAccount")
         XCTAssertTrue(presentation.roles.allSatisfy { $0.privacyField == .networkIdentifier })
+        XCTAssertEqual(IdentityRole.seniority.title, "Historical identity")
+        XCTAssertEqual(presentation.role(.seniority).evidenceSource, "Local node")
+        XCTAssertEqual(presentation.role(.seniority).evidenceKind, "Legacy Ed448 identity")
+        XCTAssertTrue(presentation.seniorityIsObserved)
         XCTAssertEqual(presentation.chainEvidenceSource, "Chain registry")
+        XCTAssertEqual(presentation.chainEvidenceKind, "Registry snapshot")
+    }
+
+    func testObservedZeroIsNotPresentedAsMissingEvidence() {
+        let observedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let observed = IdentityWorkspacePresentation.make(
+            snapshot: NodeSnapshot(
+                seniority: 0,
+                seniorityUpdatedAt: observedAt,
+                seniorityEvidenceSource: .proverRPC,
+                seniorityEvidenceKind: .proverStatus
+            ),
+            seniorityTrend: collectingTrend
+        )
+        let missing = IdentityWorkspacePresentation.make(
+            snapshot: .empty,
+            seniorityTrend: collectingTrend
+        )
+
+        XCTAssertTrue(observed.seniorityIsObserved)
+        XCTAssertEqual(observed.seniority, 0)
+        XCTAssertEqual(observed.chainEvidenceSource, "Local prover RPC")
+        XCTAssertEqual(observed.chainEvidenceKind, "Current prover status")
+        XCTAssertFalse(missing.seniorityIsObserved)
     }
 
     func testParticipationDoesNotClaimRewardsOrEligibility() {
