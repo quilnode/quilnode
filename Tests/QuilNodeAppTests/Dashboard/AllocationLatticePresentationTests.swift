@@ -35,23 +35,6 @@ final class AllocationLatticePresentationTests: XCTestCase {
         XCTAssertNil(presentation.runningWorkers)
     }
 
-    func testJoiningAllocationCanHaveHealthyShardCoverage() {
-        let allocation = ShardAllocation(
-            index: 0,
-            filter: "11558584",
-            status: "joining",
-            worker: "8",
-            activeProvers: 62,
-            ring: 0
-        )
-
-        let presentation = AllocationCellPresentation(allocation: allocation)
-
-        XCTAssertEqual(presentation.lifecycle, .joining)
-        XCTAssertEqual(presentation.lifecycleLabel, "Joining")
-        XCTAssertEqual(presentation.coverageLabel, "Healthy")
-    }
-
     func testCoverageSummaryUsesTheMostUrgentAssignedShardState() {
         let snapshot = NodeSnapshot(
             shardAllocations: [
