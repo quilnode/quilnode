@@ -199,6 +199,7 @@ public struct LocalNodeCollector: Sendable {
             inboundConnectionsEstablished: inboundConnections ?? cachedSnapshot?.inboundConnectionsEstablished,
             outboundConnectionsEstablished: outboundConnections ?? cachedSnapshot?.outboundConnectionsEstablished,
             localWorkerCount: localWorkerCount ?? cachedSnapshot?.localWorkerCount,
+            localWorkers: cachedSnapshot?.localWorkers,
             archivePeers: statusInt("archive_peers", fallback: cachedSnapshot?.archivePeers ?? 0),
             archiveEndpointCount: archiveEndpointCount,
             pendingJoins: statusInt("pending_joins", fallback: cachedSnapshot?.pendingJoins ?? 0),

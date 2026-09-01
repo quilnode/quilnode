@@ -166,6 +166,7 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.localWorkerCount =
             result.snapshot.localWorkerCount
             ?? snapshot.localWorkerCount
+        nextSnapshot.localWorkers = result.snapshot.localWorkers ?? snapshot.localWorkers
         processorUsageSampler.apply(to: &nextSnapshot)
         frameProgressTracker.apply(to: &nextSnapshot)
         snapshot = nextSnapshot
@@ -234,6 +235,7 @@ public final class NodeMonitor: ObservableObject {
         snapshot.epochLength = status.epochLength
         snapshot.nextEpochFrame = status.nextEpochFrame
         snapshot.shardAllocations = status.allocations
+        snapshot.localWorkers = status.workers
         snapshot.networkShards = telemetry.networkShards
         snapshot.networkShardSummary = telemetry.networkSummary
         snapshot.proverStatusUpdatedAt = telemetry.observedAt

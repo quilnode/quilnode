@@ -90,6 +90,9 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// value is used only to explain capacity; it is not required for master
     /// port forwarding because thread workers do not open worker ports.
     public var localWorkerCount: Int?
+    /// Detailed worker rows emitted by the local qclient. Optional storage
+    /// keeps snapshots written by earlier QuilNode versions decodable.
+    public var localWorkers: [LocalWorkerObservation]?
     /// Signed, allowlisted archive identities announced through PeerInfo since
     /// the current node process started. This is a discovery counter, not a
     /// reachability probe.
@@ -172,6 +175,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         inboundConnectionsEstablished: UInt64? = nil,
         outboundConnectionsEstablished: UInt64? = nil,
         localWorkerCount: Int? = nil,
+        localWorkers: [LocalWorkerObservation]? = nil,
         archivePeers: Int = 0,
         archiveEndpointCount: Int? = nil,
         pendingJoins: Int = 0,
@@ -233,6 +237,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.inboundConnectionsEstablished = inboundConnectionsEstablished
         self.outboundConnectionsEstablished = outboundConnectionsEstablished
         self.localWorkerCount = localWorkerCount
+        self.localWorkers = localWorkers
         self.archivePeers = archivePeers
         self.archiveEndpointCount = archiveEndpointCount
         self.pendingJoins = pendingJoins

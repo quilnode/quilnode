@@ -1,5 +1,26 @@
 import Foundation
 
+public struct LocalWorkerObservation: Codable, Equatable, Sendable, Identifiable {
+    public var coreID: Int
+    public var filter: String
+    public var availableStorage: String
+    public var totalStorage: String
+
+    public var id: Int { coreID }
+
+    public init(
+        coreID: Int,
+        filter: String,
+        availableStorage: String,
+        totalStorage: String
+    ) {
+        self.coreID = coreID
+        self.filter = filter
+        self.availableStorage = availableStorage
+        self.totalStorage = totalStorage
+    }
+}
+
 public struct ShardAllocation: Codable, Equatable, Sendable, Identifiable {
     public var index: Int
     public var filter: String
@@ -70,6 +91,7 @@ public struct LocalProverStatus: Equatable, Sendable {
     public var peerScore: Double?
     public var runningWorkers: Int
     public var allocatedWorkers: Int
+    public var workers: [LocalWorkerObservation]
     public var lastReceivedFrame: UInt64
     public var lastGlobalHeadFrame: UInt64
     public var epoch: UInt64
@@ -83,6 +105,7 @@ public struct LocalProverStatus: Equatable, Sendable {
         peerScore: Double? = nil,
         runningWorkers: Int = 0,
         allocatedWorkers: Int = 0,
+        workers: [LocalWorkerObservation] = [],
         lastReceivedFrame: UInt64 = 0,
         lastGlobalHeadFrame: UInt64 = 0,
         epoch: UInt64 = 0,
@@ -95,6 +118,7 @@ public struct LocalProverStatus: Equatable, Sendable {
         self.peerScore = peerScore
         self.runningWorkers = runningWorkers
         self.allocatedWorkers = allocatedWorkers
+        self.workers = workers
         self.lastReceivedFrame = lastReceivedFrame
         self.lastGlobalHeadFrame = lastGlobalHeadFrame
         self.epoch = epoch

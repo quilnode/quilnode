@@ -88,6 +88,14 @@
                 inboundConnectionsEstablished: 91,
                 outboundConnectionsEstablished: 407,
                 localWorkerCount: 9,
+                localWorkers: allocatedShards.enumerated().map { index, shard in
+                    LocalWorkerObservation(
+                        coreID: index + 1,
+                        filter: shard.filter,
+                        availableStorage: String(format: "%.1f GB", 31.0 - Double(index) * 1.4),
+                        totalStorage: "40.0 GB"
+                    )
+                },
                 archivePeers: 5,
                 archiveEndpointCount: 5,
                 pendingJoins: 5,

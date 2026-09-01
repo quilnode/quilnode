@@ -32,9 +32,13 @@ final class NodeIdentityAndParsingTests: XCTestCase {
               [0] Filter: 00aabb  Status: Joining  Worker: worker-0
                   Action: Confirm in 20 frames | Reject in 20 frames
                   Join Frame: 499980 (epoch 694)  Confirm Frame: 500000
-              [1] Filter: 11ccdd  Status: Active  Worker: worker-1
-                  Re-confirm through epoch 694 (renew before frame 500400)
-                  Last Active: 500003
+                  [1] Filter: 11ccdd  Status: Active  Worker: worker-1
+                      Re-confirm through epoch 694 (renew before frame 500400)
+                      Last Active: 500003
+
+                Workers (2):
+                  Core 1: Filter: 00aabb  Storage: 12.4 GB / 40.0 GB
+                  Core 2: Filter: 11ccdd  Storage: 8.0 GB / 40.0 GB
             """
         if let prover = ProverStatusParser.parse(proverStatusOutput) {
             expect(prover.seniority == 12_345_678, "prover RPC seniority parsing")
@@ -45,6 +49,9 @@ final class NodeIdentityAndParsingTests: XCTestCase {
             expect(prover.allocations.first?.status == "Joining", "allocation status parsing")
             expect(prover.allocations.first?.confirmFrame == 500_000, "allocation timing parsing")
             expect(prover.allocations.last?.lastActiveFrame == 500_003, "last active frame parsing")
+            expect(prover.workers.count == 2, "worker detail parsing")
+            expect(prover.workers.first?.coreID == 1, "worker core parsing")
+            expect(prover.workers.first?.availableStorage == "12.4 GB", "worker storage parsing")
         } else {
             XCTFail("local prover status parsing")
         }

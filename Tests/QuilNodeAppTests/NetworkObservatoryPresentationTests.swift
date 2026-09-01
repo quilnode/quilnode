@@ -77,6 +77,14 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
             networkShards: shards,
             networkShardSummary: NetworkShardSummary(shards: shards, observedAt: observedAt),
             localWorkerCount: 9,
+            localWorkers: [
+                LocalWorkerObservation(
+                    coreID: 1,
+                    filter: "local-a",
+                    availableStorage: "12.4 GB",
+                    totalStorage: "40.0 GB"
+                )
+            ],
             pendingJoins: 5,
             activeShards: 4,
             totalAllocations: 9
@@ -86,6 +94,7 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
 
         XCTAssertEqual(node.runningWorkers, 9)
         XCTAssertEqual(node.allocatedWorkers, 7)
+        XCTAssertEqual(node.workers.first?.availableStorage, "12.4 GB")
         XCTAssertEqual(node.activeAllocations, 4)
         XCTAssertEqual(node.joiningAllocations, 5)
         XCTAssertEqual(node.totalAllocations, 9)

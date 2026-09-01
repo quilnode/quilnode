@@ -52,6 +52,7 @@ struct NetworkLocalNodePresentation {
     let version: String?
     let runningWorkers: Int?
     let allocatedWorkers: Int
+    let workers: [LocalWorkerObservation]
     let activeAllocations: Int
     let joiningAllocations: Int
     let totalAllocations: Int
@@ -90,6 +91,7 @@ struct NetworkLocalNodePresentation {
             version: snapshot.version,
             runningWorkers: snapshot.localWorkerCount,
             allocatedWorkers: snapshot.allocatedWorkers,
+            workers: snapshot.localWorkers ?? [],
             activeAllocations: snapshot.activeAllocations,
             joiningAllocations: snapshot.joiningAllocations,
             totalAllocations: max(

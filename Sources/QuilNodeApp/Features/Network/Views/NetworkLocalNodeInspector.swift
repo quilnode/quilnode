@@ -1,7 +1,9 @@
+import QuilNodeCore
 import SwiftUI
 
 struct NetworkLocalNodeInspector: View {
     @Environment(\.quilTheme) private var theme
+    @Environment(\.redactionReasons) private var redactionReasons
 
     let node: NetworkLocalNodePresentation
 
@@ -12,6 +14,10 @@ struct NetworkLocalNodeInspector: View {
                 participationSection
                 sectionDivider
                 allocationSection
+                if !node.workers.isEmpty {
+                    sectionDivider
+                    workerSection
+                }
                 sectionDivider
                 rewardSection
                 sectionDivider
@@ -161,6 +167,24 @@ struct NetworkLocalNodeInspector: View {
         }
     }
 
+    private var workerSection: some View {
+        section("Worker roster") {
+            if redactionReasons.contains(.privacy) {
+                ForEach(0..<PrivacyLayoutPolicy.collectionPlaceholderCount, id: \.self) { _ in
+                    workerRow(nil)
+                }
+            } else {
+                ForEach(node.workers) { worker in
+                    workerRow(worker)
+                }
+            }
+            Text("Available and total storage are reported by the local qclient.")
+                .font(.system(size: 9.2))
+                .foregroundStyle(theme.colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var runtimeSection: some View {
         section("Local activity") {
             datum(
@@ -268,6 +292,52 @@ struct NetworkLocalNodeInspector: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
         }
+    }
+
+    private func workerRow(_ worker: LocalWorkerObservation?) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
+            workerDatum(
+                "Worker",
+                worker.map { String($0.coreID) } ?? "0",
+                privacyField: .hardwareProfile,
+                width: 42
+            )
+            workerDatum(
+                "Shard",
+                worker?.filter.compactIdentifier ?? "hidden",
+                privacyField: .shardAllocation,
+                width: 68
+            )
+            workerDatum(
+                "Storage",
+                worker.map { "\($0.availableStorage) / \($0.totalStorage)" } ?? "hidden",
+                privacyField: .hardwareProfile,
+                width: nil
+            )
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(theme.colors.canvas.opacity(0.34), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func workerDatum(
+        _ label: String,
+        _ value: String,
+        privacyField: PrivacyField,
+        width: CGFloat?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 7.5, weight: .medium))
+                .foregroundStyle(theme.colors.secondaryText)
+            PrivacyProtectedText(value: value, field: privacyField)
+                .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                .foregroundStyle(theme.colors.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(width: width, alignment: .leading)
+        .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
     }
 
     private var statusTint: Color {

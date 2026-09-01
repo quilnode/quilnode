@@ -16,6 +16,11 @@ public enum ProverStatusParser {
                 continue
             }
 
+            if let worker = parseWorker(line) {
+                result.workers.append(worker)
+                continue
+            }
+
             if let index = currentAllocation {
                 if line.hasPrefix("Action:") {
                     allocations[index].action = value(after: "Action:", in: line)
@@ -93,6 +98,25 @@ public enum ProverStatusParser {
             filter: String(line[filterRange]),
             status: String(line[statusRange]),
             worker: worker
+        )
+    }
+
+    private static func parseWorker(_ line: String) -> LocalWorkerObservation? {
+        let pattern =
+            #"^Core\s+([0-9]+):\s+Filter:\s*([0-9a-fA-F]*)\s+Storage:\s+(.+?)\s+/\s+(.+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+            let coreRange = Range(match.range(at: 1), in: line),
+            let filterRange = Range(match.range(at: 2), in: line),
+            let availableRange = Range(match.range(at: 3), in: line),
+            let totalRange = Range(match.range(at: 4), in: line),
+            let coreID = Int(line[coreRange])
+        else { return nil }
+        return LocalWorkerObservation(
+            coreID: coreID,
+            filter: String(line[filterRange]),
+            availableStorage: String(line[availableRange]).trimmingCharacters(in: .whitespaces),
+            totalStorage: String(line[totalRange]).trimmingCharacters(in: .whitespaces)
         )
     }
 
