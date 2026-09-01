@@ -18,7 +18,7 @@ extension DashboardView {
                 ActivityDashboardView(snapshot: monitor.snapshot)
                 protocolMilestoneActivitySection
             case .network:
-                NetworkReadinessView()
+                NetworkWorkspaceView()
             case .identity:
                 IdentityOverviewView(
                     snapshot: monitor.snapshot,

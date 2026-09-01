@@ -198,6 +198,15 @@ struct QuilNodeApp: App {
             } else if designPreviewMode == "app-update-sidebar" {
                 AppUpdateSidebarDesignPreviewHost()
                     .quilThemed(.quilNode)
+            } else if designPreviewMode == "network-observatory" {
+                NetworkObservatoryDesignPreviewHost()
+                    .quilThemed(.quilNode)
+            } else if designPreviewMode == "network-observatory-private" {
+                NetworkObservatoryDesignPreviewHost(privacyEnabled: true)
+                    .quilThemed(.quilNode)
+            } else if designPreviewMode == "network-observatory-compact" {
+                NetworkObservatoryDesignPreviewHost(layoutClass: .compact)
+                    .quilThemed(.quilNode)
             } else {
                 dashboardSceneContent
             }

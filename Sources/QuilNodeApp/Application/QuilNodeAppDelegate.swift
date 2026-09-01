@@ -59,6 +59,9 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                     || $0 == "--design-preview=theme-library"
                     || $0 == "--design-preview=build-evidence"
                     || $0 == "--design-preview=app-update-sidebar"
+                    || $0 == "--design-preview=network-observatory"
+                    || $0 == "--design-preview=network-observatory-private"
+                    || $0 == "--design-preview=network-observatory-compact"
             }
             guard let value else { return }
 
@@ -69,7 +72,11 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 ? NSSize(width: 420, height: 590)
                 : mode.hasPrefix("onboarding-")
                     ? NSSize(width: 900, height: 680)
-                    : NSSize(width: 980, height: 730)
+                    : mode == "network-observatory-compact"
+                        ? NSSize(width: 760, height: 820)
+                        : mode.hasPrefix("network-observatory")
+                            ? NSSize(width: 1_260, height: 820)
+                            : NSSize(width: 980, height: 730)
             let window = NSWindow(
                 contentRect: NSRect(origin: .zero, size: previewSize),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -139,6 +146,12 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
             } else if mode == "app-update-sidebar" {
                 AppUpdateSidebarDesignPreviewHost()
                     .quilThemed(.quilNode)
+            } else if mode.hasPrefix("network-observatory") {
+                NetworkObservatoryDesignPreviewHost(
+                    privacyEnabled: mode == "network-observatory-private",
+                    layoutClass: mode == "network-observatory-compact" ? .compact : .wide
+                )
+                .quilThemed(.quilNode)
             } else if mode.hasPrefix("operator-interlock-") {
                 let previewMode: OperatorInterlockPreviewMode =
                     switch mode {
