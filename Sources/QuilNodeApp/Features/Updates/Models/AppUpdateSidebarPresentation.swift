@@ -20,7 +20,7 @@ struct AppUpdateSidebarPresentation: Equatable {
     init?(phase: AppUpdatePhase, availableVersion: String?, canCheck: Bool) {
         switch phase {
         case .updateAvailable(let version):
-            title = "Update QuilNode"
+            title = "App update"
             detail = version
             systemImage = "arrow.down.app.fill"
             tone = .available

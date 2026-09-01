@@ -30,7 +30,7 @@ final class AppUpdateSidebarPresentationTests: XCTestCase {
             )
         )
 
-        XCTAssertEqual(presentation.title, "Update QuilNode")
+        XCTAssertEqual(presentation.title, "App update")
         XCTAssertEqual(presentation.detail, "0.1.0-alpha.3")
         XCTAssertEqual(presentation.tone, .available)
         XCTAssertFalse(presentation.showsProgress)
