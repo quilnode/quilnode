@@ -76,6 +76,12 @@ struct DashboardView: View {
                                 .padding(.top, destination == .overview ? 0 : theme.metrics.panelPadding + 4)
                                 .padding(.bottom, destination == .overview ? 0 : theme.metrics.panelPadding + 12)
                             }
+                            // A destination owns its own vertical context. Reusing one
+                            // scroll identity allowed a deeply scrolled screen to hide
+                            // the title and primary controls of the next destination.
+                            // Re-keying only the scroll container resets navigation to
+                            // the top without recreating app-owned coordinators or work.
+                            .id(destination)
                         }
                         DashboardStatusFooter(
                             snapshot: monitor.snapshot,
