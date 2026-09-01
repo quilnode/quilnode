@@ -14,6 +14,8 @@ struct DashboardOverviewConstellation: View {
     let hasLiveTelemetry: Bool
     let onOpenNetwork: () -> Void
 
+    private let overviewShardLimit = 5
+
     private var presentation: NetworkObservatoryPresentation {
         .make(snapshot: snapshot)
     }
@@ -26,8 +28,8 @@ struct DashboardOverviewConstellation: View {
         }
 
         let local = presentation.shards.filter(\.observation.isAllocated)
-        if !local.isEmpty { return local }
-        return Array(presentation.shards.prefix(5))
+        if !local.isEmpty { return Array(local.prefix(overviewShardLimit)) }
+        return Array(presentation.shards.prefix(overviewShardLimit))
     }
 
     private var featuredShardIDs: Set<String> {
