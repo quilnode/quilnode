@@ -103,7 +103,7 @@ targets:
         SUVerifyUpdateBeforeExtraction: true
         SURequireSignedFeed: true
         SUSignedFeedFailureExpirationInterval: 0
-        SUScheduledCheckInterval: 86400
+        SUScheduledCheckInterval: 3600
     entitlements:
       path: Resources/QuilNode.entitlements
       properties:

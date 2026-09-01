@@ -45,10 +45,10 @@ struct AppUpdateSettingsPane: View {
                     systemImage: "calendar.badge.clock",
                     title: "Automatic check",
                     detail:
-                        "Discover signed releases once per day. An update button appears in the sidebar when action is needed."
+                        "Check quietly when QuilNode starts and about once per hour while it stays open. A verified update action appears in the sidebar when needed."
                 ) {
                     Toggle(
-                        "Daily",
+                        "Automatic",
                         isOn: Binding(
                             get: { appUpdates.automaticallyChecks },
                             set: { appUpdates.setAutomaticallyChecks($0) }

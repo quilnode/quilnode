@@ -44,6 +44,13 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
         do {
             try updater.start()
             started = true
+            // Sparkle explicitly permits one forced background check in the
+            // same run-loop turn as startup. This makes a newly published
+            // release discoverable on launch without coupling checks to window
+            // creation or disturbing Sparkle's long-lived scheduler.
+            if updater.automaticallyChecksForUpdates {
+                updater.checkForUpdatesInBackground()
+            }
         } catch {
             apply(error)
         }
@@ -51,7 +58,8 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate 
 
     func setAutomaticallyChecks(_ enabled: Bool) {
         updater.automaticallyChecksForUpdates = enabled
-        if enabled { updater.resetUpdateCycleAfterShortDelay() }
+        // Sparkle persists this preference and resets its own schedule after
+        // the setting changes; a second reset here would be redundant.
         objectWillChange.send()
     }
 
