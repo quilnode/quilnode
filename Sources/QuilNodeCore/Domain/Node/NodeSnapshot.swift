@@ -74,6 +74,10 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     public var epochLength: UInt64
     public var nextEpochFrame: UInt64
     public var shardAllocations: [ShardAllocation]
+    /// Complete shard rows from the most recent local qclient observation.
+    /// Optional storage keeps snapshots written by older app versions
+    /// decodable while distinguishing "not collected" from an empty network.
+    public var networkShards: [NetworkShardObservation]?
     public var networkShardSummary: NetworkShardSummary?
     public var frame: UInt64
     public var peers: Int
@@ -161,6 +165,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         epochLength: UInt64 = 720,
         nextEpochFrame: UInt64 = 0,
         shardAllocations: [ShardAllocation] = [],
+        networkShards: [NetworkShardObservation]? = nil,
         networkShardSummary: NetworkShardSummary? = nil,
         frame: UInt64 = 0,
         peers: Int = 0,
@@ -221,6 +226,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.epochLength = epochLength
         self.nextEpochFrame = nextEpochFrame
         self.shardAllocations = shardAllocations
+        self.networkShards = networkShards
         self.networkShardSummary = networkShardSummary
         self.frame = frame
         self.peers = peers

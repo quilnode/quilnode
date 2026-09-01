@@ -109,6 +109,7 @@ public enum LocalProverTelemetryParser {
         }
         return LocalProverTelemetry(
             status: status,
+            networkShards: shardInfo?.shards ?? [],
             networkSummary: summary,
             observedAt: payload.observedAt
         )

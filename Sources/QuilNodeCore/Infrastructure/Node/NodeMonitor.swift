@@ -155,6 +155,7 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.epochLength = snapshot.epochLength
         nextSnapshot.nextEpochFrame = snapshot.nextEpochFrame
         nextSnapshot.shardAllocations = snapshot.shardAllocations
+        nextSnapshot.networkShards = snapshot.networkShards
         nextSnapshot.networkShardSummary = snapshot.networkShardSummary
         nextSnapshot.inboundConnectionsEstablished =
             result.snapshot.inboundConnectionsEstablished
@@ -233,6 +234,7 @@ public final class NodeMonitor: ObservableObject {
         snapshot.epochLength = status.epochLength
         snapshot.nextEpochFrame = status.nextEpochFrame
         snapshot.shardAllocations = status.allocations
+        snapshot.networkShards = telemetry.networkShards
         snapshot.networkShardSummary = telemetry.networkSummary
         snapshot.proverStatusUpdatedAt = telemetry.observedAt
 

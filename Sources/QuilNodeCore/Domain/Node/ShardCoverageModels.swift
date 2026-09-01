@@ -28,7 +28,7 @@ public enum ShardCoverageState: String, Codable, Equatable, Sendable {
     }
 }
 
-public struct NetworkShardObservation: Equatable, Sendable {
+public struct NetworkShardObservation: Codable, Equatable, Identifiable, Sendable {
     public var filter: String
     public var shardSize: String
     public var dataShards: Int
@@ -37,6 +37,8 @@ public struct NetworkShardObservation: Equatable, Sendable {
     public var estimatedRewardPerFrame: String
     public var isAllocated: Bool
     public var worker: String?
+
+    public var id: String { filter }
 
     public init(
         filter: String,
@@ -114,15 +116,20 @@ public struct QClientShardInfoSnapshot: Equatable, Sendable {
 
 public struct LocalProverTelemetry: Equatable, Sendable {
     public var status: LocalProverStatus
+    /// Full shard rows emitted by the local qclient. This is the source for
+    /// topology views; it is not a remote census or an inferred peer graph.
+    public var networkShards: [NetworkShardObservation]
     public var networkSummary: NetworkShardSummary?
     public var observedAt: Date
 
     public init(
         status: LocalProverStatus,
+        networkShards: [NetworkShardObservation] = [],
         networkSummary: NetworkShardSummary? = nil,
         observedAt: Date
     ) {
         self.status = status
+        self.networkShards = networkShards
         self.networkSummary = networkSummary
         self.observedAt = observedAt
     }

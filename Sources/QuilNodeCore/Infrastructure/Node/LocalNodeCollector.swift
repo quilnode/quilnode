@@ -192,6 +192,7 @@ public struct LocalNodeCollector: Sendable {
             epochLength: cachedSnapshot?.epochLength ?? 720,
             nextEpochFrame: cachedSnapshot?.nextEpochFrame ?? 0,
             shardAllocations: cachedSnapshot?.shardAllocations ?? [],
+            networkShards: cachedSnapshot?.networkShards,
             networkShardSummary: cachedSnapshot?.networkShardSummary,
             frame: max(statusUInt64("frame", fallback: cachedSnapshot?.frame ?? 0), info?.frame ?? 0),
             peers: metricPeers ?? statusInt("peers", fallback: cachedSnapshot?.peers ?? 0),
