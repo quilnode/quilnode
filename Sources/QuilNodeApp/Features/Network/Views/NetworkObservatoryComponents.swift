@@ -67,13 +67,13 @@ struct NetworkObservatoryInspector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let shard {
-                HStack(alignment: .top, spacing: 10) {
-                    ZStack {
-                        Circle().fill(coverageTint(shard.coverage).opacity(0.14))
-                        Circle().fill(coverageTint(shard.coverage)).frame(width: 8, height: 8)
-                    }
-                    .frame(width: 30, height: 30)
+                Text("SELECTED SHARD")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundStyle(theme.colors.secondaryText)
 
+                HStack(alignment: .center, spacing: 12) {
+                    NetworkShardGalaxyBadge(shard: shard, diameter: 76)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(hidesLocalAssociation ? "Network shard" : shard.title)
                             .font(.headline)
@@ -189,44 +189,111 @@ struct NetworkObservatoryEvidenceRail: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 14) { content }
-            VStack(alignment: .leading, spacing: 7) { content }
+            HStack(spacing: 0) { telemetryCells }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 142), spacing: 0)], spacing: 0) {
+                telemetryCells
+            }
         }
-        .font(.system(size: 9.5, design: .monospaced).monospacedDigit())
-        .foregroundStyle(theme.colors.secondaryText)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
         .controlSurface()
     }
 
     @ViewBuilder
-    private var content: some View {
-        evidenceItem("Frame", String(presentation.frame), tint: theme.colors.frame)
-        evidenceItem("Epoch", String(presentation.epoch), tint: theme.colors.accentSecondary)
-        evidenceItem("Peers", String(presentation.peers), tint: theme.colors.info, privacyField: .networkActivity)
-        evidenceItem("Archives", presentation.archiveSources.map(String.init) ?? "—", tint: theme.colors.success)
-        if let world = presentation.summary?.worldState {
-            evidenceItem("World", world, tint: theme.colors.wallet)
-        }
-        Spacer(minLength: 6)
-        HStack(spacing: 5) {
-            Circle().fill(evidenceTint).frame(width: 5, height: 5)
-            Text(presentation.evidenceLabel)
-            if let date = presentation.observedAt {
-                PrivacyProtectedText(value: date.formatted(date: .omitted, time: .shortened), field: .localTimestamp)
-            }
-        }
+    private var telemetryCells: some View {
+        telemetryCell(
+            title: "Frame",
+            value: presentation.frame.formatted(.number.grouping(.automatic)),
+            detail: "Local chain head",
+            tint: theme.colors.frame
+        )
+        epochCell
+        telemetryCell(
+            title: "Observed peers",
+            value: String(presentation.peers),
+            detail: "Local peer table",
+            tint: theme.colors.info,
+            privacyField: .networkActivity
+        )
+        telemetryCell(
+            title: "Archive sources",
+            value: presentation.archiveSources.map(String.init) ?? "—",
+            detail: "Known locally",
+            tint: theme.colors.success,
+            privacyField: .networkActivity
+        )
+        telemetryCell(
+            title: "World state",
+            value: presentation.summary?.worldState ?? "—",
+            detail: "Reported by qclient",
+            tint: theme.colors.wallet
+        )
+        observationCell
     }
 
-    private func evidenceItem(_ label: String, _ value: String, tint: Color, privacyField: PrivacyField? = nil)
-        -> some View
-    {
-        HStack(spacing: 4) {
-            Text(label).foregroundStyle(theme.colors.secondaryText)
-            PrivacyProtectedText(value: value, field: privacyField)
-                .fontWeight(.semibold)
-                .foregroundStyle(tint)
+    private var epochCell: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            telemetryTitle("Epoch progress")
+            Text(presentation.epochProgress, format: .percent.precision(.fractionLength(1)))
+                .font(.system(size: 17, weight: .semibold, design: .monospaced).monospacedDigit())
+                .foregroundStyle(theme.colors.accentSecondary)
+            ProgressView(value: presentation.epochProgress)
+                .progressViewStyle(.linear)
+                .tint(theme.colors.accentSecondary)
+            Text(
+                presentation.nextEpoch.map { "Epoch \(presentation.epoch) → \($0)" }
+                    ?? "Epoch \(presentation.epoch)"
+            )
+            .font(.system(size: 8.5, design: .monospaced).monospacedDigit())
+            .foregroundStyle(theme.colors.secondaryText)
         }
+        .telemetryCell()
+    }
+
+    private var observationCell: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            telemetryTitle("Observation")
+            HStack(spacing: 6) {
+                Circle().fill(evidenceTint).frame(width: 6, height: 6)
+                PrivacyProtectedText(
+                    value: presentation.observedAt?.formatted(date: .omitted, time: .shortened) ?? "—",
+                    field: .localTimestamp
+                )
+                .font(.system(size: 17, weight: .semibold, design: .monospaced).monospacedDigit())
+                .foregroundStyle(evidenceTint)
+            }
+            Text(presentation.evidenceLabel)
+                .font(.system(size: 8.5, design: .monospaced))
+                .foregroundStyle(theme.colors.secondaryText)
+                .lineLimit(1)
+        }
+        .telemetryCell()
+    }
+
+    private func telemetryCell(
+        title: String,
+        value: String,
+        detail: String,
+        tint: Color,
+        privacyField: PrivacyField? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            telemetryTitle(title)
+            PrivacyProtectedText(value: value, field: privacyField)
+                .font(.system(size: 17, weight: .semibold, design: .monospaced).monospacedDigit())
+                .foregroundStyle(tint)
+                .quilLiveValueTransition(value: value)
+            Text(detail)
+                .font(.system(size: 8.5, design: .monospaced))
+                .foregroundStyle(theme.colors.secondaryText)
+                .lineLimit(1)
+        }
+        .telemetryCell()
+    }
+
+    private func telemetryTitle(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 8, weight: .bold, design: .monospaced))
+            .tracking(0.7)
+            .foregroundStyle(theme.colors.secondaryText)
     }
 
     private var evidenceTint: Color {
@@ -236,5 +303,70 @@ struct NetworkObservatoryEvidenceRail: View {
         case .stale: theme.colors.warning
         case .unavailable: theme.colors.danger
         }
+    }
+}
+
+private struct NetworkShardGalaxyBadge: View {
+    @Environment(\.quilTheme) private var theme
+
+    let shard: NetworkShardPresentation
+    let diameter: CGFloat
+
+    var body: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius = min(size.width, size.height) * 0.28
+            context.fill(
+                Path(
+                    ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+                ),
+                with: .color(theme.colors.canvas.opacity(0.88))
+            )
+            context.stroke(
+                Path(
+                    ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+                ),
+                with: .color(tint.opacity(0.86)),
+                lineWidth: 1.1
+            )
+            let samples =
+                shard.observation.activeProvers > 0
+                ? min(max(shard.observation.activeProvers * 3, 12), 28)
+                : 0
+            for index in 0..<samples {
+                let angle = Double(index) * 2.399_963
+                let orbit = radius * (1.22 + CGFloat((index * 31) % 100) / 220)
+                let point = CGPoint(x: center.x + cos(angle) * orbit, y: center.y + sin(angle) * orbit)
+                context.fill(
+                    Path(ellipseIn: CGRect(x: point.x - 1.4, y: point.y - 1.4, width: 2.8, height: 2.8)),
+                    with: .color(tint.opacity(0.86))
+                )
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .background(tint.opacity(0.08), in: Circle())
+        .overlay { Circle().strokeBorder(tint.opacity(0.26), lineWidth: 0.6) }
+        .accessibilityHidden(true)
+    }
+
+    private var tint: Color {
+        switch shard.coverage {
+        case .healthy: theme.colors.success
+        case .belowTarget: theme.colors.warning
+        case .atRisk: theme.colors.danger
+        case .unassigned: theme.colors.muted
+        }
+    }
+}
+
+private extension View {
+    func telemetryCell() -> some View {
+        self
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 10)
+            .overlay(alignment: .trailing) {
+                Rectangle().fill(Color.primary.opacity(0.10)).frame(width: 0.5)
+            }
     }
 }

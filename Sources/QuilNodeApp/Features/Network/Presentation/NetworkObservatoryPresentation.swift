@@ -86,6 +86,8 @@ struct NetworkObservatoryPresentation {
     let localAllocationCount: Int
     let frame: UInt64
     let epoch: UInt64
+    let epochProgress: Double
+    let nextEpoch: UInt64?
     let observedAt: Date?
     let evidenceState: EvidenceState
 
@@ -113,14 +115,19 @@ struct NetworkObservatoryPresentation {
             evidenceState = .current
         }
 
+        let effectiveFrame = max(snapshot.epochClock.frame, snapshot.networkShardSummary?.frame ?? 0)
+        let epochClock = NodeEpochClock(frame: effectiveFrame, epochLength: snapshot.epochLength)
+
         return Self(
             shards: shards,
             summary: snapshot.networkShardSummary,
             peers: snapshot.peers,
             archiveSources: snapshot.archiveEndpointCount,
             localAllocationCount: snapshot.shardAllocations.count,
-            frame: max(snapshot.frame, snapshot.networkShardSummary?.frame ?? 0),
-            epoch: snapshot.epoch,
+            frame: effectiveFrame,
+            epoch: epochClock.epoch,
+            epochProgress: epochClock.progress,
+            nextEpoch: epochClock.nextEpoch,
             observedAt: observedAt,
             evidenceState: evidenceState
         )
@@ -142,6 +149,23 @@ struct NetworkObservatoryPresentation {
         shards.first(where: { $0.observation.isAllocated })?.id ?? shards.first?.id
     }
 
+    /// Chooses the shards that deserve full visual treatment without hiding the
+    /// rest of the locally observed network. Local allocations lead only when
+    /// Privacy Mode permits that relationship to be shown.
+    func featuredShardIDs(revealsLocalTopology: Bool, limit: Int = 9) -> Set<String> {
+        guard limit > 0 else { return [] }
+        let ordered = shards.sorted { lhs, rhs in
+            let lhsPriority = visualPriority(lhs, revealsLocalTopology: revealsLocalTopology)
+            let rhsPriority = visualPriority(rhs, revealsLocalTopology: revealsLocalTopology)
+            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+            if lhs.observation.activeProvers != rhs.observation.activeProvers {
+                return lhs.observation.activeProvers > rhs.observation.activeProvers
+            }
+            return lhs.fullFilter < rhs.fullFilter
+        }
+        return Set(ordered.prefix(limit).map(\.id))
+    }
+
     var evidenceLabel: String {
         switch evidenceState {
         case .loading: "Reading local node"
@@ -157,6 +181,19 @@ struct NetworkObservatoryPresentation {
         case .atRisk: 1
         case .belowTarget: 2
         case .healthy: 3
+        }
+    }
+
+    private func visualPriority(
+        _ shard: NetworkShardPresentation,
+        revealsLocalTopology: Bool
+    ) -> Int {
+        if revealsLocalTopology, shard.observation.isAllocated { return 0 }
+        switch shard.coverage {
+        case .atRisk: return 1
+        case .belowTarget: return 2
+        case .unassigned: return 3
+        case .healthy: return 4
         }
     }
 }

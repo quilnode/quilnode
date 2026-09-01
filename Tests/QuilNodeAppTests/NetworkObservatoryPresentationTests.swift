@@ -27,6 +27,8 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
 
         XCTAssertEqual(presentation.evidenceState, .current)
         XCTAssertEqual(presentation.frame, 9_999)
+        XCTAssertEqual(presentation.epoch, 13)
+        XCTAssertEqual(presentation.epochProgress, 639.0 / 720.0, accuracy: 0.0001)
         XCTAssertEqual(presentation.localAllocationCount, 1)
         XCTAssertEqual(presentation.visibleShards(filter: .local, query: "").map(\.id), ["local"])
         XCTAssertEqual(
@@ -35,6 +37,52 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         )
         XCTAssertEqual(presentation.visibleShards(filter: .all, query: "ring 0").count, 4)
         XCTAssertEqual(presentation.preferredSelection, "local")
+    }
+
+    func testFeaturedShardsDoNotUsePrivateAllocationEvidenceInPrivacyMode() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let shards = [
+            shard("healthy-local", provers: 12, allocated: true),
+            shard("at-risk", provers: 2),
+            shard("below-target", provers: 5),
+            shard("healthy-public", provers: 9),
+        ]
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: NodeSnapshot(
+                isRunning: true,
+                shardAllocations: [
+                    ShardAllocation(index: 0, filter: "healthy-local", status: "active", worker: "1")
+                ],
+                networkShards: shards,
+                networkShardSummary: NetworkShardSummary(shards: shards, observedAt: observedAt)
+            ),
+            now: observedAt
+        )
+
+        XCTAssertEqual(
+            presentation.featuredShardIDs(revealsLocalTopology: true, limit: 1),
+            Set(["healthy-local"])
+        )
+        XCTAssertEqual(
+            presentation.featuredShardIDs(revealsLocalTopology: false, limit: 1),
+            Set(["at-risk"])
+        )
+    }
+
+    func testSemanticLayoutKeepsContextShardsSmallerThanFeaturedShards() {
+        let featured = NetworkShardPresentation(observation: shard("featured", provers: 8))
+        let context = NetworkShardPresentation(observation: shard("context", provers: 8))
+        let layouts = ShardConstellationLayout.layouts(
+            for: [featured, context],
+            featuredIDs: Set([featured.id]),
+            selectedID: featured.id,
+            size: CGSize(width: 900, height: 500),
+            zoom: 1
+        )
+
+        XCTAssertEqual(layouts[featured.id]?.isFeatured, true)
+        XCTAssertEqual(layouts[context.id]?.isFeatured, false)
+        XCTAssertGreaterThan(layouts[featured.id]?.radius ?? 0, layouts[context.id]?.radius ?? 0)
     }
 
     func testSeparatesLoadingUnavailableAndStaleEvidence() {

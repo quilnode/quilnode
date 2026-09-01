@@ -73,9 +73,9 @@ final class QuilNodeAppDelegate: NSObject, NSApplicationDelegate {
                 : mode.hasPrefix("onboarding-")
                     ? NSSize(width: 900, height: 680)
                     : mode == "network-observatory-compact"
-                        ? NSSize(width: 760, height: 820)
+                        ? NSSize(width: 760, height: 900)
                         : mode.hasPrefix("network-observatory")
-                            ? NSSize(width: 1_260, height: 820)
+                            ? NSSize(width: 1_260, height: 940)
                             : NSSize(width: 980, height: 730)
             let window = NSWindow(
                 contentRect: NSRect(origin: .zero, size: previewSize),

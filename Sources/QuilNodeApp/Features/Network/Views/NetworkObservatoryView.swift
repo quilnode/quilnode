@@ -27,6 +27,13 @@ struct NetworkObservatoryView: View {
         redactionReasons.contains(.privacy) ? [.all, .attention] : NetworkObservatoryFilter.allCases
     }
 
+    private var featuredShardIDs: Set<String> {
+        presentation.featuredShardIDs(
+            revealsLocalTopology: !redactionReasons.contains(.privacy),
+            limit: layoutClass.isCompact ? 7 : 9
+        )
+    }
+
     private var selectedShard: NetworkShardPresentation? {
         visibleShards.first { $0.id == selectedID }
             ?? presentation.shards.first { $0.id == selectedID }
@@ -59,13 +66,19 @@ struct NetworkObservatoryView: View {
 
     private var observatoryHeader: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { headerContent }
-            VStack(alignment: .leading, spacing: 10) { headerContent }
+            HStack(spacing: 12) {
+                headerTitle
+                Spacer(minLength: 8)
+                headerControls
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                headerTitle
+                headerControls
+            }
         }
     }
 
-    @ViewBuilder
-    private var headerContent: some View {
+    private var headerTitle: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Shard constellation")
                 .font(.headline)
@@ -73,18 +86,22 @@ struct NetworkObservatoryView: View {
                 .font(.caption)
                 .foregroundStyle(theme.colors.secondaryText)
         }
-        Spacer(minLength: 8)
-        Picker("Shard scope", selection: $filter) {
-            ForEach(availableFilters) { filter in
-                Text(filter.title).tag(filter)
+    }
+
+    private var headerControls: some View {
+        HStack(spacing: 10) {
+            Picker("Shard scope", selection: $filter) {
+                ForEach(availableFilters) { filter in
+                    Text(filter.title).tag(filter)
+                }
             }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 144)
+            .accessibilityLabel("Shard scope")
+            searchField
+            zoomControls
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(width: 144)
-        .accessibilityLabel("Shard scope")
-        searchField
-        zoomControls
     }
 
     private var searchField: some View {
@@ -142,9 +159,9 @@ struct NetworkObservatoryView: View {
             HStack(alignment: .top, spacing: 12) {
                 topology
                 NetworkObservatoryInspector(shard: selectedShard)
-                    .frame(width: 268)
+                    .frame(width: 282)
             }
-            .frame(height: 480)
+            .frame(height: 510)
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 topology.frame(height: layoutClass.isCompact ? 360 : 420)
@@ -158,8 +175,11 @@ struct NetworkObservatoryView: View {
         ZStack {
             NetworkObservatoryCanvas(
                 shards: visibleShards,
+                featuredIDs: featuredShardIDs.intersection(visibleShards.map(\.id)),
                 selectedID: $selectedID,
-                zoom: zoom
+                zoom: zoom,
+                archiveSources: presentation.archiveSources,
+                localAllocationCount: presentation.localAllocationCount
             )
 
             if visibleShards.isEmpty {
