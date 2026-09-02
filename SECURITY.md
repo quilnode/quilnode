@@ -64,6 +64,9 @@ a public contact request is not a public vulnerability report.
 - Unauthenticated local clients receive no PID, service-account, capability,
   or build metadata.
 - QuilNode has no telemetry, remote command endpoint, or hosted key service.
+- Public explorer destinations are isolated browser links. The release audit
+  rejects Quilscan agent, service API, WebSocket, and background-query
+  dependencies in application targets.
 
 Security review reduces risk; it does not establish that software has “zero
 vulnerabilities.” Public releases require the local preflight, clean-machine

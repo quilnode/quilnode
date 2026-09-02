@@ -66,6 +66,30 @@ if rg -n 'QuilNode Local Code Signing|QuilNodeLocalSigning\.cer' \
     failures=$((failures + 1))
 fi
 
+# Quilscan is an explicit browser destination for public identity pages, not a
+# runtime dependency or a remote-control plane. Keep its URLs isolated in the
+# small, auditable link builder and reject agent, API, WebSocket, or installer
+# integration in every application target.
+approved_explorer_file="Sources/QuilNodeApp/Features/Identity/Infrastructure/IdentityExplorerLink.swift"
+quilscan_source_files="$(rg -l -i 'quilscan\.com' Sources || true)"
+if [[ "$quilscan_source_files" != "$approved_explorer_file" ]]; then
+    [[ -n "$quilscan_source_files" ]] && printf '%s\n' "$quilscan_source_files" >&2
+    echo "FAIL: Quilscan destinations exist outside the approved browser-link boundary" >&2
+    failures=$((failures + 1))
+fi
+if rg -n -i '(quilscan-agent|api\.quilscan\.com|quilscan\.com/node-console|wss?://.*quilscan)' \
+    Sources Package.swift project.yml Resources; then
+    echo "FAIL: a Quilscan agent, service API, or control channel entered the application" >&2
+    failures=$((failures + 1))
+fi
+if [[ ! -r "$approved_explorer_file" ]] ||
+   ! rg -q 'https://quilscan\.com/peer' "$approved_explorer_file" ||
+   ! rg -q 'https://quilscan\.com/rings' "$approved_explorer_file" ||
+   rg -n '(URLSession|URLRequest|NWConnection|WebSocket|SMAppService|Process\()' "$approved_explorer_file"; then
+    echo "FAIL: public explorer links are missing or can perform background work" >&2
+    failures=$((failures + 1))
+fi
+
 # Operator telemetry that once appeared in local test fixtures is a public
 # fingerprint even though it is not credential material. Keep these exact
 # historical values out of every publishable source and resource.

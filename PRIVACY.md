@@ -13,7 +13,9 @@ The app contacts only:
   after an operator accepts an available application update.
 
 Quilscan links are opened in the operator's browser only after an explicit
-click. QuilNode does not query Quilscan to populate the dashboard.
+click. QuilNode does not query Quilscan to populate the dashboard, and does not
+download, install, pair with, or control the Quilscan Agent. The destination
+receives the normal network metadata disclosed by a browser visit.
 
 Node monitoring, balances, identity metadata, logs, and history come from the
 local node and its separately managed matching qclient (signed release for a
