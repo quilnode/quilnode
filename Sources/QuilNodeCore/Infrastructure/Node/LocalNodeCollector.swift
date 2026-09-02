@@ -194,6 +194,7 @@ public struct LocalNodeCollector: Sendable {
             shardAllocations: cachedSnapshot?.shardAllocations ?? [],
             networkShards: cachedSnapshot?.networkShards,
             networkShardSummary: cachedSnapshot?.networkShardSummary,
+            networkShardError: cachedSnapshot?.networkShardError,
             frame: max(statusUInt64("frame", fallback: cachedSnapshot?.frame ?? 0), info?.frame ?? 0),
             peers: metricPeers ?? statusInt("peers", fallback: cachedSnapshot?.peers ?? 0),
             inboundConnectionsEstablished: inboundConnections ?? cachedSnapshot?.inboundConnectionsEstablished,

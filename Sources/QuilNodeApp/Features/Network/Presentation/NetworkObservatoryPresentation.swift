@@ -122,12 +122,28 @@ struct NetworkObservatoryPresentation {
     let nextEpoch: UInt64?
     let observedAt: Date?
     let evidenceState: EvidenceState
+    let isUsingSavedTopology: Bool
+    let topologyIssue: String?
     let proverMemberships: Int
     let ringDistribution: NetworkRingDistribution
     let localNode: NetworkLocalNodePresentation
 
-    static func make(snapshot: NodeSnapshot, now: Date = Date()) -> Self {
-        let shards = (snapshot.networkShards ?? [])
+    static func make(
+        snapshot: NodeSnapshot,
+        cachedTopology: CachedNetworkShardTopology? = nil,
+        now: Date = Date()
+    ) -> Self {
+        let liveShards = snapshot.networkShards ?? []
+        let isUsingSavedTopology = liveShards.isEmpty && cachedTopology?.shards.isEmpty == false
+        let sourceShards =
+            isUsingSavedTopology
+            ? NetworkTopologyFallbackPresentation.attachLocalAllocations(
+                to: cachedTopology?.shards ?? [],
+                allocations: snapshot.shardAllocations
+            )
+            : liveShards
+        let shards =
+            sourceShards
             .map(NetworkShardPresentation.init)
             .sorted { lhs, rhs in
                 if lhs.observation.isAllocated != rhs.observation.isAllocated {
@@ -138,9 +154,18 @@ struct NetworkObservatoryPresentation {
                 }
                 return lhs.fullFilter < rhs.fullFilter
             }
-        let observedAt = snapshot.networkShardSummary?.observedAt
+        let summary =
+            isUsingSavedTopology
+            ? NetworkShardSummary(
+                shards: sourceShards,
+                observedAt: cachedTopology?.observedAt ?? now
+            )
+            : snapshot.networkShardSummary
+        let observedAt = summary?.observedAt
         let evidenceState: EvidenceState
-        if snapshot.networkShards == nil {
+        if isUsingSavedTopology || (snapshot.networkShardError != nil && !shards.isEmpty) {
+            evidenceState = .stale
+        } else if snapshot.networkShards == nil {
             evidenceState = snapshot.isRunning ? .loading : .unavailable
         } else if shards.isEmpty {
             evidenceState = .unavailable
@@ -150,13 +175,14 @@ struct NetworkObservatoryPresentation {
             evidenceState = .current
         }
 
-        let effectiveFrame = max(snapshot.epochClock.frame, snapshot.networkShardSummary?.frame ?? 0)
+        let effectiveFrame = max(snapshot.epochClock.frame, summary?.frame ?? 0)
         let epochClock = NodeEpochClock(frame: effectiveFrame, epochLength: snapshot.epochLength)
+        let topologyIssue = NetworkTopologyFallbackPresentation.issue(for: snapshot)
 
         let localNode = NetworkLocalNodePresentation.make(snapshot: snapshot, shards: shards)
         return Self(
             shards: shards,
-            summary: snapshot.networkShardSummary,
+            summary: summary,
             peers: snapshot.peers,
             archiveSources: snapshot.archiveEndpointCount,
             localAllocationCount: localNode.totalAllocations,
@@ -166,6 +192,8 @@ struct NetworkObservatoryPresentation {
             nextEpoch: epochClock.nextEpoch,
             observedAt: observedAt,
             evidenceState: evidenceState,
+            isUsingSavedTopology: isUsingSavedTopology,
+            topologyIssue: topologyIssue,
             proverMemberships: shards.reduce(0) { $0 + max($1.observation.activeProvers, 0) },
             ringDistribution: NetworkRingDistribution(shards: shards),
             localNode: localNode
@@ -236,7 +264,7 @@ struct NetworkObservatoryPresentation {
         switch evidenceState {
         case .loading: "Reading local node"
         case .current: "Local observation current"
-        case .stale: "Last local observation"
+        case .stale: isUsingSavedTopology ? "Saved local observation" : "Last complete observation"
         case .unavailable: "Topology unavailable"
         }
     }

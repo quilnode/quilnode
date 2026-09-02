@@ -81,6 +81,9 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// decodable while distinguishing "not collected" from an empty network.
     public var networkShards: [NetworkShardObservation]?
     public var networkShardSummary: NetworkShardSummary?
+    /// A bounded, operator-facing explanation for why the latest local shard
+    /// query could not replace the last complete topology observation.
+    public var networkShardError: String?
     public var frame: UInt64
     public var peers: Int
     /// Successful libp2p connections accepted by this node since the current
@@ -172,6 +175,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         shardAllocations: [ShardAllocation] = [],
         networkShards: [NetworkShardObservation]? = nil,
         networkShardSummary: NetworkShardSummary? = nil,
+        networkShardError: String? = nil,
         frame: UInt64 = 0,
         peers: Int = 0,
         inboundConnectionsEstablished: UInt64? = nil,
@@ -234,6 +238,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.shardAllocations = shardAllocations
         self.networkShards = networkShards
         self.networkShardSummary = networkShardSummary
+        self.networkShardError = networkShardError
         self.frame = frame
         self.peers = peers
         self.inboundConnectionsEstablished = inboundConnectionsEstablished

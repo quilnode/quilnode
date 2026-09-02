@@ -40,6 +40,14 @@ struct NetworkShardChangeRecord: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+/// A privacy-safe last-known-good shard table. Local allocation relationships
+/// are intentionally reattached from live memory by presentation code and are
+/// never written to this cache.
+struct CachedNetworkShardTopology: Equatable, Sendable {
+    let shards: [NetworkShardObservation]
+    let observedAt: Date
+}
+
 /// Retains only public shard-table fingerprints from the local qclient. The
 /// store deliberately excludes local allocation links, worker identifiers and
 /// every node or wallet identity so its history remains safe in Privacy Mode.
@@ -49,6 +57,7 @@ final class NetworkShardHistoryStore: ObservableObject {
     @Published private(set) var hasBaseline = false
 
     private static let retentionInterval: TimeInterval = 24 * 60 * 60
+    private static let freshnessCheckpointInterval: TimeInterval = 60 * 60
     private static let maximumShardCount = 512
     private static let maximumChangeCount = 256
     private static let maximumFileBytes = 512 * 1_024
@@ -57,11 +66,21 @@ final class NetworkShardHistoryStore: ObservableObject {
     private let now: () -> Date
     private var baseline: [String: NetworkShardFingerprint] = [:]
     private var lastObservedAt: Date?
+    private var lastPersistedObservationAt: Date?
 
     init(fileURL: URL? = NetworkShardHistoryStore.defaultFileURL, now: @escaping () -> Date = Date.init) {
         self.fileURL = fileURL
         self.now = now
         load()
+    }
+
+    var cachedTopology: CachedNetworkShardTopology? {
+        guard let lastObservedAt, !baseline.isEmpty else { return nil }
+        let shards =
+            baseline
+            .map { filter, fingerprint in fingerprint.observation(filter: filter) }
+            .sorted { $0.filter < $1.filter }
+        return CachedNetworkShardTopology(shards: shards, observedAt: lastObservedAt)
     }
 
     func observe(_ shards: [NetworkShardObservation], observedAt: Date?) {
@@ -77,6 +96,7 @@ final class NetworkShardHistoryStore: ObservableObject {
             lastObservedAt = observedAt
             hasBaseline = true
             persist()
+            lastPersistedObservationAt = observedAt
             return
         }
 
@@ -97,10 +117,16 @@ final class NetworkShardHistoryStore: ObservableObject {
         recentChanges.merge(detectedChanges) { _, newest in newest }
         prune(now: observedAt)
 
-        // The fingerprint only needs rewriting when public evidence changed.
-        // Unchanged observations do not create periodic disk churn.
-        if baselineChanged {
+        // Checkpoint an unchanged table at most once per hour. This gives the
+        // next launch an honest last-seen time without causing disk churn on
+        // the one-minute live observation cadence.
+        let checkpointIsDue =
+            lastPersistedObservationAt.map {
+                observedAt.timeIntervalSince($0) >= Self.freshnessCheckpointInterval
+            } ?? true
+        if baselineChanged || checkpointIsDue {
             persist()
+            lastPersistedObservationAt = observedAt
         }
     }
 
@@ -123,6 +149,7 @@ final class NetworkShardHistoryStore: ObservableObject {
                 .map { ($0.key, $0.value) }
         )
         lastObservedAt = state.lastObservedAt
+        lastPersistedObservationAt = state.lastObservedAt
         recentChanges = Dictionary(
             uniqueKeysWithValues: state.recentChanges
                 .filter { Self.isValidFilter($0.filter) }
@@ -222,6 +249,18 @@ private struct NetworkShardFingerprint: Codable, Equatable, Sendable {
     let activeProvers: Int
     let ring: Int
     let estimatedRewardPerFrame: String
+
+    func observation(filter: String) -> NetworkShardObservation {
+        NetworkShardObservation(
+            filter: filter,
+            shardSize: shardSize,
+            dataShards: dataShards,
+            activeProvers: activeProvers,
+            ring: ring,
+            estimatedRewardPerFrame: estimatedRewardPerFrame,
+            isAllocated: false
+        )
+    }
 }
 
 private struct NetworkShardHistoryState: Codable, Equatable, Sendable {

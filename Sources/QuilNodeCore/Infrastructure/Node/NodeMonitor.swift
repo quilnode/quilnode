@@ -158,6 +158,7 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.shardAllocations = snapshot.shardAllocations
         nextSnapshot.networkShards = snapshot.networkShards
         nextSnapshot.networkShardSummary = snapshot.networkShardSummary
+        nextSnapshot.networkShardError = snapshot.networkShardError
         nextSnapshot.inboundConnectionsEstablished =
             result.snapshot.inboundConnectionsEstablished
             ?? snapshot.inboundConnectionsEstablished
@@ -215,6 +216,8 @@ public final class NodeMonitor: ObservableObject {
                     updated.proverStatusError = nil
                 } else {
                     updated.proverStatusError = result.error
+                    updated.networkShardError =
+                        "The local shard query did not complete. QuilNode will retry automatically."
                 }
                 snapshot = updated
             }
@@ -246,8 +249,16 @@ public final class NodeMonitor: ObservableObject {
         snapshot.nextEpochFrame = status.nextEpochFrame
         snapshot.shardAllocations = status.allocations
         snapshot.localWorkers = status.workers
-        snapshot.networkShards = telemetry.networkShards
-        snapshot.networkShardSummary = telemetry.networkSummary
+        if telemetry.networkShards.isEmpty {
+            // An empty response is not evidence that previously observed
+            // public shards disappeared. Keep the last complete observation
+            // until qclient supplies a replacement.
+            snapshot.networkShardError = telemetry.networkShardError
+        } else {
+            snapshot.networkShards = telemetry.networkShards
+            snapshot.networkShardSummary = telemetry.networkSummary
+            snapshot.networkShardError = nil
+        }
         snapshot.proverStatusUpdatedAt = telemetry.observedAt
 
         let statuses = status.allocations.map { $0.status.lowercased() }

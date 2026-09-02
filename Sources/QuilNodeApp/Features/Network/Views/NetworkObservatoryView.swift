@@ -17,7 +17,7 @@ struct NetworkObservatoryView: View {
     @State private var zoom: CGFloat = 1
 
     private var presentation: NetworkObservatoryPresentation {
-        .make(snapshot: monitor.snapshot)
+        .make(snapshot: monitor.snapshot, cachedTopology: shardHistory.cachedTopology)
     }
 
     private var visibleShards: [NetworkShardPresentation] {
@@ -63,6 +63,10 @@ struct NetworkObservatoryView: View {
             observatoryHeader
             NetworkObservatoryScopeGuide()
             NetworkObservatoryMetricStrip(presentation: presentation)
+
+            if presentation.isUsingSavedTopology || presentation.topologyIssue != nil {
+                topologyAvailabilityNotice
+            }
 
             switch presentation.evidenceState {
             case .loading:
@@ -215,11 +219,12 @@ struct NetworkObservatoryView: View {
             Image(systemName: monitor.snapshot.isRunning ? "scope" : "power")
                 .font(.system(size: 28))
                 .foregroundStyle(theme.colors.warning)
-            Text(monitor.snapshot.isRunning ? "Shard topology is not available yet" : "The node is offline")
+            Text(monitor.snapshot.isRunning ? "No shard topology observed yet" : "The node is offline")
                 .font(.headline)
             Text(
                 monitor.snapshot.isRunning
-                    ? "QuilNode has not received a complete local qclient shard observation. Refresh once the node is ready."
+                    ? presentation.topologyIssue
+                        ?? "The local qclient has not returned a complete shard observation. QuilNode retries automatically every minute; restarting the node is not required."
                     : "Start the local node to observe network shard state."
             )
             .font(.caption)
@@ -227,13 +232,41 @@ struct NetworkObservatoryView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: 420)
             if monitor.snapshot.isRunning {
-                Button("Read local topology") {
+                Button("Retry now") {
                     Task { await monitor.refresh(forceNodeInfo: true) }
                 }
                 .buttonStyle(.borderedProminent)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 360)
+        .controlSurface(tint: theme.colors.warning)
+    }
+
+    private var topologyAvailabilityNotice: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundStyle(theme.colors.warning)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(presentation.isUsingSavedTopology ? "Showing saved topology" : "Live refresh pending")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.colors.primaryText)
+                Text(
+                    presentation.topologyIssue
+                        ?? "A complete local observation is saved while the first live refresh finishes."
+                )
+                .font(.system(size: 9.5))
+                .foregroundStyle(theme.colors.secondaryText)
+                .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            Button("Retry now") {
+                Task { await monitor.refresh(forceNodeInfo: true) }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
         .controlSurface(tint: theme.colors.warning)
     }
 

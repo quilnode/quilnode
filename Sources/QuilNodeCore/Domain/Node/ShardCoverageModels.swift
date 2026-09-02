@@ -120,17 +120,20 @@ public struct LocalProverTelemetry: Equatable, Sendable {
     /// topology views; it is not a remote census or an inferred peer graph.
     public var networkShards: [NetworkShardObservation]
     public var networkSummary: NetworkShardSummary?
+    public var networkShardError: String?
     public var observedAt: Date
 
     public init(
         status: LocalProverStatus,
         networkShards: [NetworkShardObservation] = [],
         networkSummary: NetworkShardSummary? = nil,
+        networkShardError: String? = nil,
         observedAt: Date
     ) {
         self.status = status
         self.networkShards = networkShards
         self.networkSummary = networkSummary
+        self.networkShardError = networkShardError
         self.observedAt = observedAt
     }
 }

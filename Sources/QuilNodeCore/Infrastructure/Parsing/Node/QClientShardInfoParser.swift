@@ -81,6 +81,18 @@ public enum LocalProverTelemetryParser {
     public static func parse(_ payload: QClientProverTelemetryPayload) -> LocalProverTelemetry? {
         guard var status = ProverStatusParser.parse(payload.statusOutput) else { return nil }
         let shardInfo = QClientShardInfoParser.parse(payload.shardInfoOutput)
+        let shardError: String?
+        if shardInfo != nil {
+            shardError = nil
+        } else if payload.shardInfoOutput
+            .split(separator: "\n")
+            .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "No shards found" })
+        {
+            shardError =
+                "The local node returned no usable shard rows. Shared metadata may still be synchronizing or temporarily unavailable."
+        } else {
+            shardError = "The local qclient returned shard data in an unsupported format."
+        }
         let byFilter = Dictionary(
             (shardInfo?.shards ?? []).map { ($0.filter.lowercased(), $0) },
             uniquingKeysWith: { first, _ in first }
@@ -111,6 +123,7 @@ public enum LocalProverTelemetryParser {
             status: status,
             networkShards: shardInfo?.shards ?? [],
             networkSummary: summary,
+            networkShardError: shardError,
             observedAt: payload.observedAt
         )
     }

@@ -54,6 +54,10 @@ final class NetworkShardHistoryStoreTests: XCTestCase {
 
         XCTAssertTrue(restored.hasBaseline)
         XCTAssertEqual(restored.recentChanges["alpha"]?.fields, [.activeProvers])
+        XCTAssertEqual(restored.cachedTopology?.shards.map(\.filter), ["alpha"])
+        XCTAssertEqual(restored.cachedTopology?.observedAt, date(200))
+        XCTAssertEqual(restored.cachedTopology?.shards.first?.isAllocated, false)
+        XCTAssertNil(restored.cachedTopology?.shards.first?.worker)
     }
 
     func testExpiresChangesAfterTwentyFourHours() {
@@ -63,6 +67,20 @@ final class NetworkShardHistoryStoreTests: XCTestCase {
 
         XCTAssertTrue(store.changes(at: date(200 + 86_399)).keys.contains("alpha"))
         XCTAssertFalse(store.changes(at: date(200 + 86_401)).keys.contains("alpha"))
+    }
+
+    func testUnchangedTopologyCheckpointsAnHonestLastSeenTimeHourly() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quilnode-shard-checkpoint-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("history.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = NetworkShardHistoryStore(fileURL: fileURL)
+        store.observe([shard("alpha")], observedAt: date(100))
+        store.observe([shard("alpha")], observedAt: date(3_701))
+
+        let restored = NetworkShardHistoryStore(fileURL: fileURL)
+        XCTAssertEqual(restored.cachedTopology?.observedAt, date(3_701))
     }
 
     private func shard(

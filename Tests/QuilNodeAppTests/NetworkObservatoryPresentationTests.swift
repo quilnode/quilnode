@@ -252,6 +252,55 @@ final class NetworkObservatoryPresentationTests: XCTestCase {
         )
     }
 
+    func testUsesSavedPublicTopologyWhenLiveQueryReturnsNoRows() {
+        let now = Date(timeIntervalSince1970: 1_800_000_500)
+        let cachedAt = now.addingTimeInterval(-600)
+        let cached = CachedNetworkShardTopology(
+            shards: [shard("saved", provers: 7)],
+            observedAt: cachedAt
+        )
+        let snapshot = NodeSnapshot(
+            isRunning: true,
+            shardAllocations: [
+                ShardAllocation(index: 0, filter: "saved", status: "active", worker: "4")
+            ],
+            networkShards: [],
+            networkShardError: "Live shard rows unavailable"
+        )
+
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: snapshot,
+            cachedTopology: cached,
+            now: now
+        )
+
+        XCTAssertEqual(presentation.evidenceState, .stale)
+        XCTAssertTrue(presentation.isUsingSavedTopology)
+        XCTAssertEqual(presentation.observedAt, cachedAt)
+        XCTAssertEqual(presentation.shards.map(\.id), ["saved"])
+        XCTAssertEqual(presentation.localAllocationCount, 1)
+        XCTAssertEqual(presentation.summary?.healthyShards, 1)
+        XCTAssertEqual(presentation.evidenceLabel, "Saved local observation")
+    }
+
+    func testFailedRefreshMarksRetainedLiveTopologyAsLastComplete() {
+        let now = Date(timeIntervalSince1970: 1_800_000_500)
+        let shards = [shard("retained", provers: 6)]
+        let presentation = NetworkObservatoryPresentation.make(
+            snapshot: NodeSnapshot(
+                isRunning: true,
+                networkShards: shards,
+                networkShardSummary: NetworkShardSummary(shards: shards, observedAt: now),
+                networkShardError: "Live refresh unavailable"
+            ),
+            now: now
+        )
+
+        XCTAssertEqual(presentation.evidenceState, .stale)
+        XCTAssertFalse(presentation.isUsingSavedTopology)
+        XCTAssertEqual(presentation.evidenceLabel, "Last complete observation")
+    }
+
     private func shard(
         _ filter: String,
         provers: Int = 6,

@@ -241,4 +241,52 @@ final class NodeIdentityAndParsingTests: XCTestCase {
         expect(ShardCoverageState(activeProvers: 5) == .belowTarget, "minimum target boundary")
         expect(ShardCoverageState(activeProvers: 6) == .healthy, "healthy coverage boundary")
     }
+
+    func testExplicitEmptyShardResponseRetainsStatusAndExplainsTopologyGap() {
+        let payload = QClientProverTelemetryPayload(
+            statusOutput: "Seniority: 12345678",
+            shardInfoOutput: "No shards found\n",
+            observedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        guard let telemetry = LocalProverTelemetryParser.parse(payload) else {
+            return XCTFail("prover status should survive an empty shard table")
+        }
+        XCTAssertEqual(telemetry.status.seniority, 12_345_678)
+        XCTAssertTrue(telemetry.networkShards.isEmpty)
+        XCTAssertNotNil(telemetry.networkShardError)
+    }
+
+    @MainActor
+    func testEmptyShardRefreshPreservesLastCompleteTopology() {
+        let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let retainedShard = NetworkShardObservation(
+            filter: "aabb",
+            shardSize: "4 GB",
+            dataShards: 1,
+            activeProvers: 6,
+            ring: 0,
+            estimatedRewardPerFrame: "0.001",
+            isAllocated: false
+        )
+        var snapshot = NodeSnapshot(
+            networkShards: [retainedShard],
+            networkShardSummary: NetworkShardSummary(
+                shards: [retainedShard],
+                observedAt: observedAt.addingTimeInterval(-60)
+            )
+        )
+        let telemetry = LocalProverTelemetry(
+            status: LocalProverStatus(seniority: 42),
+            networkShardError: "Temporarily unavailable",
+            observedAt: observedAt
+        )
+
+        NodeMonitor().applyProverTelemetry(telemetry, to: &snapshot)
+
+        XCTAssertEqual(snapshot.networkShards, [retainedShard])
+        XCTAssertEqual(snapshot.networkShardSummary?.totalShards, 1)
+        XCTAssertEqual(snapshot.networkShardError, "Temporarily unavailable")
+        XCTAssertEqual(snapshot.proverStatusUpdatedAt, observedAt)
+    }
 }
