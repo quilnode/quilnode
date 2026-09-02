@@ -107,6 +107,34 @@ final class IdentityPresentationTests: XCTestCase {
         XCTAssertEqual(IdentityBalanceFormatter.compact("0.000000000000"), "0")
     }
 
+    func testExplorerLinksAreExplicitHTTPSBrowserDestinations() throws {
+        let peer = try XCTUnwrap(IdentityExplorerLink.peer("QmPublicPeer123"))
+        XCTAssertEqual(peer.scheme, "https")
+        XCTAssertEqual(peer.host, "quilscan.com")
+        XCTAssertEqual(peer.path, "/peer/QmPublicPeer123")
+        XCTAssertNil(peer.query)
+
+        let prover = try XCTUnwrap(IdentityExplorerLink.prover("0xPublicProver123"))
+        XCTAssertEqual(prover.scheme, "https")
+        XCTAssertEqual(prover.host, "quilscan.com")
+        XCTAssertEqual(prover.path, "/rings")
+        XCTAssertEqual(
+            URLComponents(url: prover, resolvingAgainstBaseURL: false)?.queryItems,
+            [URLQueryItem(name: "prover", value: "0xPublicProver123")]
+        )
+    }
+
+    func testExplorerLinksRejectMissingOrUnsafeIdentifiers() {
+        for value in [nil, "", " ", "../rings", "peer/value", "peer?value", "peer#value"] {
+            XCTAssertNil(IdentityExplorerLink.peer(value))
+            XCTAssertNil(IdentityExplorerLink.prover(value))
+        }
+
+        let oversized = String(repeating: "a", count: 257)
+        XCTAssertNil(IdentityExplorerLink.peer(oversized))
+        XCTAssertNil(IdentityExplorerLink.prover(oversized))
+    }
+
     private var collectingTrend: SeniorityTrend {
         SeniorityTrend(
             direction: .collecting,

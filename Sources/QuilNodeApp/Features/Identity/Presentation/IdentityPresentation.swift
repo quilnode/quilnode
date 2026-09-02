@@ -230,20 +230,6 @@ struct IdentityWorkspacePresentation {
     }
 }
 
-enum IdentityExplorerLink {
-    static func peer(_ value: String?) -> URL? {
-        guard let value, !value.isEmpty else { return nil }
-        return URL(string: "https://quilscan.com/peer")?.appendingPathComponent(value)
-    }
-
-    static func prover(_ value: String?) -> URL? {
-        guard let value, !value.isEmpty else { return nil }
-        var components = URLComponents(string: "https://quilscan.com/rings")
-        components?.queryItems = [URLQueryItem(name: "prover", value: value)]
-        return components?.url
-    }
-}
-
 enum IdentityBalanceFormatter {
     static func compact(_ value: String) -> String {
         let trimmed = value.compactDecimal
