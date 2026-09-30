@@ -11,12 +11,19 @@ struct SourceBuildPipelineContext {
     let channel: String
     let directory: URL
     let repository: URL
-    let buildScript: URL
     let sourceVersion: String
     let displayVersion: String
     let seniorityDataset: GitLFSPointer
     let logURL: URL
     let sandbox: PreparedSourceBuildSandbox
+    let dependencyLock: SourceBuildDependencyLock
+}
+
+struct SourceBuildDependencyLock: Codable, Sendable {
+    let upstreamSHA256: String
+    let resolvedSHA256: String
+
+    var wasRepaired: Bool { upstreamSHA256 != resolvedSHA256 }
 }
 
 struct StagedSourceNodeArtifact {

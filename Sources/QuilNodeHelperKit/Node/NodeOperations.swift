@@ -138,11 +138,6 @@ extension QuilNodeHelper {
         try writeNodeServicePlist(signatureCheck: true)
         do {
             progress?(.activatingRuntime, "Starting the restricted Quilibrium node runtime.")
-            if isLoaded() {
-                try runLaunchctl(["kickstart", "-k", serviceTarget])
-            } else {
-                try runLaunchctl(["bootstrap", "system", plistPath])
-            }
             progress?(.validatingHealth, "Validating the node process, version, and local metrics.")
             try restartAndValidate(
                 expectedVersion: manifest.reportedVersion ?? manifest.version,

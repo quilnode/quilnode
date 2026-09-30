@@ -21,6 +21,14 @@ if "$AUDITOR" artifact "$path_leak" >/dev/null 2>&1; then
     exit 1
 fi
 
+# An early match in a large stream must still fail under pipefail; quiet
+# consumers can otherwise SIGPIPE their producer and hide a positive result.
+awk 'BEGIN { for (i = 0; i < 20000; i++) print "public padding for a large artifact" }' >> "$path_leak/binary-fixture"
+if "$AUDITOR" artifact "$path_leak" >/dev/null 2>&1; then
+    echo "Metadata auditor accepted an early path leak in a large artifact." >&2
+    exit 1
+fi
+
 xattr_leak="$fixture_root/xattr-leak"
 mkdir -p "$xattr_leak"
 printf 'clean bytes\n' > "$xattr_leak/file"

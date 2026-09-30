@@ -26,24 +26,32 @@ extension QuilNodeHelper {
     }
 
     static func performLifecycle(_ action: HelperAction) throws {
+        let commands = try lifecycleCommands(
+            action, loaded: isLoaded(), running: action == .start && nodeProcessIsRunning()
+        )
+        for command in commands { try runLaunchctl(command) }
+    }
+
+    static func lifecycleCommands(_ action: HelperAction, loaded: Bool, running: Bool) throws -> [[String]] {
         switch action {
         case .start:
-            if isLoaded() {
-                try runLaunchctl(["kickstart", serviceTarget])
-            } else {
-                try runLaunchctl(["bootstrap", "system", plistPath])
-            }
+            if loaded && running { return [] }
+            return reloadCommands(loaded: loaded)
         case .stop:
-            if isLoaded() { try runLaunchctl(["bootout", "system", plistPath]) }
+            return loaded ? [["bootout", "system", plistPath]] : []
         case .restart:
-            if isLoaded() {
-                try runLaunchctl(["kickstart", "-k", serviceTarget])
-            } else {
-                try runLaunchctl(["bootstrap", "system", plistPath])
-            }
+            return reloadCommands(loaded: loaded)
         default:
             throw HelperFailure.usage
         }
+    }
+
+    private static func reloadCommands(loaded: Bool) -> [[String]] {
+        // A binary switch can change an ad-hoc node's launch code requirement.
+        // kickstart retains the registered job and its old plist/environment;
+        // re-register the fixed job so both are evaluated for the new runtime.
+        (loaded ? [["bootout", "system", plistPath]] : [])
+            + [["bootstrap", "system", plistPath]]
     }
 
     static func migrate(controllerUID: UInt32) throws {

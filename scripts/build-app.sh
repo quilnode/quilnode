@@ -39,7 +39,7 @@ if [[ -z "$OPENSSL_PREFIX" ]]; then
     OPENSSL_PREFIX="$(quilnode_default_openssl_toolchain "$WORKSPACE_DIR")"
 fi
 if [[ ! -r "$OPENSSL_PREFIX/include/openssl/evp.h" || ! -r "$OPENSSL_PREFIX/lib/libcrypto.a" ]]; then
-    echo "Missing the pinned OpenSSL 3.5.8 LTS macOS 14 release toolchain." >&2
+    echo "Missing the pinned OpenSSL 3.5.9 LTS macOS 14 release toolchain." >&2
     echo "Run scripts/release/build-openssl-toolchain.sh first, or set QUILNODE_OPENSSL_PREFIX to an equivalent audited prefix." >&2
     echo "This is a release-builder dependency only; node operators do not install it." >&2
     exit 1

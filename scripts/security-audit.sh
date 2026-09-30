@@ -175,8 +175,8 @@ if ! rg -q 'authorizationRequired\(' Sources/QuilNodeHelperKit ||
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'currentServiceBuild = 115' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
-   ! rg -q 'minimumSupportedServiceBuild = 115' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+if ! rg -q 'currentServiceBuild = 116' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+   ! rg -q 'minimumSupportedServiceBuild = 116' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'PrivilegedServiceProtocol\.minimumSupportedServiceBuild' Sources/QuilNodeCore/Infrastructure/IPC/PrivilegedServiceClient.swift ||
    [[ "$(rg -o 'serviceBuild: verifierReady \? PrivilegedServiceProtocol\.currentServiceBuild : nil' Sources/QuilNodeHelperKit | wc -l | tr -d ' ')" -ne 1 ]]; then
     echo "FAIL: privileged service compatibility floor is inconsistent" >&2
@@ -207,7 +207,11 @@ fi
 
 if ! rg -q '\(deny default\)' Sources/QuilNodeCore/Infrastructure/Security/SourceBuildSandbox.swift ||
    ! rg -q '\(deny network\*\)' Sources/QuilNodeCore/Infrastructure/Security/SourceBuildSandbox.swift ||
-   ! rg -q 'arguments: \["fetch", "--locked"\]' Sources/QuilNodeApp/Features/Updates ||
+   ! rg -q '\["fetch", "--locked"\]' Sources/QuilNodeApp/Features/Updates ||
+   ! rg -q 'permitsLocalDependencyRepair' Sources/QuilNodeApp/Features/Updates ||
+   ! rg -q '"build", "--frozen"' Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildCompilationStaging.swift ||
+   ! rg -q '"build", "--frozen"' Sources/QuilNodeApp/Features/Updates/Staging/SourceBuildQClientStaging.swift ||
+   ! rg -q '"build", "--frozen"' Sources/QuilNodeApp/Features/Updates/Staging/MatchingSourceQClientStaging.swift ||
    ! rg -q 'verifyPinnedCheckoutIsUnmodified' Sources/QuilNodeApp/Features/Updates; then
     echo "FAIL: deny-by-default source build isolation invariant is missing" >&2
     failures=$((failures + 1))
@@ -326,10 +330,10 @@ if [[ ! -x scripts/release/audit-app-bundle.sh ]] ||
    [[ ! -x scripts/release/audit-metadata-privacy.sh ]] ||
    [[ ! -x scripts/release/test-metadata-privacy.sh ]] ||
    ! rg -q 'quilnode_default_openssl_toolchain' scripts/build-app.sh scripts/test-release-verifier.sh ||
-   ! rg -q 'QUILNODE_OPENSSL_VERSION="3\.5\.8"' scripts/release/toolchain-policy.sh ||
-   ! rg -q 'openssl-3\.5\.8-macos14-arm64-neutral-v2' scripts/release/toolchain-policy.sh ||
-   ! rg -q 'QUILNODE_OPENSSL_NEUTRAL_PREFIX="/opt/quilnode/toolchains/openssl/3\.5\.8"' scripts/release/toolchain-policy.sh ||
-   ! rg -q 'a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'QUILNODE_OPENSSL_VERSION="3\.5\.9"' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'openssl-3\.5\.9-macos14-arm64-neutral-v2' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'QUILNODE_OPENSSL_NEUTRAL_PREFIX="/opt/quilnode/toolchains/openssl/3\.5\.9"' scripts/release/toolchain-policy.sh ||
+   ! rg -q '603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a' scripts/release/toolchain-policy.sh ||
    ! rg -q 'no-shared no-module no-pinshared' scripts/release/build-openssl-toolchain.sh ||
    ! rg -q 'OPENSSL_INIT_NO_LOAD_CONFIG' Sources/QuilNodeReleaseVerifier/main.c ||
    ! rg -q 'hostile-openssl\.cnf' scripts/test-release-verifier.sh ||

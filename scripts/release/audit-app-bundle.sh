@@ -56,13 +56,13 @@ while IFS= read -r -d '' candidate; do
         echo "Hardened runtime is missing from $candidate" >&2
         exit 1
     fi
-    if otool -L "$candidate" | rg -q '^[[:space:]]+/(Users|private/tmp|tmp|opt/homebrew|usr/local)/'; then
+    if otool -L "$candidate" | rg '^[[:space:]]+/(Users|private/tmp|tmp|opt/homebrew|usr/local)/' >/dev/null; then
         echo "A distributable executable links to a build-machine dependency: $candidate" >&2
         exit 1
     fi
     if otool -l "$candidate" | awk '
         $1 == "cmd" && $2 == "LC_RPATH" { getline; getline; print $2 }
-    ' | rg -q '^/(Users|private/tmp|tmp|opt/homebrew|usr/local)/'; then
+    ' | rg '^/(Users|private/tmp|tmp|opt/homebrew|usr/local)/' >/dev/null; then
         echo "A distributable executable contains a build-machine runtime search path: $candidate" >&2
         exit 1
     fi

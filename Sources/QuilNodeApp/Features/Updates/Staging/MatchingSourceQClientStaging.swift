@@ -43,7 +43,8 @@ extension ReleaseChecker {
         let seniorityDataset = try prepareSeniorityDataset(in: selected.repository)
         try verifyPinnedCheckoutIsUnmodified(
             selected.repository,
-            hydratedSeniorityDataset: seniorityDataset
+            hydratedSeniorityDataset: seniorityDataset,
+            cargoLockfileSHA256: try validatedSourceCargoLockfileSHA256(repository: selected.repository)
         )
         let clientManifest = selected.repository.appendingPathComponent("crates/quil-client/Cargo.toml")
         guard FileManager.default.fileExists(atPath: clientManifest.path) else {
@@ -64,17 +65,8 @@ extension ReleaseChecker {
                 detail: "Pinned to the installed node commit \(selected.commit.prefix(12))",
                 fraction: 0.08, startedAt: startedAt, isEstimate: true, logURL: logURL
             ))
-        try runChecked(
-            SourceBuildSandbox.executable,
-            try SourceBuildSandbox.arguments(
-                profileURL: sandbox.fetchProfile,
-                executable: sandbox.cargoExecutable,
-                arguments: ["fetch", "--locked"]
-            ),
-            currentDirectory: selected.repository,
-            environment: sandbox.environment,
-            timeout: 30 * 60,
-            logURL: logURL
+        let dependencyLock = try prepareSourceDependencies(
+            repository: selected.repository, sandbox: sandbox, logURL: logURL
         )
         progress(
             NodeUpdateProgress(
@@ -88,14 +80,15 @@ extension ReleaseChecker {
             try SourceBuildSandbox.arguments(
                 profileURL: sandbox.compileProfile,
                 executable: sandbox.cargoExecutable,
-                arguments: ["build", "--release", "--package", "quil-client"]
+                arguments: ["build", "--frozen", "--release", "--package", "quil-client"]
             ),
             currentDirectory: selected.repository, environment: sandbox.environment,
             timeout: 3 * 60 * 60, logURL: logURL
         )
         try verifyPinnedCheckoutIsUnmodified(
             selected.repository,
-            hydratedSeniorityDataset: seniorityDataset
+            hydratedSeniorityDataset: seniorityDataset,
+            cargoLockfileSHA256: dependencyLock.resolvedSHA256
         )
         try validateSourceBuildArtifact(built, maximumBytes: 250_000_000)
         let output = try runChecked(
@@ -125,6 +118,8 @@ extension ReleaseChecker {
             Runtime version: \(runtime)
             Official repository: \(repositoryURL)
             Commit: \(selected.commit)
+            Upstream Cargo.lock SHA-256: \(dependencyLock.upstreamSHA256)
+            Build Cargo.lock SHA-256: \(dependencyLock.resolvedSHA256)
             Binary SHA-256: \(hash)
             This is NOT an officially signed release binary.
             """

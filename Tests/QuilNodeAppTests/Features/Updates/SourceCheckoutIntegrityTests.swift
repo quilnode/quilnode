@@ -9,6 +9,49 @@ final class SourceCheckoutIntegrityTests: XCTestCase {
     private static let datasetPath =
         "node/execution/intrinsics/global/compat/mainnet_244200_seniority.json"
 
+    func testVerifiedSameCommitCheckoutCanBeReusedWithoutRewritingInputs() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.repository) }
+        let commit = try ReleaseChecker.runChecked(
+            ReleaseChecker.gitExecutable, ["-C", fixture.repository.path, "rev-parse", "HEAD"]
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let dataset = fixture.repository.appendingPathComponent(Self.datasetPath)
+        let before = try dataset.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        XCTAssertTrue(ReleaseChecker.canReusePinnedSourceCheckout(fixture.repository, commit: commit))
+        let remote = "https://invalid.local/no-network-needed.git"
+        _ = try ReleaseChecker.runChecked(
+            ReleaseChecker.gitExecutable, ["-C", fixture.repository.path, "remote", "add", "origin", remote]
+        )
+        try ReleaseChecker.prepareSourceRepository(
+            fixture.repository, repositoryURL: remote,
+            head: GitBranchHead(name: "fixture", commit: commit, committedAt: Date(), subject: "fixture"),
+            startedAt: Date(), progress: { _ in }
+        )
+        XCTAssertEqual(
+            try dataset.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate, before)
+        XCTAssertFalse(
+            ReleaseChecker.canReusePinnedSourceCheckout(fixture.repository, commit: String(repeating: "0", count: 40)))
+        try Data("tampered\n".utf8).write(to: fixture.repository.appendingPathComponent("tracked.txt"))
+        XCTAssertFalse(ReleaseChecker.canReusePinnedSourceCheckout(fixture.repository, commit: commit))
+    }
+
+    func testSameCommitCacheRejectsDatasetAndDependencyTampering() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.repository) }
+        let commit = try ReleaseChecker.runChecked(
+            ReleaseChecker.gitExecutable, ["-C", fixture.repository.path, "rev-parse", "HEAD"]
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let dataset = fixture.repository.appendingPathComponent(Self.datasetPath)
+        try Data("invalid dataset".utf8).write(to: dataset)
+        XCTAssertFalse(ReleaseChecker.canReusePinnedSourceCheckout(fixture.repository, commit: commit))
+        try fixture.payload.write(to: dataset)
+        let lock = fixture.repository.appendingPathComponent("Cargo.lock")
+        let original = try String(contentsOf: lock, encoding: .utf8)
+        try Data(original.replacingOccurrences(of: "version = \"0.1.0\"", with: "version = \"9.9.9\"").utf8).write(
+            to: lock)
+        XCTAssertFalse(ReleaseChecker.canReusePinnedSourceCheckout(fixture.repository, commit: commit))
+    }
+
     func testHydratedDatasetIsAcceptedWithoutMachineGitLFSFilters() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.repository) }
@@ -73,6 +116,42 @@ final class SourceCheckoutIntegrityTests: XCTestCase {
         )
     }
 
+    func testApprovedCargoRepairRequiresItsExactDigest() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.repository) }
+        let lockURL = fixture.repository.appendingPathComponent("Cargo.lock")
+        let original = try String(contentsOf: lockURL, encoding: .utf8)
+        try Data(original.replacingOccurrences(of: "dependencies = [\n \"helper\",\n]\n", with: "").utf8)
+            .write(to: lockURL, options: .atomic)
+        let digest = try ReleaseChecker.validatedSourceCargoLockfileSHA256(repository: fixture.repository)
+        XCTAssertNoThrow(
+            try ReleaseChecker.verifyPinnedCheckoutIsUnmodified(
+                fixture.repository, hydratedSeniorityDataset: fixture.pointer, cargoLockfileSHA256: digest
+            ))
+        XCTAssertThrowsError(
+            try ReleaseChecker.verifyPinnedCheckoutIsUnmodified(
+                fixture.repository, hydratedSeniorityDataset: fixture.pointer, cargoLockfileSHA256: "incorrect"
+            ))
+        XCTAssertThrowsError(
+            try ReleaseChecker.verifyPinnedCheckoutIsUnmodified(
+                fixture.repository, hydratedSeniorityDataset: fixture.pointer
+            ))
+    }
+
+    func testCargoPackageTamperingIsRejectedEvenWithItsNewDigest() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.repository) }
+        let lockURL = fixture.repository.appendingPathComponent("Cargo.lock")
+        let original = try String(contentsOf: lockURL, encoding: .utf8)
+        let tampered = Data(original.replacingOccurrences(of: "version = \"0.1.0\"", with: "version = \"0.2.0\"").utf8)
+        try tampered.write(to: lockURL, options: .atomic)
+        let digest = SHA256.hash(data: tampered).map { String(format: "%02x", $0) }.joined()
+        XCTAssertThrowsError(
+            try ReleaseChecker.verifyPinnedCheckoutIsUnmodified(
+                fixture.repository, hydratedSeniorityDataset: fixture.pointer, cargoLockfileSHA256: digest
+            ))
+    }
+
     private func makeFixture() throws -> (
         repository: URL,
         pointer: GitLFSPointer,
@@ -98,6 +177,24 @@ final class SourceCheckoutIntegrityTests: XCTestCase {
             to: repository.appendingPathComponent("tracked.txt"),
             options: .atomic
         )
+        let lock = """
+            # This file is automatically @generated by Cargo.
+            # It is not intended for manual editing.
+            version = 4
+
+            [[package]]
+            name = "app"
+            version = "0.1.0"
+            dependencies = [
+             "helper",
+            ]
+
+            [[package]]
+            name = "helper"
+            version = "0.1.0"
+
+            """
+        try Data(lock.utf8).write(to: repository.appendingPathComponent("Cargo.lock"), options: .atomic)
         try Data("\(Self.datasetPath) filter=lfs diff=lfs merge=lfs -text\n".utf8).write(
             to: repository.appendingPathComponent(".gitattributes"),
             options: .atomic
@@ -108,7 +205,7 @@ final class SourceCheckoutIntegrityTests: XCTestCase {
         )
         _ = try ReleaseChecker.runChecked(
             ReleaseChecker.gitExecutable,
-            ["-C", repository.path, "add", ".gitattributes", "tracked.txt", Self.datasetPath]
+            ["-C", repository.path, "add", ".gitattributes", "tracked.txt", "Cargo.lock", Self.datasetPath]
         )
         _ = try ReleaseChecker.runChecked(
             ReleaseChecker.gitExecutable,

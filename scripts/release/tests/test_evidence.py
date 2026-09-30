@@ -153,7 +153,7 @@ class BundleTests(unittest.TestCase):
             openssl = root / "toolchain"
             (openssl / "lib").mkdir(parents=True)
             (openssl / "lib/libcrypto.a").write_bytes(b"fixture static archive")
-            with patch("evidence.bundle.run", return_value="OpenSSL 3.5.8"):
+            with patch("evidence.bundle.run", return_value="OpenSSL 3.5.9"):
                 prepare_bundle(PROJECT, app, openssl)
             dependencies, manifest = inventory(PROJECT, app)
             self.assertEqual([item["id"] for item in dependencies["components"]], ["quilnode", "sparkle", "openssl"])

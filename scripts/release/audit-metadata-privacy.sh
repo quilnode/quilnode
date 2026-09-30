@@ -45,8 +45,8 @@ scan_media_metadata() {
     local candidate="$1"
     case "$candidate" in
         *.png|*.PNG|*.jpg|*.JPG|*.jpeg|*.JPEG|*.tif|*.TIF|*.tiff|*.TIFF|*.heic|*.HEIC|*.icns|*.ICNS)
-            if sips -g all "$candidate" 2>/dev/null | tail -n +2 | rg -qi \
-                '^[[:space:]]+(artist|author|camera|make|model|software|creation|datetime|gps|latitude|longitude|comment|description|copyright):'; then
+            if sips -g all "$candidate" 2>/dev/null | tail -n +2 | rg -i \
+                '^[[:space:]]+(artist|author|camera|make|model|software|creation|datetime|gps|latitude|longitude|comment|description|copyright):' >/dev/null; then
                 fail "embedded creator, device, location, or timestamp metadata: $candidate"
             fi
             ;;
@@ -61,19 +61,19 @@ scan_file_content() {
 
     local literal
     for literal in "${sensitive_literals[@]}"; do
-        if printf '%s\n' "$extracted" | rg -q --fixed-strings "$literal"; then
+        if rg -q --fixed-strings "$literal" <<< "$extracted"; then
             fail "build-machine identity or path in $relative"
             break
         fi
     done
 
-    if [[ "$mode" == "artifact" ]] && printf '%s\n' "$extracted" | rg -q \
-        '(/Users/[A-Za-z0-9._-]+/|/home/[A-Za-z0-9._-]+/|/private/var/folders/[A-Za-z0-9._/-]+|file:///Users/)'; then
+    if [[ "$mode" == "artifact" ]] && rg -q \
+        '(/Users/[A-Za-z0-9._-]+/|/home/[A-Za-z0-9._-]+/|/private/var/folders/[A-Za-z0-9._/-]+|file:///Users/)' <<< "$extracted"; then
         fail "concrete user-home or temporary build path in $relative"
     fi
 
     if file "$candidate" | rg -q 'Mach-O'; then
-        if otool -l "$candidate" 2>/dev/null | rg -q 'segname __DWARF|sectname __debug_'; then
+        if otool -l "$candidate" 2>/dev/null | rg 'segname __DWARF|sectname __debug_' >/dev/null; then
             fail "embedded DWARF debug section in $relative"
         fi
     fi

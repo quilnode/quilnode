@@ -14,30 +14,6 @@ extension ReleaseChecker {
     ) throws -> StagedSourceNodeArtifact {
         progress(
             NodeUpdateProgress(
-                step: .resolveDependencies,
-                phase: "Resolving locked dependencies",
-                detail: "Fetching only the packages pinned by Cargo.lock inside the isolated build home",
-                fraction: 0.14,
-                startedAt: context.startedAt,
-                isEstimate: true,
-                logURL: context.logURL
-            ))
-        // Dependency acquisition may use the network but cannot read the
-        // operator home. A failed fetch leaves its bounded transcript intact.
-        try runChecked(
-            SourceBuildSandbox.executable,
-            try SourceBuildSandbox.arguments(
-                profileURL: context.sandbox.fetchProfile,
-                executable: context.sandbox.cargoExecutable,
-                arguments: ["fetch", "--locked"]
-            ),
-            currentDirectory: context.repository,
-            environment: context.sandbox.environment,
-            timeout: 30 * 60,
-            logURL: context.logURL
-        )
-        progress(
-            NodeUpdateProgress(
                 step: .compileNode,
                 phase: "Compiling node",
                 detail: "Cargo and macOS manage parallel work; compatible cached artifacts are reused automatically",
@@ -52,8 +28,11 @@ extension ReleaseChecker {
             SourceBuildSandbox.executable,
             try SourceBuildSandbox.arguments(
                 profileURL: context.sandbox.compileProfile,
-                executable: "/bin/bash",
-                arguments: [context.buildScript.path]
+                executable: context.sandbox.cargoExecutable,
+                arguments: [
+                    "build", "--frozen", "--release", "--bin", "quil-node", "--package", "quil-node",
+                    "--target", "aarch64-apple-darwin",
+                ]
             ),
             currentDirectory: context.repository,
             environment: context.sandbox.environment,
@@ -79,10 +58,11 @@ extension ReleaseChecker {
             ))
         try verifyPinnedCheckoutIsUnmodified(
             context.repository,
-            hydratedSeniorityDataset: context.seniorityDataset
+            hydratedSeniorityDataset: context.seniorityDataset,
+            cargoLockfileSHA256: context.dependencyLock.resolvedSHA256
         )
 
-        let built = context.repository.appendingPathComponent("node/build/arm64_macos/node")
+        let built = context.repository.appendingPathComponent("target/aarch64-apple-darwin/release/quil-node")
         try validateSourceBuildArtifact(built, maximumBytes: 600_000_000)
         let shortCommit = String(context.head.commit.prefix(8))
         let fileName = "node-\(context.displayVersion)-source-\(shortCommit)-darwin-arm64"

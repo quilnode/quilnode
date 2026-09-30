@@ -9,6 +9,29 @@ import Foundation
 #endif
 
 extension ReleaseChecker {
+    /// Reuse only an independently reverified checkout of this exact commit.
+    /// Preserving its input mtimes lets Cargo reuse the existing frozen build.
+    nonisolated static func canReusePinnedSourceCheckout(_ repository: URL, commit: String) -> Bool {
+        do {
+            let current = try runChecked(gitExecutable, ["-C", repository.path, "rev-parse", "HEAD"])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard current == commit else { return false }
+            let pointerText = try runChecked(
+                gitExecutable, ["-C", repository.path, "show", "HEAD:\(seniorityDatasetRelativePath)"], timeout: 30
+            )
+            guard let pointer = GitLFSPointerParser.parse(pointerText), pointer.size <= 600_000_000 else {
+                return false
+            }
+            let digest = try validatedSourceCargoLockfileSHA256(repository: repository)
+            try verifyPinnedCheckoutIsUnmodified(
+                repository, hydratedSeniorityDataset: pointer, cargoLockfileSHA256: digest
+            )
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// Hydrates the large seniority input identified by the immutable commit's
     /// Git LFS pointer. Both official transports are accepted, but the object
     /// must match the size and SHA-256 committed by upstream.
@@ -53,10 +76,12 @@ extension ReleaseChecker {
     }
 
     /// Proves that the immutable checkout has no staged changes and that its
-    /// only working-tree difference is the verified seniority LFS object.
+    /// only working-tree differences are the verified seniority LFS object and
+    /// an explicitly pinned Cargo repair that preserves all package metadata.
     nonisolated static func verifyPinnedCheckoutIsUnmodified(
         _ repository: URL,
-        hydratedSeniorityDataset pointer: GitLFSPointer
+        hydratedSeniorityDataset pointer: GitLFSPointer,
+        cargoLockfileSHA256: String? = nil
     ) throws {
         do {
             _ = try runChecked(
@@ -75,7 +100,16 @@ extension ReleaseChecker {
                 ],
                 timeout: 60
             ).split(separator: "\0").map(String.init)
-            guard changedPaths == [seniorityDatasetRelativePath] else {
+            var allowedPaths = Set([seniorityDatasetRelativePath])
+            if let cargoLockfileSHA256 {
+                guard try validatedSourceCargoLockfileSHA256(repository: repository) == cargoLockfileSHA256 else {
+                    throw UpdateCenterError.sourceCheckoutModified
+                }
+                allowedPaths.insert("Cargo.lock")
+            }
+            guard changedPaths.contains(seniorityDatasetRelativePath),
+                Set(changedPaths).isSubset(of: allowedPaths)
+            else {
                 throw UpdateCenterError.sourceCheckoutModified
             }
             let untrackedPaths = try runChecked(

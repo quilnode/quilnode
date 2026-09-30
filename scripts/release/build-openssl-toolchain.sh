@@ -15,12 +15,12 @@ if [[ -r "$OUTPUT_DIR/include/openssl/evp.h" && -r "$OUTPUT_DIR/lib/libcrypto.a"
         echo "Existing OpenSSL toolchain has unexpected version $actual_version" >&2
         exit 1
     }
-    if strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg -q \
-        "(/Users/|/home/|/private/var/folders/|$WORKSPACE_DIR|$PROJECT_DIR)"; then
+    if strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg \
+        "(/Users/|/home/|/private/var/folders/|$WORKSPACE_DIR|$PROJECT_DIR)" >/dev/null; then
         echo "Existing OpenSSL toolchain contains build-machine paths." >&2
         exit 1
     fi
-    strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg -q --fixed-strings "$QUILNODE_OPENSSL_NEUTRAL_PREFIX"
+    strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg --fixed-strings "$QUILNODE_OPENSSL_NEUTRAL_PREFIX" >/dev/null
     echo "$OUTPUT_DIR"
     exit 0
 fi
@@ -75,10 +75,10 @@ ditto --norsrc --noextattr --noqtn "$installed_tree" "$OUTPUT_DIR"
 
 [[ -r "$OUTPUT_DIR/include/openssl/evp.h" && -r "$OUTPUT_DIR/lib/libcrypto.a" ]]
 [[ "$("$OUTPUT_DIR/bin/openssl" version | awk '{print $2}')" == "$QUILNODE_OPENSSL_VERSION" ]]
-if strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg -q \
-    "(/Users/|/home/|/private/var/folders/|$build_root|$WORKSPACE_DIR|$PROJECT_DIR)"; then
+if strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg \
+    "(/Users/|/home/|/private/var/folders/|$build_root|$WORKSPACE_DIR|$PROJECT_DIR)" >/dev/null; then
     echo "The OpenSSL toolchain contains build-machine paths." >&2
     exit 1
 fi
-strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg -q --fixed-strings "$QUILNODE_OPENSSL_NEUTRAL_PREFIX"
+strings -a "$OUTPUT_DIR/lib/libcrypto.a" | rg --fixed-strings "$QUILNODE_OPENSSL_NEUTRAL_PREFIX" >/dev/null
 echo "$OUTPUT_DIR"

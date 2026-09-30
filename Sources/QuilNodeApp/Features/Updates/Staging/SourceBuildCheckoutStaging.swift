@@ -37,9 +37,7 @@ extension ReleaseChecker {
 
         let cargoManifest = repository.appendingPathComponent("crates/quil-node/Cargo.toml")
         let versionSource = repository.appendingPathComponent("crates/quil-config/src/version.rs")
-        let buildScript = repository.appendingPathComponent("node/build.sh")
         guard FileManager.default.fileExists(atPath: cargoManifest.path),
-            FileManager.default.fileExists(atPath: buildScript.path),
             let sourceVersion = parseNodeVersion(at: versionSource)
         else { throw UpdateCenterError.branchIsNotNodeBuildable(head.name) }
 
@@ -66,13 +64,25 @@ extension ReleaseChecker {
         let seniorityDataset = try prepareSeniorityDataset(in: repository)
         try verifyPinnedCheckoutIsUnmodified(
             repository,
-            hydratedSeniorityDataset: seniorityDataset
+            hydratedSeniorityDataset: seniorityDataset,
+            cargoLockfileSHA256: validatedSourceCargoLockfileSHA256(repository: repository)
         )
 
         let logURL = directory.appendingPathComponent("build.log")
         let sandbox = try prepareSourceBuildSandbox(
             workspace: workspace,
             repository: repository
+        )
+        progress(
+            NodeUpdateProgress(
+                step: .resolveDependencies, phase: "Preparing pinned dependencies",
+                detail: "Verifying Cargo.lock and fetching its pinned packages inside the isolated build home",
+                fraction: 0.14, startedAt: startedAt, isEstimate: true, logURL: logURL
+            ))
+        let dependencyLock = try prepareSourceDependencies(repository: repository, sandbox: sandbox, logURL: logURL)
+        try verifyPinnedCheckoutIsUnmodified(
+            repository, hydratedSeniorityDataset: seniorityDataset,
+            cargoLockfileSHA256: dependencyLock.resolvedSHA256
         )
         return SourceBuildPipelineContext(
             head: head,
@@ -81,16 +91,16 @@ extension ReleaseChecker {
             channel: channel,
             directory: directory,
             repository: repository,
-            buildScript: buildScript,
             sourceVersion: sourceVersion,
             displayVersion: displayVersion ?? sourceVersion,
             seniorityDataset: seniorityDataset,
             logURL: logURL,
-            sandbox: sandbox
+            sandbox: sandbox,
+            dependencyLock: dependencyLock
         )
     }
 
-    nonisolated private static func prepareSourceRepository(
+    nonisolated static func prepareSourceRepository(
         _ repository: URL,
         repositoryURL: String,
         head: GitBranchHead,
@@ -103,6 +113,22 @@ extension ReleaseChecker {
                 gitExecutable, ["-C", repository.path, "remote", "get-url", "origin"]
             ).trimmingCharacters(in: .whitespacesAndNewlines)
             guard origin == repositoryURL else { throw UpdateCenterError.sourceCacheInvalid }
+            if canReusePinnedSourceCheckout(repository, commit: head.commit) {
+                // Remove ignored/generated source inputs without rewriting the
+                // verified lockfile or hydrated dataset (which invalidates Cargo).
+                try runChecked(
+                    gitExecutable,
+                    ["-C", repository.path, "clean", "-q", "-f", "-f", "-d", "-x", "-e", "target/"],
+                    timeout: 90
+                )
+                progress(
+                    NodeUpdateProgress(
+                        step: .acquire, phase: "Reusing verified source checkout",
+                        detail: "Exact commit and build inputs reverified; preserving the compiled package cache",
+                        fraction: 0.09, startedAt: startedAt, isEstimate: true
+                    ))
+                return
+            }
             progress(
                 NodeUpdateProgress(
                     step: .acquire,

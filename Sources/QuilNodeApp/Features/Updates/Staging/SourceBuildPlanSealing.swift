@@ -14,6 +14,10 @@ extension ReleaseChecker {
         qclient: SignedArtifactActivation?,
         progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> URL {
+        try verifyPinnedCheckoutIsUnmodified(
+            context.repository, hydratedSeniorityDataset: context.seniorityDataset,
+            cargoLockfileSHA256: context.dependencyLock.resolvedSHA256
+        )
         progress(
             NodeUpdateProgress(
                 step: .sealPlan,
@@ -41,6 +45,9 @@ extension ReleaseChecker {
             Commit subject: \(context.head.subject)
             Official seniority dataset SHA-256: \(context.seniorityDataset.oid)
             Official seniority dataset bytes: \(context.seniorityDataset.size)
+            Upstream Cargo.lock SHA-256: \(context.dependencyLock.upstreamSHA256)
+            Build Cargo.lock SHA-256: \(context.dependencyLock.resolvedSHA256)
+            Local dependency graph repaired: \(context.dependencyLock.wasRepaired)
             Binary SHA-256: \(node.sha256)
             This is NOT an officially signed release binary.
             """

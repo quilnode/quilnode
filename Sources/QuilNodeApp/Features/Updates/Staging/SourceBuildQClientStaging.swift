@@ -53,7 +53,7 @@ extension ReleaseChecker {
             try SourceBuildSandbox.arguments(
                 profileURL: context.sandbox.compileProfile,
                 executable: context.sandbox.cargoExecutable,
-                arguments: ["build", "--release", "--package", "quil-client"]
+                arguments: ["build", "--frozen", "--release", "--package", "quil-client"]
             ),
             currentDirectory: context.repository,
             environment: context.sandbox.environment,
@@ -62,7 +62,8 @@ extension ReleaseChecker {
         )
         try verifyPinnedCheckoutIsUnmodified(
             context.repository,
-            hydratedSeniorityDataset: context.seniorityDataset
+            hydratedSeniorityDataset: context.seniorityDataset,
+            cargoLockfileSHA256: context.dependencyLock.resolvedSHA256
         )
         try validateSourceBuildArtifact(built, maximumBytes: 250_000_000)
 
@@ -92,6 +93,8 @@ extension ReleaseChecker {
             Official repository: \(context.repositoryURL)
             Branch: \(context.head.name)
             Commit: \(context.head.commit)
+            Upstream Cargo.lock SHA-256: \(context.dependencyLock.upstreamSHA256)
+            Build Cargo.lock SHA-256: \(context.dependencyLock.resolvedSHA256)
             Binary SHA-256: \(hash)
             This is NOT an officially signed release binary.
             """
