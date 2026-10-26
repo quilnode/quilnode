@@ -175,8 +175,8 @@ if ! rg -q 'authorizationRequired\(' Sources/QuilNodeHelperKit ||
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'currentServiceBuild = 123' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
-   ! rg -q 'minimumSupportedServiceBuild = 123' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+if ! rg -q 'currentServiceBuild = 124' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+   ! rg -q 'minimumSupportedServiceBuild = 124' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'PrivilegedServiceProtocol\.minimumSupportedServiceBuild' Sources/QuilNodeCore/Infrastructure/IPC/PrivilegedServiceClient.swift ||
    [[ "$(rg -o 'serviceBuild: verifierReady \? PrivilegedServiceProtocol\.currentServiceBuild : nil' Sources/QuilNodeHelperKit | wc -l | tr -d ' ')" -ne 1 ]]; then
     echo "FAIL: privileged service compatibility floor is inconsistent" >&2
