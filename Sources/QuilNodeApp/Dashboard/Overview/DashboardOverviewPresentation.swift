@@ -55,7 +55,7 @@ extension DashboardView {
         case .networkWaiting: theme.colors.info
         case .creditObserved: theme.colors.success
         case .noCreditObserved: theme.colors.warning
-        case .notEligible: theme.colors.secondaryText
+        case .notEligible, .checking: theme.colors.secondaryText
         }
     }
 

@@ -123,7 +123,9 @@ extension DashboardView {
                     privacyField: .networkActivity
                 ),
                 metadataLabel: "Inbound",
-                metadataValue: nodeObservation.value(evidence.network.inboundObserved ? "Observed" : "Not observed"),
+                metadataValue: nodeObservation.value(
+                    evidence.network.inboundObserved || networkReadiness.inspection.inboundPeerSockets > 0
+                        ? "Observed" : "Not observed"),
                 metadataPrivacyField: .networkActivity,
                 detail: "Connectivity observed from this Mac.",
                 destination: .network

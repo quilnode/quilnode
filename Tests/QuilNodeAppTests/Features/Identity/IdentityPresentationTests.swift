@@ -69,9 +69,15 @@ final class IdentityPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation.participation.state, .awaitingAllocation)
-        XCTAssertEqual(presentation.participation.title, "Awaiting allocation")
+        XCTAssertEqual(presentation.participation.title, "Reading participation")
         XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("eligible"))
         XCTAssertFalse(presentation.participation.detail.localizedCaseInsensitiveContains("earning"))
+        let observed = IdentityWorkspacePresentation.make(
+            snapshot: NodeSnapshot(isRunning: true, proverStatusUpdatedAt: Date(), peers: 18),
+            seniorityTrend: collectingTrend
+        )
+        XCTAssertEqual(observed.participation.title, "Awaiting allocation")
+        XCTAssertTrue(presentation.roles.allSatisfy { $0.observedAt == nil })
     }
 
     func testActiveAllocationDoesNotClaimContinuousProofProductionOrReward() {

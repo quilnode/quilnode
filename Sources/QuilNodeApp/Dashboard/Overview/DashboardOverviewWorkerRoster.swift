@@ -19,7 +19,7 @@ extension DashboardView {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text("Worker runtime")
                     .font(.system(size: 13, weight: .semibold))
-                Text("One local process per card")
+                Text("One local worker per card")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
@@ -249,7 +249,8 @@ private struct OverviewWorkerRuntimeCard: View {
     private var storageLabel: String {
         guard let available = worker.availableStorage,
             let total = worker.totalStorage
-        else { return "Reading" }
+        else { return "Unavailable" }
+        if total == "0 B" { return "Not reported" }
         return "\(available) / \(total)"
     }
 

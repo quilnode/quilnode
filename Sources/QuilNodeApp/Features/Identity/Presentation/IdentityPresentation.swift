@@ -161,7 +161,7 @@ struct IdentityWorkspacePresentation {
                     value: snapshot.peerID,
                     evidenceSource: "Local node",
                     evidenceKind: "Transport identity",
-                    observedAt: nodeObservedAt,
+                    observedAt: snapshot.peerID == nil ? nil : nodeObservedAt,
                     externalURL: IdentityExplorerLink.peer(snapshot.peerID)
                 ),
                 IdentityRolePresentation(
@@ -169,7 +169,7 @@ struct IdentityWorkspacePresentation {
                     value: snapshot.legacyPeerID,
                     evidenceSource: "Local node",
                     evidenceKind: "Legacy Ed448 identity",
-                    observedAt: nodeObservedAt,
+                    observedAt: snapshot.legacyPeerID == nil ? nil : nodeObservedAt,
                     externalURL: IdentityExplorerLink.peer(snapshot.legacyPeerID)
                 ),
                 IdentityRolePresentation(
@@ -177,7 +177,8 @@ struct IdentityWorkspacePresentation {
                     value: snapshot.proverAddress,
                     evidenceSource: "Local node",
                     evidenceKind: "Proof identity",
-                    observedAt: snapshot.proverStatusUpdatedAt ?? nodeObservedAt,
+                    observedAt: snapshot.proverAddress == nil
+                        ? nil : (snapshot.proverStatusUpdatedAt ?? nodeObservedAt),
                     externalURL: IdentityExplorerLink.prover(snapshot.proverAddress)
                 ),
                 IdentityRolePresentation(
@@ -185,7 +186,7 @@ struct IdentityWorkspacePresentation {
                     value: snapshot.quilAccount,
                     evidenceSource: "Local QClient",
                     evidenceKind: "Spendable account",
-                    observedAt: snapshot.balanceUpdatedAt,
+                    observedAt: snapshot.quilAccount == nil ? nil : snapshot.balanceUpdatedAt,
                     externalURL: nil
                 ),
             ]
@@ -200,7 +201,7 @@ struct IdentityWorkspacePresentation {
             case .networkRecovery, .allocated: .allocated
             case .activeAllocations: .active
             case .joining: .joining
-            case .awaitingAllocation: .awaitingAllocation
+            case .awaitingAllocation, .reading: .awaitingAllocation
             }
         return IdentityParticipationPresentation(
             state: state,

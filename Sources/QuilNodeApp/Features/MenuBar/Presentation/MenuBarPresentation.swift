@@ -65,6 +65,8 @@ struct MenuBarPresentation {
                 : Headline(lead: "Node ", emphasis: "offline")
         }
         switch participationEvidence.state {
+        case .reading:
+            return Headline(lead: "Reading ", emphasis: "participation")
         case .offline:
             return Headline(lead: "Node ", emphasis: "offline")
         case .networkRecovery:

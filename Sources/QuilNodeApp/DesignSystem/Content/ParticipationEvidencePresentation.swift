@@ -9,6 +9,7 @@ import Foundation
 /// work, a successful proof submission, or a future reward.
 struct ParticipationEvidencePresentation {
     enum State: Equatable {
+        case reading
         case offline
         case networkRecovery
         case activeAllocations
@@ -18,6 +19,7 @@ struct ParticipationEvidencePresentation {
     }
 
     enum RewardState: Equatable {
+        case checking
         case networkWaiting
         case creditObserved
         case noCreditObserved
@@ -96,6 +98,15 @@ struct ParticipationEvidencePresentation {
             )
         }
 
+        if snapshot.proverStatusUpdatedAt == nil {
+            return presentation(
+                state: .reading,
+                title: "Reading participation",
+                detail: "The node is running. Its allocation status has not been returned yet.",
+                summary: "Waiting for local allocation evidence",
+                systemImage: "arrow.triangle.2.circlepath", reward: reward
+            )
+        }
         return presentation(
             state: .awaitingAllocation,
             title: "Awaiting allocation",
@@ -136,6 +147,13 @@ struct ParticipationEvidencePresentation {
                     "No reward credit is present in the local node log. Active allocations show eligibility, not guaranteed payment.",
                 summary: "No local reward credit observed",
                 systemImage: "clock.badge"
+            )
+        }
+        if snapshot.isRunning, snapshot.proverStatusUpdatedAt == nil {
+            return RewardPresentation(
+                state: .checking, title: "Checking eligibility",
+                detail: "Allocation evidence is still loading; eligibility is not known yet.",
+                summary: "Awaiting allocation evidence", systemImage: "clock"
             )
         }
         return RewardPresentation(

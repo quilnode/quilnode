@@ -348,7 +348,7 @@ struct NetworkLocalNodeInspector: View {
         switch node.participation.state {
         case .activeAllocations: theme.colors.success
         case .joining, .allocated, .networkRecovery: theme.colors.warning
-        case .awaitingAllocation: theme.colors.info
+        case .awaitingAllocation, .reading: theme.colors.info
         case .offline: theme.colors.danger
         }
     }
@@ -357,7 +357,7 @@ struct NetworkLocalNodeInspector: View {
         switch node.participation.rewardState {
         case .creditObserved: theme.colors.success
         case .networkWaiting, .noCreditObserved: theme.colors.warning
-        case .notEligible: theme.colors.secondaryText
+        case .notEligible, .checking: theme.colors.secondaryText
         }
     }
 }
