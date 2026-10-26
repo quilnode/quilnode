@@ -88,6 +88,15 @@ extension QuilNodeHelper {
         _ arguments: [String],
         timeout: TimeInterval
     ) throws -> String {
+        try runAsServiceUser(
+            URL(fileURLWithPath: "/usr/bin/sandbox-exec"),
+            ["-p", artifactVersionProbeProfile(executable), executable.path] + arguments,
+            timeout: timeout,
+            currentDirectory: URL(fileURLWithPath: "/var/empty", isDirectory: true)
+        )
+    }
+
+    static func artifactVersionProbeProfile(_ executable: URL) -> String {
         let releaseDirectory = executable.deletingLastPathComponent().standardizedFileURL.path
         let privateAlias = releaseDirectory.hasPrefix("/var/") ? "/private" + releaseDirectory : releaseDirectory
         let readableRoots = [
@@ -98,7 +107,21 @@ extension QuilNodeHelper {
         let rules = Array(Set(readableRoots)).sorted().map {
             "(allow file-read* (subpath \(sandboxLiteral($0))))"
         }.joined(separator: "\n")
-        let profile = """
+        // exec traverses the versioned directory's ancestors before opening
+        // the binary. Metadata-only access permits traversal without exposing
+        // sibling releases, node configuration, or identity file contents.
+        var ancestors = Set<String>()
+        for root in readableRoots {
+            var parent = URL(fileURLWithPath: root).deletingLastPathComponent()
+            while parent.path != "/" && !parent.path.isEmpty {
+                ancestors.insert(parent.path)
+                parent.deleteLastPathComponent()
+            }
+        }
+        let traversal = ancestors.sorted().map {
+            "(allow file-read-metadata (literal \(sandboxLiteral($0))))"
+        }.joined(separator: "\n")
+        return """
             (version 1)
             (deny default)
             (allow process*)
@@ -108,14 +131,9 @@ extension QuilNodeHelper {
             (allow ipc-posix*)
             (deny network*)
             (allow file-read* (literal "/"))
+            \(traversal)
             \(rules)
             """
-        return try runAsServiceUser(
-            URL(fileURLWithPath: "/usr/bin/sandbox-exec"),
-            ["-p", profile, executable.path] + arguments,
-            timeout: timeout,
-            currentDirectory: URL(fileURLWithPath: "/var/empty", isDirectory: true)
-        )
     }
 
     static func qclientRuntimeVersion(_ output: String) -> String? {
