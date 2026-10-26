@@ -37,7 +37,7 @@ struct NetworkObservatoryCanvas: View {
                 shards: shards,
                 selectedID: selectedID,
                 zoom: zoom,
-                archiveSources: archiveSources,
+                archiveSources: hidesLocalTopology ? 3 : archiveSources,
                 localAllocationCount: localAllocationCount,
                 hidesLocalTopology: hidesLocalTopology
             )
@@ -69,7 +69,7 @@ struct NetworkObservatoryCanvas: View {
 
                 localNodeControl(size: geometry.size)
 
-                if (archiveSources ?? 0) > 0 {
+                if hidesLocalTopology || (archiveSources ?? 0) > 0 {
                     archivePoolLabel(size: geometry.size)
                 }
 

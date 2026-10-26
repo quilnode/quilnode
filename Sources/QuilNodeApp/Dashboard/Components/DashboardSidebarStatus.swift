@@ -35,9 +35,11 @@ struct DashboardSidebarStatus: View {
             Image(systemName: "point.3.connected.trianglepath.dotted")
                 .font(.caption2)
                 .foregroundStyle(theme.colors.secondaryText)
-            Text(observation.hasLiveTelemetry ? "\(snapshot.peers)" : "…")
-                .font(.caption2.bold().monospacedDigit())
-                .quilLiveValueTransition(value: snapshot.peers)
+            PrivacyProtectedText(
+                value: observation.hasLiveTelemetry ? "\(snapshot.peers)" : "…", field: .networkActivity
+            )
+            .font(.caption2.bold().monospacedDigit())
+            .quilLiveValueTransition(value: snapshot.peers)
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
@@ -50,11 +52,11 @@ struct DashboardSidebarStatus: View {
         .help(
             !observation.hasLiveTelemetry
                 ? observation.accessibilityStatus
-                : "\(snapshot.health.label) · \(privacySafeDetail) · \(snapshot.peers) peers"
+                : "\(snapshot.health.label) · \(privacySafeDetail) · \(privacySafePeers)"
         )
         .accessibilityLabel(
             observation.hasLiveTelemetry
-                ? "\(snapshot.health.label), \(snapshot.peers) peers" : observation.accessibilityStatus)
+                ? "\(snapshot.health.label), \(privacySafePeers)" : observation.accessibilityStatus)
     }
 
     private var expandedStatus: some View {
@@ -72,7 +74,11 @@ struct DashboardSidebarStatus: View {
                 .foregroundStyle(theme.colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Label(observation.value("\(snapshot.peers)"), systemImage: "point.3.connected.trianglepath.dotted")
+                Label {
+                    PrivacyProtectedText(value: observation.value("\(snapshot.peers)"), field: .networkActivity)
+                } icon: {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                }
                 Spacer(minLength: 0)
                 Text(snapshot.version ?? "Local")
             }
@@ -138,5 +144,9 @@ struct DashboardSidebarStatus: View {
 
     private var rewardLabel: String {
         snapshot.lastRewardCreditFrame == nil ? "no credit observed" : "credit observed"
+    }
+
+    private var privacySafePeers: String {
+        privacyMode.isEnabled ? "Peer count hidden" : "\(snapshot.peers) peers"
     }
 }

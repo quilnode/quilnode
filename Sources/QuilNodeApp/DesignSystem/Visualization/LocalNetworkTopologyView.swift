@@ -82,7 +82,7 @@ struct LocalNetworkTopologyView: View {
             drawOrbit(archiveRect, in: &context, color: theme.colors.info.opacity(0.32), dash: [])
             drawOrbit(shardRect, in: &context, color: theme.colors.accentSecondary.opacity(0.30), dash: [2, 5])
 
-            let peerSamples = hasLiveTelemetry ? min(max(snapshot.peers / 5, 10), 58) : 14
+            let peerSamples = hasLiveTelemetry && !hidesSensitiveValues ? min(max(snapshot.peers / 5, 10), 58) : 14
             for index in 0..<peerSamples {
                 let point = point(on: peerRect, index: index, count: peerSamples, offset: 0.17)
                 let emphasized = index % 9 == 0
@@ -96,7 +96,7 @@ struct LocalNetworkTopologyView: View {
                 )
             }
 
-            let archiveSamples = hasLiveTelemetry ? min(archiveSourceCount, 10) : 0
+            let archiveSamples = hidesSensitiveValues ? 3 : (hasLiveTelemetry ? min(archiveSourceCount, 10) : 0)
             for index in 0..<archiveSamples {
                 let point = point(on: archiveRect, index: index, count: max(archiveSamples, 1), offset: 0.39)
                 var link = Path()
@@ -169,6 +169,9 @@ struct LocalNetworkTopologyView: View {
 
     private var accessibilitySummary: String {
         guard hasLiveTelemetry else { return "Reading local network topology" }
+        if hidesSensitiveValues {
+            return "Local topology. Peer, archive, and allocation details hidden by Privacy Mode."
+        }
         let allocationSummary = hidesSensitiveValues ? "Allocation state hidden." : "Local allocation state shown."
         return
             "Local topology: \(snapshot.peers) peers and \(archiveSourceCount) archive sources. \(allocationSummary) This is not a global network map."
@@ -218,7 +221,7 @@ private struct TopologyLegendItem: View {
                 }
             }
             .frame(width: 6, height: 6)
-            Text(value)
+            PrivacyProtectedText(value: value, field: .networkActivity)
                 .font(.system(size: 9.5, weight: .semibold, design: .monospaced).monospacedDigit())
                 .foregroundStyle(theme.colors.primaryText)
             Text(label)

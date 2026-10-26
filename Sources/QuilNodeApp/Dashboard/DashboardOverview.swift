@@ -74,9 +74,12 @@ extension DashboardView {
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .tracking(0.8)
                         .foregroundStyle(theme.colors.info)
-                    Text("\(monitor.snapshot.archiveSourceValue) sources · \(monitor.snapshot.peers) peers")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(theme.colors.secondaryText)
+                    PrivacyProtectedText(
+                        value: "\(monitor.snapshot.archiveSourceValue) sources · \(monitor.snapshot.peers) peers",
+                        field: .networkActivity
+                    )
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(theme.colors.secondaryText)
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption.bold())
