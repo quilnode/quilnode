@@ -26,12 +26,14 @@ extension QuilNodeHelper {
         try validateLaunchDaemonPlist()
         let plist = try readPlist()
         let overrides = try runLaunchctl(["print-disabled", "system"])
-        let disabled = overrides.range(
-            of: #""com\.quilibrium\.node"\s*=>\s*true"#, options: .regularExpression) != nil
+        let disabled =
+            overrides.range(
+                of: #""com\.quilibrium\.node"\s*=>\s*true"#, options: .regularExpression) != nil
         let enabled = plist["RunAtLoad"] as? Bool == true && plist["KeepAlive"] as? Bool == true && !disabled
         return PrivilegedServiceResponse(
             success: true,
-            message: enabled ? "The node starts at boot and restarts after an unexpected exit."
+            message: enabled
+                ? "The node starts at boot and restarts after an unexpected exit."
                 : "The node starts manually. The current process is unchanged.",
             nodeStartAtBoot: enabled
         )

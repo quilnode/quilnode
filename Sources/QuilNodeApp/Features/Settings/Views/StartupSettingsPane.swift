@@ -24,10 +24,13 @@ struct StartupSettingsPane: View {
                     title: "Open QuilNode after login",
                     detail: "Open the dashboard and menu bar when you sign in to macOS after a restart."
                 ) {
-                    Toggle("Open after login", isOn: Binding(
-                        get: { loginStatus == .enabled || loginStatus == .requiresApproval },
-                        set: setLoginEnabled
-                    )).labelsHidden().toggleStyle(.switch)
+                    Toggle(
+                        "Open after login",
+                        isOn: Binding(
+                            get: { loginStatus == .enabled || loginStatus == .requiresApproval },
+                            set: setLoginEnabled
+                        )
+                    ).labelsHidden().toggleStyle(.switch)
                 }
                 if loginStatus == .requiresApproval {
                     Text("macOS is waiting for your approval in Login Items.")
@@ -38,12 +41,16 @@ struct StartupSettingsPane: View {
                 SettingsPreferenceRow(
                     systemImage: "power.circle.fill",
                     title: "Start node after a Mac restart",
-                    detail: "Run the node at boot, before login, and restart it after an unexpected exit. QuilNode can stay closed. Changes apply at the next node start; the running node is untouched."
+                    detail:
+                        "Run the node at boot, before login, and restart it after an unexpected exit. QuilNode can stay closed. Changes apply at the next node start; the running node is untouched."
                 ) {
                     if let nodeEnabled {
-                        Toggle("Start node at boot", isOn: Binding(
-                            get: { nodeEnabled }, set: { value in Task { await refreshNode(enabled: value) } }
-                        )).labelsHidden().toggleStyle(.switch).disabled(busy)
+                        Toggle(
+                            "Start node at boot",
+                            isOn: Binding(
+                                get: { nodeEnabled }, set: { value in Task { await refreshNode(enabled: value) } }
+                            )
+                        ).labelsHidden().toggleStyle(.switch).disabled(busy)
                     } else if busy {
                         ProgressView().controlSize(.small)
                     } else {
@@ -65,7 +72,8 @@ struct StartupSettingsPane: View {
             }
             SettingsFooterNote(
                 systemImage: "info.circle",
-                text: "Sleep pauses network work. A powered-off Mac cannot run the node. With FileVault, macOS must unlock the startup disk before system services can run."
+                text:
+                    "Sleep pauses network work. A powered-off Mac cannot run the node. With FileVault, macOS must unlock the startup disk before system services can run."
             )
         }
         .task { await refreshNode() }
@@ -76,8 +84,7 @@ struct StartupSettingsPane: View {
 
     private func setLoginEnabled(_ enabled: Bool) {
         do {
-            if enabled { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             error = nil
         } catch { self.error = error.localizedDescription }
         loginStatus = SMAppService.mainApp.status
