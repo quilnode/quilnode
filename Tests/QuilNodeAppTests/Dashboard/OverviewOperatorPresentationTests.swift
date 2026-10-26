@@ -4,6 +4,19 @@ import XCTest
 @testable import QuilNodeCore
 
 final class OverviewOperatorPresentationTests: XCTestCase {
+    func testFastRuntimeReadDoesNotInventZeroAllocationsBeforeProverRead() {
+        var snapshot = NodeSnapshot(isRunning: true, frame: 10, localWorkerCount: 8)
+        let pending = OverviewOperatorPresentation.make(snapshot: snapshot, activitySamples: [])
+        XCTAssertNil(pending.participation.activeAllocations)
+        XCTAssertNil(pending.participation.joiningAllocations)
+        XCTAssertEqual(pending.participation.runningWorkers, 8)
+
+        snapshot.proverStatusUpdatedAt = Date()
+        let observed = OverviewOperatorPresentation.make(snapshot: snapshot, activitySamples: [])
+        XCTAssertEqual(observed.participation.activeAllocations, 0)
+        XCTAssertEqual(observed.participation.joiningAllocations, 0)
+    }
+
     func testKeepsLandingPageEvidenceSeparateByOperatorQuestion() {
         let snapshot = NodeSnapshot(
             collectedAt: Date(timeIntervalSince1970: 2_000),

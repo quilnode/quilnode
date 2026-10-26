@@ -87,16 +87,16 @@ extension DashboardView {
                 id: "participation",
                 title: "Participation",
                 systemImage: "square.grid.3x3.fill",
-                tint: evidence.participation.activeAllocations > 0
+                tint: (evidence.participation.activeAllocations ?? 0) > 0
                     ? theme.colors.success : theme.colors.warning,
                 primary: OverviewEvidenceValue(
                     label: "Active",
-                    value: nodeObservation.value(String(evidence.participation.activeAllocations)),
+                    value: nodeObservation.value(evidence.participation.activeAllocations.map(String.init) ?? "—"),
                     privacyField: .activeShardCount
                 ),
                 secondary: OverviewEvidenceValue(
                     label: "Joining",
-                    value: nodeObservation.value(String(evidence.participation.joiningAllocations)),
+                    value: nodeObservation.value(evidence.participation.joiningAllocations.map(String.init) ?? "—"),
                     privacyField: .allocationCount
                 ),
                 metadataLabel: "Workers",

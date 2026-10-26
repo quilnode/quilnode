@@ -4,6 +4,16 @@ import XCTest
 @testable import QuilNodeCore
 
 final class OverviewWorkerRosterPresentationTests: XCTestCase {
+    func testWorkerCountAloneDoesNotClaimUnassignedWorkersDuringStartup() {
+        var snapshot = NodeSnapshot(isRunning: true, localWorkerCount: 8)
+        let pending = OverviewWorkerRosterPresentation.make(snapshot: snapshot)
+        XCTAssertEqual(pending.reportedRunningCount, 8)
+        XCTAssertTrue(pending.isAwaitingEvidence)
+
+        snapshot.proverStatusUpdatedAt = Date()
+        XCTAssertFalse(OverviewWorkerRosterPresentation.make(snapshot: snapshot).isAwaitingEvidence)
+    }
+
     func testJoinsWorkerRuntimeToAllocationAndCoverageByFilter() throws {
         let snapshot = NodeSnapshot(
             shardAllocations: [

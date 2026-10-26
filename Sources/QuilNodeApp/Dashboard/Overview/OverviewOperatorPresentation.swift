@@ -10,8 +10,8 @@ import Foundation
 /// connected, identified and receiving observable reward evidence.
 struct OverviewOperatorPresentation: Equatable {
     struct Participation: Equatable {
-        let activeAllocations: Int
-        let joiningAllocations: Int
+        let activeAllocations: Int?
+        let joiningAllocations: Int?
         let runningWorkers: Int?
         let coverage: ShardCoverageState?
 
@@ -47,10 +47,13 @@ struct OverviewOperatorPresentation: Equatable {
         activitySamples: [NodeActivitySample]
     ) -> Self {
         let allocation = AllocationLatticePresentation.make(snapshot: snapshot)
+        let allocationsObserved =
+            snapshot.proverStatusUpdatedAt != nil
+            || !snapshot.shardAllocations.isEmpty || snapshot.totalAllocations > 0
         return Self(
             participation: Participation(
-                activeAllocations: allocation.activeAllocations,
-                joiningAllocations: allocation.joiningAllocations,
+                activeAllocations: allocationsObserved ? allocation.activeAllocations : nil,
+                joiningAllocations: allocationsObserved ? allocation.joiningAllocations : nil,
                 runningWorkers: allocation.runningWorkers,
                 coverage: allocation.coverageState
             ),
