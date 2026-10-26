@@ -12,7 +12,10 @@ extension PrivilegedServiceClient {
     }
 
     public static func configureFirewall(
-        timeout: TimeInterval = 20
+        // Migration can wait for the mutation lock, validate two signed node
+        // binaries, and perform several bounded ALF commands before replying.
+        // A status-read budget must not expire while that transaction succeeds.
+        timeout: TimeInterval = 120
     ) -> (status: ManagedFirewallStatus?, error: String?) {
         decodeFirewallResponse(response(.firewallConfigure, timeout: timeout))
     }
