@@ -4,6 +4,18 @@ import XCTest
 @testable import QuilNodeCore
 
 final class OverviewOperatorPresentationTests: XCTestCase {
+    func testRegistryTotalAloneCannotEstablishActiveOrJoiningCounts() {
+        let snapshot = NodeSnapshot(
+            isRunning: true, seniority: 42, seniorityUpdatedAt: Date(),
+            seniorityEvidenceSource: .consensusRegistry, totalAllocations: 8
+        )
+        let presentation = OverviewOperatorPresentation.make(snapshot: snapshot, activitySamples: [])
+        XCTAssertTrue(snapshot.hasSeniorityObservation)
+        XCTAssertFalse(snapshot.hasAllocationObservation)
+        XCTAssertNil(presentation.participation.activeAllocations)
+        XCTAssertNil(presentation.participation.joiningAllocations)
+    }
+
     func testFastRuntimeReadDoesNotInventZeroAllocationsBeforeProverRead() {
         var snapshot = NodeSnapshot(isRunning: true, frame: 10, localWorkerCount: 8)
         XCTAssertFalse(snapshot.hasAllocationObservation)

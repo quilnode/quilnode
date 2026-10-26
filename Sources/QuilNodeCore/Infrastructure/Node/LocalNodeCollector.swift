@@ -180,9 +180,10 @@ public struct LocalNodeCollector: Sendable {
             rewardBalanceSubunits: rewardCredit?.balanceSubunits ?? cachedSnapshot?.rewardBalanceSubunits,
             lastRewardCreditFrame: rewardCredit?.frame ?? cachedSnapshot?.lastRewardCreditFrame,
             lastRewardCreditAt: rewardCredit?.date ?? cachedSnapshot?.lastRewardCreditAt,
-            proverStatusUpdatedAt: registryEvidence == nil
-                ? cachedSnapshot?.proverStatusUpdatedAt
-                : (registryEvidence?.observedAt ?? now),
+            // A registry log can establish seniority or a total count, but it
+            // does not contain the complete active/joining allocation table.
+            // Never label default zero counts as a completed prover read.
+            proverStatusUpdatedAt: cachedSnapshot?.proverStatusUpdatedAt,
             proverStatusError: nil,
             seniority: seniority,
             previousSeniority: previousSeniority,

@@ -285,7 +285,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     /// establish an empty allocation set; older positive evidence remains valid.
     public var hasAllocationObservation: Bool {
         proverStatusUpdatedAt != nil || !shardAllocations.isEmpty
-            || totalAllocations > 0 || activeShards > 0 || pendingJoins > 0
+            || activeShards > 0 || pendingJoins > 0
     }
 
     /// Distinguishes an observed zero from a value that has never been read.
