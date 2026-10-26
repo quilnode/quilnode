@@ -107,7 +107,7 @@ enum InstallationHostInspector {
             )
         }
 
-        let serviceBuild = PrivilegedServiceClient.installedServiceBuild(timeout: 3)
+        let serviceBuild = PrivilegedServiceClient.installedServiceBuild(timeout: 8)
         let serviceReady = (serviceBuild ?? -1) >= requiredServiceBuild
         let qclientStatus =
             serviceReady

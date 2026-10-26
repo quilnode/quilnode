@@ -65,7 +65,7 @@ struct PlatformAuthorizationView: View {
                 }
 
                 Text(
-                    "The existing helper predates QuilNode's current security boundary. One standard administrator confirmation replaces it with a code-signature-pinned service. Routine signed installs, updates, controls, and read-only inspection can then run without repeated password prompts."
+                    "The local service needs to be installed or repaired before QuilNode can verify its security boundary. macOS administrator confirmation installs the code-signature-pinned service. Routine supported operations can then use this authorization."
                 )
                 .font(.subheadline)
                 .foregroundStyle(theme.colors.secondaryText)

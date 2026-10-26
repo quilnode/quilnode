@@ -37,7 +37,7 @@ extension InstallationCoordinator {
             startedAt: snapshot.startedAt
         )
 
-        let result = await Task.detached(priority: .userInitiated) {
+        let result = await Task.detached(priority: .userInitiated) { [weak self] in
             PrivilegedServiceClient.followOperation(
                 snapshot,
                 timeout: 420,

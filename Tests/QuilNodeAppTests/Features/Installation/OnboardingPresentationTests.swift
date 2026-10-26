@@ -5,6 +5,30 @@ import XCTest
 @testable import QuilNodeShared
 
 final class OnboardingPresentationTests: XCTestCase {
+    @MainActor
+    func testTransientServiceTimeoutDoesNotReopenAdministratorOnboarding() {
+        let coordinator = InstallationCoordinator()
+        var preflight = InstallationPreflight(
+            hardware: [], productionRequirements: [], sourceToolchain: [],
+            nodeInstalled: true, secureServiceReady: true,
+            secureServiceBuild: PrivilegedServiceProtocol.currentServiceBuild
+        )
+        coordinator.preflight = preflight
+        preflight.secureServiceReady = false
+        preflight.secureServiceBuild = nil
+        coordinator.preflight = preflight
+        XCTAssertFalse(coordinator.requiresPlatformAuthorization)
+        XCTAssertFalse(coordinator.preflight?.secureServiceReady == true)
+
+        preflight.secureServiceBuild = 1
+        coordinator.preflight = preflight
+        XCTAssertTrue(coordinator.requiresPlatformAuthorization)
+        let firstRun = InstallationCoordinator()
+        preflight.secureServiceBuild = nil
+        firstRun.preflight = preflight
+        XCTAssertTrue(firstRun.requiresPlatformAuthorization)
+    }
+
     func testDesignPreviewRoutesCoverEveryBlockingOnboardingState() {
         XCTAssertEqual(
             String(describing: OnboardingDesignPreviewMode(argument: "onboarding-first-install-existing")),

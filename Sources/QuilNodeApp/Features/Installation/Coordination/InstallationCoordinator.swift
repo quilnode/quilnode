@@ -10,7 +10,12 @@ final class InstallationCoordinator: ObservableObject {
     // The coordinator is module-internal. Setters remain available only to its
     // focused coordination extensions, which keeps recovery logic out of this
     // already dense primary workflow file.
-    @Published var preflight: InstallationPreflight?
+    @Published var preflight: InstallationPreflight? {
+        didSet {
+            if preflight?.secureServiceReady == true { hasVerifiedServiceThisRun = true }
+        }
+    }
+    private(set) var hasVerifiedServiceThisRun = false
     @Published var phase: FirstInstallPhase = .inspecting
     @Published var progress: NodeUpdateProgress?
     @Published var signedRelease: SignedReleaseInfo?
@@ -199,7 +204,7 @@ final class InstallationCoordinator: ObservableObject {
                 startedAt: startedAt,
                 isEstimate: false
             )
-            let result = await Task.detached(priority: .userInitiated) {
+            let result = await Task.detached(priority: .userInitiated) { [weak self] in
                 ReleaseChecker.runAuthorizedHelper(
                     arguments: ["qclient-install", prepared.manifestURL.path],
                     durableOperation: true,
@@ -294,7 +299,7 @@ final class InstallationCoordinator: ObservableObject {
             startedAt: startedAt,
             isEstimate: false
         )
-        let result = await Task.detached(priority: .userInitiated) {
+        let result = await Task.detached(priority: .userInitiated) { [weak self] in
             PrivilegedServiceClient.requestOperation(
                 .install,
                 manifestPath: manifest.path,

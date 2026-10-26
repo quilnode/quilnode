@@ -19,6 +19,10 @@ extension InstallationCoordinator {
 
     var requiresPlatformAuthorization: Bool {
         guard let preflight else { return false }
+        // A read timeout is not evidence of an old helper. Keep Diagnostics
+        // usable instead of reopening administrator onboarding mid-session.
+        // The live readiness stays false and every operation still checks it.
+        if preflight.secureServiceBuild == nil && hasVerifiedServiceThisRun { return false }
         return preflight.nodeInstalled && !preflight.secureServiceReady
     }
 
