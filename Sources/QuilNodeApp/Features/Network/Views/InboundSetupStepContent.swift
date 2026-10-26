@@ -167,7 +167,8 @@ extension InboundSetupAssistantView {
                 FirewallChangeRow(
                     symbol: "arrow.triangle.2.circlepath",
                     title: "Maintain that rule after verified updates",
-                    detail: "Only the prior rule recorded by QuilNode is replaced."
+                    detail:
+                        "QuilNode refreshes this node’s rule and migrates an older allowed node rule when macOS treats both builds as the same app."
                 )
                 FirewallChangeRow(
                     symbol: "hand.raised.fill",
