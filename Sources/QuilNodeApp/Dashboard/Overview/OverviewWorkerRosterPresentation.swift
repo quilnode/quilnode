@@ -27,6 +27,9 @@ struct OverviewWorkerRosterPresentation: Equatable {
         let coverage: ShardCoverageState?
         let activeProvers: Int?
         let ring: Int?
+        var execution: WorkerExecutionObservation? = nil
+        var nodeRunning = false
+        var isDraining = false
 
         var id: Int { coreID }
     }
@@ -64,7 +67,10 @@ struct OverviewWorkerRosterPresentation: Equatable {
                 allocationState: state(for: status),
                 coverage: allocation?.coverageState,
                 activeProvers: allocation?.activeProvers,
-                ring: allocation?.ring
+                ring: allocation?.ring,
+                execution: worker.execution,
+                nodeRunning: snapshot.isRunning,
+                isDraining: worker.isDraining == true
             )
         }
 

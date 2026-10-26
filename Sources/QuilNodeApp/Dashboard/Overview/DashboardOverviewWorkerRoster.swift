@@ -17,9 +17,9 @@ extension DashboardView {
 
         return VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("Worker runtime")
+                Text("Workers")
                     .font(.system(size: 13, weight: .semibold))
-                Text("One local worker per card")
+                Text("Execution is separate from assignment")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
@@ -30,7 +30,7 @@ extension DashboardView {
                         .accessibilityLabel("Loading worker runtime")
                 } else {
                     Button {
-                        destination = .network
+                        openOverviewNetwork(.observatory)
                     } label: {
                         Label("View all", systemImage: "arrow.right")
                             .labelStyle(.titleAndIcon)
@@ -66,7 +66,7 @@ extension DashboardView {
             overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Hidden"))
         case .empty:
             Button {
-                destination = .network
+                openOverviewNetwork(.observatory)
             } label: {
                 HStack(spacing: 11) {
                     DashboardCircleIcon(
@@ -113,7 +113,7 @@ extension DashboardView {
         HStack(spacing: 9) {
             ForEach(workers) { worker in
                 OverviewWorkerRuntimeCard(worker: worker) {
-                    destination = .network
+                    openOverviewNetwork(.observatory)
                 }
             }
         }
@@ -175,7 +175,7 @@ private struct OverviewWorkerRuntimeCard: View {
                         value: worker.allocationLabel,
                         field: .shardAllocation
                     )
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(statusTint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
@@ -187,42 +187,17 @@ private struct OverviewWorkerRuntimeCard: View {
                     field: .shardAllocation
                 )
 
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("Coverage")
-                    PrivacyProtectedText(
-                        value: worker.coverage?.label ?? "Checking",
-                        field: .shardAllocation
-                    )
-                    .foregroundStyle(coverageTint)
-                    if let activeProvers = worker.activeProvers {
-                        Text("·")
-                        PrivacyProtectedText(
-                            value: String(activeProvers),
-                            field: .shardAllocation
-                        )
-                        Text(activeProvers == 1 ? "prover" : "provers")
-                    }
-                    if let ring = worker.ring {
-                        Text("· Ring")
-                        PrivacyProtectedText(
-                            value: String(ring),
-                            field: .shardAllocation
-                        )
-                    }
-                }
-                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(theme.colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.68)
-
-                workerDatum(
-                    label: "Storage",
-                    value: storageLabel,
-                    field: .hardwareProfile
+                workerDatum(label: "Execution", value: execution.title, field: .shardAllocation)
+                workerDatum(label: "App frame", value: execution.frameText, field: .shardAllocation)
+                PrivacyProtectedText(
+                    value: worker.isDraining ? "Draining surplus worker" : execution.detail, field: .shardAllocation
                 )
+                .font(.caption2).foregroundStyle(theme.colors.secondaryText)
+                .lineLimit(2)
+
             }
             .padding(11)
-            .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 138, alignment: .topLeading)
             .contentShape(Rectangle())
             .controlSurface(tint: statusTint.opacity(0.45))
         }
@@ -241,35 +216,22 @@ private struct OverviewWorkerRuntimeCard: View {
             PrivacyProtectedText(value: value, field: field)
                 .fontWeight(.semibold)
         }
-        .font(.system(size: 8.8, design: .monospaced))
+        .font(.system(size: 10.5, design: .monospaced))
         .foregroundStyle(theme.colors.secondaryText)
         .lineLimit(1)
         .minimumScaleFactor(0.68)
     }
 
-    private var storageLabel: String {
-        guard let available = worker.availableStorage,
-            let total = worker.totalStorage
-        else { return "Unavailable" }
-        if total == "0 B" { return "Not reported" }
-        return "\(available) / \(total)"
+    private var execution: WorkerExecutionPresentation {
+        .init(observation: worker.execution, nodeRunning: worker.nodeRunning)
     }
 
     private var statusTint: Color {
-        switch worker.allocationState {
-        case .active: theme.colors.success
-        case .joining: theme.colors.warning
-        case .attention: theme.colors.danger
-        case .awaitingAllocation: theme.colors.info
+        switch execution.tone {
+        case .warning: theme.colors.warning
+        case .progress: theme.colors.info
+        case .neutral: theme.colors.secondaryText
         }
     }
 
-    private var coverageTint: Color {
-        switch worker.coverage {
-        case .healthy: theme.colors.success
-        case .belowTarget: theme.colors.warning
-        case .atRisk, .unassigned: theme.colors.danger
-        case nil: theme.colors.secondaryText
-        }
-    }
 }

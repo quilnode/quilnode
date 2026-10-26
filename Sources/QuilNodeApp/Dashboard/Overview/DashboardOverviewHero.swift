@@ -1,258 +1,66 @@
+import QuilNodeCore
 import SwiftUI
-
-#if canImport(QuilNodeCore)
-    import QuilNodeCore
-#endif
 
 extension DashboardView {
     func overviewHero(layoutClass: DashboardLayoutClass) -> some View {
-        GeometryReader { proxy in
-            if layoutClass.isWide {
-                protocolHeroWide(width: proxy.size.width)
-            } else {
-                protocolHeroCompact(width: proxy.size.width)
+        let status = OverviewStatusPresentation(snapshot: monitor.snapshot, phase: monitor.observationPhase)
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 24) {
+                overviewStatusCopy(status)
+                Spacer(minLength: 20)
+                overviewStatusAction(status)
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                overviewStatusCopy(status)
+                overviewStatusAction(status)
             }
         }
-        .frame(height: layoutClass.isWide ? 326 : 548)
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background { ThemeHeroBackground() }
-        .overlay(alignment: .bottom) { protocolRule(opacity: 0.72) }
-        .clipped()
+        .overlay(alignment: .bottom) { protocolRule(opacity: 0.5) }
     }
 
-    private func protocolHeroWide(width: CGFloat) -> some View {
-        HStack(spacing: 0) {
-            protocolHeroCopy(compact: false)
-                .frame(width: width * 0.38, alignment: .leading)
-
-            DashboardOverviewConstellation(
-                snapshot: monitor.snapshot,
-                hasLiveTelemetry: nodeObservation.hasLiveTelemetry,
-                onOpenNetwork: { destination = .network }
-            )
-            .padding(.horizontal, 9)
-            .padding(.vertical, 18)
-            .frame(width: width * 0.42, height: 326)
-            .clipped()
-
-            protocolFramePanel
-                .frame(width: width * 0.20, alignment: .leading)
-        }
-    }
-
-    private func protocolHeroCompact(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            protocolHeroCopy(compact: true)
-                .frame(maxWidth: .infinity, minHeight: 282, alignment: .leading)
-
-            HStack(alignment: .center, spacing: 0) {
-                DashboardOverviewConstellation(
-                    snapshot: monitor.snapshot,
-                    hasLiveTelemetry: nodeObservation.hasLiveTelemetry,
-                    onOpenNetwork: { destination = .network }
-                )
-                .padding(12)
-                .frame(maxWidth: .infinity, minHeight: 246)
-                .clipped()
-
-                protocolFramePanel
-                    .frame(width: min(204, width * 0.32), alignment: .leading)
-                    .frame(minHeight: 246, alignment: .leading)
-            }
-            .overlay(alignment: .top) { protocolRule(opacity: 0.42) }
-        }
-    }
-
-    private func protocolHeroCopy(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
-                Circle()
-                    .fill(protocolSignal)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: protocolSignal.opacity(0.65), radius: 5)
-                Text(overviewEyebrow)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(1.6)
-                    .foregroundStyle(protocolSignal)
-            }
-            .padding(.bottom, 13)
-
-            protocolStatusTitle
-                .font(
-                    .system(
-                        size: (compact ? 29 : 34) * theme.typography.scale,
-                        weight: .bold,
-                        design: theme.typography.resolvedHeroDesign
+    private func overviewStatusCopy(_ status: OverviewStatusPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Label("YOUR LOCAL NODE", systemImage: "desktopcomputer")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.4)
+                .foregroundStyle(theme.colors.secondaryText)
+            HStack(spacing: 12) {
+                Image(systemName: status.symbol)
+                    .font(.system(size: 23, weight: .medium))
+                    .foregroundStyle(status.needsAttention ? theme.colors.warning : theme.colors.info)
+                Text(status.title)
+                    .font(
+                        .system(
+                            size: 30 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign)
                     )
-                )
-                .tracking(theme.typography.resolvedHeroDesign == .monospaced ? -1.4 : -0.4)
-                .lineLimit(compact ? 2 : 1)
-                .minimumScaleFactor(0.78)
-
-            Text(provingPhaseDetail)
-                .font(.system(size: 12.5 * theme.typography.scale, design: theme.typography.displayDesign))
-                .foregroundStyle(theme.colors.secondaryText)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 500, alignment: .leading)
-                .padding(.top, 15)
-                .padding(.bottom, 18)
-
-            readinessBadges
-        }
-        .padding(.leading, compact ? 28 : 34)
-        .padding(.trailing, compact ? 28 : 14)
-        .frame(maxHeight: .infinity, alignment: .center)
-    }
-
-    @ViewBuilder
-    private var protocolStatusTitle: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if !nodeObservation.hasLiveTelemetry {
-                (Text("Reading ").foregroundStyle(theme.colors.primaryText)
-                    + Text("local node.").foregroundStyle(protocolSignal))
-                (Text("Telemetry ").foregroundStyle(theme.colors.primaryText)
-                    + Text("loading.").foregroundStyle(protocolSignal))
-            } else if !monitor.snapshot.isRunning {
-                (Text("Node ").foregroundStyle(theme.colors.primaryText)
-                    + Text("offline.").foregroundStyle(theme.colors.danger))
-                (Text("Participation ").foregroundStyle(theme.colors.primaryText)
-                    + Text("paused.").foregroundStyle(theme.colors.danger))
-            } else if monitor.snapshot.activeShards > 0 {
-                (Text("Allocations ").foregroundStyle(theme.colors.primaryText)
-                    + Text("active.").foregroundStyle(protocolSignal))
-                (Text(
-                    monitor.snapshot.lastRewardCreditFrame == nil
-                        ? "No reward credit " : "Reward credit "
-                ).foregroundStyle(theme.colors.primaryText)
-                    + Text("observed.").foregroundStyle(rewardTint))
-            } else if monitor.snapshot.pendingJoins > 0 {
-                (Text("Registered · ").foregroundStyle(theme.colors.primaryText)
-                    + Text("joining.").foregroundStyle(protocolSignal))
-                (Text("Activation ").foregroundStyle(theme.colors.primaryText)
-                    + Text("in progress.").foregroundStyle(protocolSignal))
-            } else if participationEvidence.state == .reading {
-                Text("Reading participation.").foregroundStyle(protocolSignal)
-                Text("Allocation check in progress.").foregroundStyle(theme.colors.primaryText)
-            } else {
-                (Text("Online · ").foregroundStyle(theme.colors.primaryText)
-                    + Text("awaiting allocation.").foregroundStyle(protocolSignal))
-                (Text("Ready for ").foregroundStyle(theme.colors.primaryText)
-                    + Text("shard work.").foregroundStyle(protocolSignal))
+                    .foregroundStyle(theme.colors.primaryText)
             }
+            Text(status.detail)
+                .font(.callout).foregroundStyle(theme.colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 680, alignment: .leading)
         }
     }
 
-    private var readinessBadges: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) { readinessBadgeContent }
-            VStack(alignment: .leading, spacing: 6) { readinessBadgeContent }
+    private func overviewStatusAction(_ status: OverviewStatusPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Button {
+                if status.workersNeedingReview > 0 {
+                    openOverviewNetwork(.observatory)
+                } else {
+                    destination = .diagnostics
+                }
+            } label: {
+                Label(
+                    status.workersNeedingReview > 0
+                        ? "Inspect workers" : (status.needsAttention ? "Review diagnostics" : "Open diagnostics"),
+                    systemImage: "arrow.right")
+            }
+            .buttonStyle(.bordered).controlSize(.large)
+            PrivacyProtectedText(value: status.freshness.label, field: .localTimestamp)
+                .font(.caption).foregroundStyle(theme.colors.secondaryText)
         }
     }
-
-    @ViewBuilder
-    private var readinessBadgeContent: some View {
-        ProtocolStatusCheck(
-            title: !nodeObservation.hasLiveTelemetry
-                ? "Reading chain value"
-                : monitor.snapshot.hasSeniorityObservation
-                    ? DashboardCopy.Overview.chainValueRead : "Reading chain value",
-            systemImage: monitor.snapshot.hasSeniorityObservation ? "link" : "clock",
-            tint: monitor.snapshot.hasSeniorityObservation ? theme.colors.success : theme.colors.secondaryText
-        )
-        ProtocolStatusCheck(
-            title: nodeObservation.hasLiveTelemetry && monitor.snapshot.peers > 0
-                ? "Mesh connected" : "Finding peers",
-            systemImage: "antenna.radiowaves.left.and.right",
-            tint: nodeObservation.hasLiveTelemetry && monitor.snapshot.peers > 0
-                ? theme.colors.info : theme.colors.secondaryText
-        )
-        ProtocolStatusCheck(
-            title: nodeObservation.hasLiveTelemetry ? rewardStatusTitle : "Reading reward state",
-            systemImage: nodeObservation.hasLiveTelemetry ? rewardSystemImage : "clock",
-            tint: nodeObservation.hasLiveTelemetry ? rewardTint : theme.colors.secondaryText
-        )
-    }
-
-    private var protocolFramePanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(nodeObservation.hasLiveTelemetry ? "EPOCH \(currentEpoch.grouped)" : "EPOCH")
-                .protocolLabelStyle(color: theme.colors.frame)
-
-            Text(nodeObservation.hasLiveTelemetry ? "→ \(epochClock.nextEpoch?.grouped ?? "—")" : "reading")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced).monospacedDigit())
-                .foregroundStyle(theme.colors.secondaryText)
-                .padding(.top, 5)
-
-            Text("FRAME")
-                .protocolLabelStyle(color: theme.colors.secondaryText)
-                .padding(.top, 23)
-
-            Text(nodeObservation.value(effectiveFrame.grouped))
-                .font(
-                    .system(
-                        size: 34 * theme.typography.scale,
-                        weight: .regular,
-                        design: theme.typography.dataDesign
-                    ).monospacedDigit()
-                )
-                .foregroundStyle(theme.colors.frame)
-                .lineLimit(1)
-                .minimumScaleFactor(0.64)
-                .padding(.top, 7)
-                .quilLiveValueTransition(value: effectiveFrame)
-
-            Text(
-                nodeObservation.hasLiveTelemetry
-                    ? "of \(epochClock.nextBoundary?.grouped ?? "—")"
-                    : "reading epoch boundary"
-            )
-            .font(.system(size: 11, design: .monospaced).monospacedDigit())
-            .foregroundStyle(theme.colors.secondaryText)
-            .lineLimit(1)
-            .minimumScaleFactor(0.72)
-
-            Text("EPOCH PROGRESS")
-                .protocolLabelStyle(color: theme.colors.secondaryText)
-                .padding(.top, 23)
-
-            Text(
-                nodeObservation.hasLiveTelemetry
-                    ? epochProgress.formatted(.percent.precision(.fractionLength(1)))
-                    : "—"
-            )
-            .font(
-                .system(
-                    size: 30 * theme.typography.scale,
-                    weight: .regular,
-                    design: theme.typography.dataDesign
-                ).monospacedDigit()
-            )
-            .foregroundStyle(theme.colors.frame)
-            .padding(.top, 6)
-
-            ProgressView(value: nodeObservation.hasLiveTelemetry ? epochProgress : 0)
-                .progressViewStyle(QuilLinearProgressStyle(tint: theme.colors.frame))
-                .padding(.top, 7)
-
-            Text(
-                nodeObservation.hasLiveTelemetry
-                    ? epochCompactETA
-                    : "Reading local pace"
-            )
-            .font(.system(size: 10.5, design: .monospaced).monospacedDigit())
-            .foregroundStyle(theme.colors.secondaryText)
-            .lineLimit(2)
-            .padding(.top, 7)
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 28)
-        .frame(maxHeight: .infinity, alignment: .center)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            nodeObservation.hasLiveTelemetry
-                ? "Frame \(effectiveFrame), epoch \(currentEpoch), \(Int(epochProgress * 100)) percent complete, \(epochCompactETA)"
-                : nodeObservation.accessibilityStatus
-        )
-    }
-
 }

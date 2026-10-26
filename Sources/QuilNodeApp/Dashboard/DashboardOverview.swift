@@ -23,7 +23,9 @@ extension DashboardView {
                     .padding(.top, 14)
             }
             overviewEvidenceDeck(layoutClass: layoutClass)
+            overviewResourcePanel(layoutClass: layoutClass)
             overviewWorkerRoster(layoutClass: layoutClass)
+            overviewProtocolDetails(layoutClass: layoutClass)
             if let selection = overviewMilestoneSelection {
                 ProtocolMilestoneOverviewSpotlight(
                     selection: selection,
@@ -45,6 +47,12 @@ extension DashboardView {
                 overviewLatestActivity(event)
             }
         }
+        .padding(.bottom, 20)
+    }
+
+    func openOverviewNetwork(_ mode: NetworkWorkspaceMode) {
+        overviewNetworkMode = mode.rawValue
+        destination = .network
     }
 
     var archiveRecoveryCard: some View {
@@ -96,7 +104,7 @@ extension DashboardView {
 
     var networkAttentionCard: some View {
         Button {
-            destination = .network
+            openOverviewNetwork(.connectivity)
         } label: {
             HStack(spacing: 12) {
                 DashboardCircleIcon(

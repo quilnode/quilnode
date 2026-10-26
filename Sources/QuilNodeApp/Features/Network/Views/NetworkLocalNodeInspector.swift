@@ -13,11 +13,12 @@ struct NetworkLocalNodeInspector: View {
                 header
                 participationSection
                 sectionDivider
-                allocationSection
                 if !node.workers.isEmpty {
                     sectionDivider
                     workerSection
                 }
+                sectionDivider
+                allocationSection
                 sectionDivider
                 rewardSection
                 sectionDivider
@@ -301,30 +302,7 @@ struct NetworkLocalNodeInspector: View {
     }
 
     private func workerRow(_ worker: LocalWorkerObservation?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 9) {
-            workerDatum(
-                "Worker",
-                worker.map { String($0.coreID) } ?? "0",
-                privacyField: .hardwareProfile,
-                width: 42
-            )
-            workerDatum(
-                "Shard",
-                worker?.filter.compactIdentifier ?? "hidden",
-                privacyField: .shardAllocation,
-                width: 68
-            )
-            workerDatum(
-                "Storage",
-                worker.map { $0.totalStorage == "0 B" ? "Not reported" : "\($0.availableStorage) / \($0.totalStorage)" }
-                    ?? "hidden",
-                privacyField: .hardwareProfile,
-                width: nil
-            )
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(theme.colors.canvas.opacity(0.34), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        WorkerObservationRow(worker: worker, nodeRunning: node.isRunning)
     }
 
     private func workerDatum(

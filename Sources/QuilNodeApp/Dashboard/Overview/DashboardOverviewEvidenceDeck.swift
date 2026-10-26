@@ -11,9 +11,9 @@ extension DashboardView {
 
         return VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("Operator evidence")
+                Text("At a glance")
                     .font(.system(size: 13, weight: .semibold))
-                Text("The four answers needed at a glance")
+                Text("Local observations · details on selection")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.colors.secondaryText)
                 Spacer(minLength: 12)
@@ -24,7 +24,11 @@ extension DashboardView {
                     HStack(spacing: 10) {
                         ForEach(cards) { card in
                             OverviewEvidenceCard(card: card) {
-                                destination = card.destination
+                                if card.destination == .network {
+                                    openOverviewNetwork(card.id == "network" ? .connectivity : .observatory)
+                                } else {
+                                    destination = card.destination
+                                }
                             }
                         }
                     }
@@ -35,7 +39,11 @@ extension DashboardView {
                     ) {
                         ForEach(cards) { card in
                             OverviewEvidenceCard(card: card) {
-                                destination = card.destination
+                                if card.destination == .network {
+                                    openOverviewNetwork(card.id == "network" ? .connectivity : .observatory)
+                                } else {
+                                    destination = card.destination
+                                }
                             }
                         }
                     }
@@ -79,104 +87,59 @@ extension DashboardView {
         .accessibilityHint("Opens the local activity journal")
     }
 
-    private func overviewEvidenceCards(
-        _ evidence: OverviewOperatorPresentation
-    ) -> [OverviewEvidenceCardDescriptor] {
-        [
+    private func overviewEvidenceCards(_ evidence: OverviewOperatorPresentation) -> [OverviewEvidenceCardDescriptor] {
+        let snapshot = monitor.snapshot
+        let wallet = TokenAmountPresentation(
+            evidence.rewards.hasModernWallet ? evidence.rewards.claimable : evidence.rewards.balance)
+        let frame = snapshot.lastGlobalHeadFrame > 0 ? snapshot.lastGlobalHeadFrame : snapshot.frame
+        return [
             OverviewEvidenceCardDescriptor(
-                id: "participation",
-                title: "Participation",
-                systemImage: "square.grid.3x3.fill",
-                tint: (evidence.participation.activeAllocations ?? 0) > 0
-                    ? theme.colors.success : theme.colors.warning,
-                primary: OverviewEvidenceValue(
-                    label: "Active",
-                    value: nodeObservation.value(evidence.participation.activeAllocations.map(String.init) ?? "—"),
-                    privacyField: .activeShardCount
-                ),
-                secondary: OverviewEvidenceValue(
-                    label: "Joining",
-                    value: nodeObservation.value(evidence.participation.joiningAllocations.map(String.init) ?? "—"),
-                    privacyField: .allocationCount
-                ),
-                metadataLabel: "Workers",
-                metadataValue: nodeObservation.value(
-                    evidence.participation.runningWorkers.map(String.init) ?? "—"
-                ),
-                metadataPrivacyField: .hardwareProfile,
-                detail: "Workers may serve either allocation state.",
-                destination: .network
-            ),
-            OverviewEvidenceCardDescriptor(
-                id: "network",
-                title: "Network",
-                systemImage: "point.3.connected.trianglepath.dotted",
-                tint: theme.colors.info,
-                primary: OverviewEvidenceValue(
-                    label: "Peers",
-                    value: nodeObservation.value(String(evidence.network.peers)),
-                    privacyField: .networkActivity
-                ),
-                secondary: OverviewEvidenceValue(
-                    label: "Archives",
-                    value: nodeObservation.value(evidence.network.archiveSources.map(String.init) ?? "—"),
-                    privacyField: .networkActivity
-                ),
-                metadataLabel: "Inbound",
-                metadataValue: nodeObservation.value(
-                    evidence.network.inboundObserved || networkReadiness.inspection.inboundPeerSockets > 0
-                        ? "Observed" : "Not observed"),
-                metadataPrivacyField: .networkActivity,
-                detail: "Connectivity observed from this Mac.",
-                destination: .network
-            ),
-            OverviewEvidenceCardDescriptor(
-                id: "identity",
-                title: "Identity",
-                systemImage: "person.text.rectangle",
-                tint: theme.colors.accentSecondary,
-                primary: OverviewEvidenceValue(
-                    label: "Seniority",
-                    value: nodeObservation.value(
-                        evidence.identity.seniorityIsObserved ? evidence.identity.seniority.grouped : "—"
-                    ),
-                    privacyField: .seniority
-                ),
-                secondary: nil,
-                metadataLabel: "Source",
-                metadataValue: nodeObservation.detail(DashboardCopy.Overview.chainRegistry),
-                metadataPrivacyField: nil,
-                detail: "Current chain value reported by the local prover.",
-                destination: .identity
-            ),
-            OverviewEvidenceCardDescriptor(
-                id: "rewards",
-                title: "Rewards",
-                systemImage: "sparkles",
-                tint: rewardTint,
-                primary: OverviewEvidenceValue(
-                    label: evidence.rewards.hasModernWallet ? "Claimable QUIL" : "QUIL balance",
-                    value: nodeObservation.value(
-                        (evidence.rewards.hasModernWallet ? evidence.rewards.claimable : evidence.rewards.balance)?
-                            .compactDecimal ?? "—"
-                    ),
-                    privacyField: .quilBalance
-                ),
-                secondary: OverviewEvidenceValue(
-                    label: "Last credit",
-                    value: nodeObservation.value(
-                        evidence.rewards.lastCreditFrame.map { "Frame \($0.grouped)" } ?? "None"
-                    ),
-                    privacyField: .rewardActivity
-                ),
-                metadataLabel: "Evidence",
-                metadataValue: nodeObservation.detail(rewardStatusTitle),
-                metadataPrivacyField: nil,
+                id: "rewards", title: "Wallet", systemImage: "wallet.bifold", tint: theme.colors.wallet,
+                primary: .init(
+                    label: evidence.rewards.hasModernWallet ? "Claimable rewards · QUIL" : "Balance · QUIL",
+                    value: nodeObservation.value(wallet.compact), privacyField: .quilBalance),
+                secondary: nil, metadataLabel: "",
+                metadataValue: ObservationFreshness(observedAt: snapshot.balanceUpdatedAt).label,
+                metadataPrivacyField: .localTimestamp,
                 detail: evidence.rewards.hasModernWallet
-                    ? "Claimable rewards require minting. Open for all wallet balances."
-                    : "Observed credits, never estimated earnings.",
-                destination: .identity
-            ),
+                    ? "Rewards require minting. View all balances →" : "View exact balance and identities →",
+                destination: .identity, observedAt: snapshot.balanceUpdatedAt),
+            OverviewEvidenceCardDescriptor(
+                id: "progress", title: "Chain progress", systemImage: "square.stack.3d.up", tint: theme.colors.frame,
+                primary: .init(
+                    label: snapshot.lastGlobalHeadFrame > 0 ? "Local GLOBAL head" : "Local frame",
+                    value: nodeObservation.value(frame > 0 ? frame.grouped : "—"), privacyField: nil),
+                secondary: nil, metadataLabel: "Received",
+                metadataValue: nodeObservation.value(
+                    snapshot.lastReceivedFrame > 0 ? snapshot.lastReceivedFrame.grouped : "—"),
+                metadataPrivacyField: nil, detail: "Local observation, not a global sync guarantee. →",
+                destination: .activity,
+                observedAt: snapshot.lastGlobalHeadFrame > 0
+                    ? snapshot.proverStatusUpdatedAt : snapshot.metricsUpdatedAt),
+            OverviewEvidenceCardDescriptor(
+                id: "participation", title: "Assignments", systemImage: "square.grid.3x3.fill",
+                tint: theme.colors.accentSecondary,
+                primary: .init(
+                    label: "Active allocations",
+                    value: nodeObservation.value(evidence.participation.activeAllocations.map(String.init) ?? "—"),
+                    privacyField: .activeShardCount),
+                secondary: nil, metadataLabel: "Joining",
+                metadataValue: nodeObservation.value(evidence.participation.joiningAllocations.map(String.init) ?? "—"),
+                metadataPrivacyField: .allocationCount,
+                detail: "Registry membership. Worker execution below. →", destination: .network,
+                observedAt: snapshot.proverStatusUpdatedAt),
+            OverviewEvidenceCardDescriptor(
+                id: "network", title: "Connectivity", systemImage: "network", tint: theme.colors.info,
+                primary: .init(
+                    label: "Connected peers",
+                    value: nodeObservation.value(
+                        snapshot.metricsUpdatedAt != nil ? String(evidence.network.peers) : "—"),
+                    privacyField: .networkActivity),
+                secondary: nil, metadataLabel: "Archives",
+                metadataValue: nodeObservation.value(evidence.network.archiveSources.map(String.init) ?? "—"),
+                metadataPrivacyField: .networkActivity,
+                detail: "Verify listeners, firewall and inbound traffic →", destination: .network,
+                observedAt: snapshot.metricsUpdatedAt),
         ]
     }
 
@@ -262,6 +225,7 @@ private struct OverviewEvidenceCardDescriptor: Identifiable {
     let metadataPrivacyField: PrivacyField?
     let detail: String
     let destination: DashboardDestination
+    var observedAt: Date? = nil
 }
 
 private struct OverviewEvidenceCard: View {
@@ -303,13 +267,19 @@ private struct OverviewEvidenceCard: View {
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundStyle(theme.colors.secondaryText)
 
+                if card.id != "rewards" {
+                    PrivacyProtectedText(
+                        value: ObservationFreshness(observedAt: card.observedAt).label, field: .localTimestamp
+                    )
+                    .font(.caption2).foregroundStyle(theme.colors.secondaryText)
+                }
                 Text(card.detail)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(theme.colors.secondaryText)
                     .lineLimit(2)
             }
             .padding(13)
-            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
             .contentShape(Rectangle())
             .controlSurface(tint: card.tint.opacity(0.48))
         }
@@ -321,12 +291,12 @@ private struct OverviewEvidenceCard: View {
     private func evidenceValue(_ value: OverviewEvidenceValue) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(value.label)
-                .font(.system(size: 9.5))
+                .font(.system(size: 11))
                 .foregroundStyle(theme.colors.secondaryText)
             PrivacyProtectedText(value: value.value, field: value.privacyField)
                 .font(
                     .system(
-                        size: 18 * theme.typography.scale,
+                        size: 27 * theme.typography.scale,
                         weight: .semibold,
                         design: theme.typography.dataDesign
                     ).monospacedDigit()

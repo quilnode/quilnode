@@ -22,6 +22,8 @@ struct DashboardView: View {
     @State var dashboardLayoutClass = DashboardLayoutClass.regular
     @State var pendingUpdatePolicy: NodeUpdatePolicy?
     @State var buildLogExpanded = false
+    @State var overviewDetailsExpanded = false
+    @AppStorage("networkWorkspaceMode") var overviewNetworkMode = NetworkWorkspaceMode.observatory.rawValue
     @State var destination: DashboardDestination = .overview
     @AppStorage("dashboardSidebarCollapsed") var sidebarCollapsed = false
 

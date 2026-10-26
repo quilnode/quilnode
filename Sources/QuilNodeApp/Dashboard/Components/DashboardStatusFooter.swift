@@ -79,14 +79,17 @@ struct DashboardStatusFooter: View {
 
     private var frameLabel: String {
         guard presentation.hasLiveTelemetry else { return "Frame —" }
-        return "Frame \(max(snapshot.frame, snapshot.lastReceivedFrame).grouped)"
+        return "Local frame \(snapshot.frame.grouped)"
     }
 
     private var statusTitle: String {
         switch observationPhase {
         case .checkingProcess: "Reading local node state"
         case .loadingTelemetry: snapshot.isRunning ? "Node found · loading telemetry" : "Reading telemetry"
-        case .ready: snapshot.isRunning ? "Local node state is current" : "Local node service is stopped"
+        case .ready:
+            ObservationFreshness(observedAt: snapshot.collectedAt, maximumAge: 30).isCurrent
+                ? (snapshot.isRunning ? "Local service checked" : "Local node service is stopped")
+                : "Local service check overdue"
         }
     }
 

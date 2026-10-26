@@ -145,7 +145,7 @@ struct MenuBarPresentation {
     }
 
     var memoryText: String {
-        snapshot.memoryMB.map { String(format: "%.1f GB", $0 / 1024) } ?? "—"
+        RuntimeResourceFormatter.memory(snapshot.memoryMB)
     }
 
     var memoryFraction: Double {
@@ -156,11 +156,7 @@ struct MenuBarPresentation {
     }
 
     var quilBalanceText: String {
-        guard var balance = snapshot.quilBalance else { return "—" }
-        guard balance.contains(".") else { return balance }
-        while balance.last == "0" { balance.removeLast() }
-        if balance.last == "." { balance.removeLast() }
-        return balance.isEmpty ? "0" : balance
+        TokenAmountPresentation(snapshot.quilBalance).compact
     }
 
     var cpuText: String {

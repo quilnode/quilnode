@@ -45,6 +45,7 @@ struct IdentityOverviewView: View {
             .font(.headline)
             .padding(16)
             .controlSurface()
+            IdentityCustodyBoundary()
         }
         .onChange(of: presentation.roles.map(\.kind)) { _, roles in
             if !roles.contains(selectedRole) {
