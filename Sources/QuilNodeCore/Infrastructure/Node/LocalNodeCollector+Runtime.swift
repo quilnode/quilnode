@@ -32,9 +32,17 @@ extension LocalNodeCollector {
     }
 
     func readNodeInfo() -> NodeInfo? {
+        if paths.nodeDirectory.path == "/opt/quilibrium/node",
+            let fields = LocalNodeRPC.read(.nodeInfo), let info = LocalNodeRPC.nodeInfo(fields)
+        {
+            return info
+        }
+        guard paths.nodeDirectory.path != "/opt/quilibrium/node" else { return nil }
         if let privilegedInfo = PrivilegedServiceClient.readNodeInfo() {
             return privilegedInfo
         }
+        // Managed identities are readable only by the isolated service. A
+        // failed helper read cannot be repaired by launching it as the GUI.
         guard FileManager.default.isExecutableFile(atPath: paths.nodeBinary.path) else {
             return nil
         }
@@ -57,6 +65,12 @@ extension LocalNodeCollector {
     }
 
     func readMetrics() -> String {
+        if paths.nodeDirectory.path == "/opt/quilibrium/node" {
+            if let metrics = LocalNodeRPC.read(.metrics)?[1]?.bytes {
+                return String(decoding: metrics, as: UTF8.self)
+            }
+            return ""
+        }
         // Prefer the loopback endpoint so newly added upstream metrics are not
         // hidden by an older installed helper response schema.
         let direct = run(

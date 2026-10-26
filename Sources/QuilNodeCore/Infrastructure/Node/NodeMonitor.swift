@@ -33,6 +33,8 @@ public final class NodeMonitor: ObservableObject {
     private var loopTask: Task<Void, Never>?
     private var balanceTask: Task<Void, Never>?
     private var proverTelemetryTask: Task<Void, Never>?
+    private var identityDetailsTask: Task<Void, Never>?
+    private var lastIdentityDetailsRefresh: Date?
     private var hasRecoveredHistoricalEvidence = false
     private var refreshInFlight = false
     private var cachedNodeInfo: NodeInfo?
@@ -60,6 +62,7 @@ public final class NodeMonitor: ObservableObject {
         loopTask?.cancel()
         balanceTask?.cancel()
         proverTelemetryTask?.cancel()
+        identityDetailsTask?.cancel()
     }
 
     #if DEBUG
@@ -112,8 +115,9 @@ public final class NodeMonitor: ObservableObject {
         let shouldRefreshNodeInfo =
             !skipNodeInfo
             && (forceNodeInfo
-                || cachedNodeInfo == nil
-                || lastNodeInfoRefresh.map { Date().timeIntervalSince($0) >= nodeInfoRefreshInterval } != false)
+                || lastNodeInfoRefresh.map {
+                    Date().timeIntervalSince($0) >= (cachedNodeInfo == nil ? 30 : nodeInfoRefreshInterval)
+                } != false)
         let shouldRefreshBalance =
             forceNodeInfo
             || lastBalanceRefresh == nil
@@ -147,6 +151,10 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.balanceUpdatedAt = snapshot.balanceUpdatedAt
         nextSnapshot.balanceError = snapshot.balanceError
         nextSnapshot.walletBalance = snapshot.walletBalance
+        if nextSnapshot.processID == snapshot.processID {
+            nextSnapshot.legacyPeerID = nextSnapshot.legacyPeerID ?? snapshot.legacyPeerID
+            nextSnapshot.proverAddress = nextSnapshot.proverAddress ?? snapshot.proverAddress
+        }
         if let previous = snapshot.peerID, let current = nextSnapshot.peerID, previous != current {
             nextSnapshot.quilBalance = nil
             nextSnapshot.quilAccount = nil
@@ -156,6 +164,7 @@ public final class NodeMonitor: ObservableObject {
             lastBalanceRefresh = nil
         }
         nextSnapshot.preferNewerSeniorityObservation(from: snapshot)
+        nextSnapshot.preferNewerProverObservation(from: snapshot)
         nextSnapshot.peerScore = snapshot.peerScore
         nextSnapshot.reachable = snapshot.reachable
         nextSnapshot.allocatedWorkers = snapshot.allocatedWorkers
@@ -186,10 +195,11 @@ public final class NodeMonitor: ObservableObject {
         if shouldRecoverHistoricalEvidence {
             hasRecoveredHistoricalEvidence = true
         }
+        if shouldRefreshNodeInfo { lastNodeInfoRefresh = Date() }
         if let info = result.nodeInfo {
             cachedNodeInfo = info
-            if shouldRefreshNodeInfo { lastNodeInfoRefresh = Date() }
         }
+        refreshIdentityDetailsIfNeeded()
         if shouldRefreshBalance, nextSnapshot.isRunning, balanceTask == nil {
             lastBalanceRefresh = Date()
             let balancePeer = nextSnapshot.peerID
@@ -222,11 +232,12 @@ public final class NodeMonitor: ObservableObject {
             proverTelemetryTask == nil
         {
             lastProverTelemetryRefresh = Date()
+            let proverPID = nextSnapshot.processID
             proverTelemetryTask = Task { [weak self] in
                 guard let self else { return }
                 defer { proverTelemetryTask = nil }
                 let result = await collector.collectProverTelemetry()
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, snapshot.isRunning, snapshot.processID == proverPID else { return }
                 var updated = snapshot
                 if let telemetry = result.telemetry {
                     applyProverTelemetry(telemetry, to: &updated)
@@ -291,6 +302,27 @@ public final class NodeMonitor: ObservableObject {
         )
     }
 
+    private func refreshIdentityDetailsIfNeeded() {
+        guard snapshot.isRunning, identityDetailsTask == nil,
+            lastIdentityDetailsRefresh.map({ Date().timeIntervalSince($0) >= 300 }) != false
+        else { return }
+        lastIdentityDetailsRefresh = Date()
+        let identityPID = snapshot.processID
+        let identityPeer = snapshot.peerID
+        identityDetailsTask = Task { [weak self] in
+            guard let self else { return }
+            defer { identityDetailsTask = nil }
+            let info = await Task.detached(priority: .utility) {
+                PrivilegedServiceClient.readNodeInfo()
+            }.value
+            guard !Task.isCancelled, snapshot.processID == identityPID, let info,
+                identityPeer == nil || info.peerID == identityPeer
+            else { return }
+            snapshot.legacyPeerID = info.legacyPeerID ?? snapshot.legacyPeerID
+            snapshot.proverAddress = info.proverAddress ?? snapshot.proverAddress
+        }
+    }
+
     private func refreshProcessPresence() async {
         let observation = await collector.observeProcess()
         guard !Task.isCancelled else { return }
@@ -307,6 +339,21 @@ public final class NodeMonitor: ObservableObject {
 }
 
 extension NodeSnapshot {
+    /// A slow collection can finish after the RPC. Preserve its complete
+    /// allocation observation together, including a legitimate zero result.
+    mutating func preferNewerProverObservation(from candidate: NodeSnapshot) {
+        guard processID == candidate.processID,
+            let observedAt = candidate.proverStatusUpdatedAt,
+            observedAt >= (proverStatusUpdatedAt ?? .distantPast)
+        else { return }
+        activeShards = candidate.activeShards
+        pendingJoins = candidate.pendingJoins
+        totalAllocations = candidate.totalAllocations
+        proverStatusUpdatedAt = observedAt
+        proverStatusError = candidate.proverStatusError
+        frame = max(frame, candidate.frame)
+    }
+
     /// Slow collector work and the independent prover RPC can overlap. Keep
     /// whichever seniority observation is newer so a reply that arrives while
     /// collection is in flight cannot be replaced by its older input snapshot.

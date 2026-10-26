@@ -64,9 +64,14 @@ public struct LocalNodeCollector: Sendable {
     ) -> CollectionResult {
         let now = Date()
         let pid = runningNodePID()
+        // Identity and wallet observations belong to a particular process.
+        // Never carry a previous node's values across a restart or replacement.
+        let cachedSnapshot = cachedSnapshot?.processID == pid ? cachedSnapshot : nil
+        let cachedNodeInfo = cachedSnapshot == nil ? nil : cachedNodeInfo
         let logModified = fileModifiedAt(paths.errorLog)
         let logChanged = cachedSnapshot == nil || cachedSnapshot?.logLastModifiedAt != logModified
-        let logText = logChanged ? (readTail(paths.errorLog, maximumBytes: 256_000) ?? "") : ""
+        let logRead = logChanged ? readTail(paths.errorLog, maximumBytes: 256_000) : nil
+        let logText = logRead ?? ""
         let status = logChanged ? (NodeStatusParser.latestStatus(in: logText) ?? [:]) : [:]
         let recentRewardCredit = logChanged ? latestRewardCredit(in: logText) : nil
         let protocolObservations =
@@ -91,7 +96,7 @@ public struct LocalNodeCollector: Sendable {
             // Re-scanning a large node log every two seconds when no credit
             // exists can consume an entire CPU core without adding new data.
             ?? (recoverHistoricalEvidence ? readLatestRewardCredit(paths.errorLog) : nil)
-        let info = refreshNodeInfo ? readNodeInfo() : cachedNodeInfo
+        let info = refreshNodeInfo ? (readNodeInfo() ?? cachedNodeInfo) : cachedNodeInfo
         // Registry events are the official node's materialized consensus view.
         // Parse the live tail on every log change so seniority can move without
         // an app relaunch; only use the bounded reverse scan for cold recovery.
@@ -119,12 +124,12 @@ public struct LocalNodeCollector: Sendable {
 
         func statusInt(_ key: String, fallback: Int) -> Int {
             guard logChanged else { return fallback }
-            return NodeStatusParser.int(status, key)
+            return NodeStatusParser.int(status, key, fallback: fallback)
         }
 
         func statusUInt64(_ key: String, fallback: UInt64) -> UInt64 {
             guard logChanged else { return fallback }
-            return NodeStatusParser.uint64(status, key)
+            return NodeStatusParser.uint64(status, key, fallback: fallback)
         }
 
         let diagnosticSeniority = info?.seniority ?? 0
@@ -165,8 +170,8 @@ public struct LocalNodeCollector: Sendable {
             processID: pid,
             version: info?.version,
             peerID: info?.peerID,
-            legacyPeerID: info?.legacyPeerID,
-            proverAddress: info?.proverAddress ?? registryEvidence?.proverAddress,
+            legacyPeerID: info?.legacyPeerID ?? cachedSnapshot?.legacyPeerID,
+            proverAddress: info?.proverAddress ?? registryEvidence?.proverAddress ?? cachedSnapshot?.proverAddress,
             quilBalance: cachedSnapshot?.quilBalance,
             quilAccount: cachedSnapshot?.quilAccount,
             balanceUpdatedAt: cachedSnapshot?.balanceUpdatedAt,
@@ -231,7 +236,7 @@ public struct LocalNodeCollector: Sendable {
                 : (cachedSnapshot?.recentWarnings ?? [])
         )
 
-        if logText.isEmpty && pid != nil {
+        if logChanged && logRead == nil && pid != nil {
             snapshot.recentWarnings = ["The node is running, but its local status log could not be read."]
         }
 

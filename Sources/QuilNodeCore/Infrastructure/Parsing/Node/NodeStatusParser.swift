@@ -32,16 +32,16 @@ public enum NodeStatusParser {
         return warningLines.map(compactLogLine)
     }
 
-    public static func uint64(_ dictionary: [String: Any], _ key: String) -> UInt64 {
+    public static func uint64(_ dictionary: [String: Any], _ key: String, fallback: UInt64 = 0) -> UInt64 {
         if let value = dictionary[key] as? NSNumber { return value.uint64Value }
-        if let value = dictionary[key] as? String { return UInt64(value) ?? 0 }
-        return 0
+        if let value = dictionary[key] as? String { return UInt64(value) ?? fallback }
+        return fallback
     }
 
-    public static func int(_ dictionary: [String: Any], _ key: String) -> Int {
+    public static func int(_ dictionary: [String: Any], _ key: String, fallback: Int = 0) -> Int {
         if let value = dictionary[key] as? NSNumber { return value.intValue }
-        if let value = dictionary[key] as? String { return Int(value) ?? 0 }
-        return 0
+        if let value = dictionary[key] as? String { return Int(value) ?? fallback }
+        return fallback
     }
 
     private static func compactLogLine(_ line: String) -> String {
