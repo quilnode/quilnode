@@ -186,6 +186,7 @@ struct NetworkLocalNodeInspector: View {
                 .foregroundStyle(theme.colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .id(redactionReasons.contains(.privacy))
     }
 
     private var runtimeSection: some View {

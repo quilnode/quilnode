@@ -57,6 +57,10 @@ struct NetworkWorkersView: View {
                         }
                     }
                 }
+                // Placeholder indices overlap real core IDs. Recreate the
+                // lazy grid when masking changes so it cannot reuse a row
+                // from the other data set (including its disclosure state).
+                .id(hidden)
             }
             Label(
                 "Host state, frame advancement and rewards are independent signals. Expand any worker for its observation time, recovery and storage details.",
