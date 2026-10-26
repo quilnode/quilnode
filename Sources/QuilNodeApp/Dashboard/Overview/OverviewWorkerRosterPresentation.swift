@@ -73,8 +73,7 @@ struct OverviewWorkerRosterPresentation: Equatable {
             reportedRunningCount: snapshot.localWorkerCount ?? (workers.isEmpty ? nil : workers.count),
             isAwaitingEvidence: snapshot.isRunning
                 && observedWorkers.isEmpty
-                && snapshot.proverStatusUpdatedAt == nil
-                && snapshot.shardAllocations.isEmpty
+                && !snapshot.hasAllocationObservation
         )
     }
 

@@ -157,7 +157,7 @@ struct LocalNetworkTopologyView: View {
                 .fill(theme.colors.accentSecondary)
                 .frame(width: 6, height: 6)
             PrivacyProtectedText(
-                value: hasLiveTelemetry ? String(snapshot.totalAllocations) : "—",
+                value: hasLiveTelemetry && snapshot.hasAllocationObservation ? String(snapshot.totalAllocations) : "—",
                 field: .allocationCount
             )
             .font(.system(size: 9.5, weight: .semibold, design: .monospaced).monospacedDigit())
@@ -172,9 +172,13 @@ struct LocalNetworkTopologyView: View {
         if hidesSensitiveValues {
             return "Local topology. Peer, archive, and allocation details hidden by Privacy Mode."
         }
-        let allocationSummary = hidesSensitiveValues ? "Allocation state hidden." : "Local allocation state shown."
+        let archives =
+            snapshot.archiveEndpointCount.map { "\($0) archive sources" } ?? "archive sources not yet reported"
+        let allocationSummary =
+            snapshot.hasAllocationObservation
+            ? "Local allocation state shown." : "Reading allocation status."
         return
-            "Local topology: \(snapshot.peers) peers and \(archiveSourceCount) archive sources. \(allocationSummary) This is not a global network map."
+            "Local topology: \(snapshot.peers) peers; \(archives). \(allocationSummary) This is not a global network map."
     }
 
     private func topologyRect(center: CGPoint, width: CGFloat, height: CGFloat) -> CGRect {

@@ -47,9 +47,7 @@ struct OverviewOperatorPresentation: Equatable {
         activitySamples: [NodeActivitySample]
     ) -> Self {
         let allocation = AllocationLatticePresentation.make(snapshot: snapshot)
-        let allocationsObserved =
-            snapshot.proverStatusUpdatedAt != nil
-            || !snapshot.shardAllocations.isEmpty || snapshot.totalAllocations > 0
+        let allocationsObserved = snapshot.hasAllocationObservation
         return Self(
             participation: Participation(
                 activeAllocations: allocationsObserved ? allocation.activeAllocations : nil,

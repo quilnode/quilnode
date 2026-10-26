@@ -18,6 +18,14 @@ struct DashboardSidebarStatus: View {
         NodeObservationPresentation(phase: observationPhase, snapshot: snapshot)
     }
 
+    private var awaitingAllocations: Bool {
+        snapshot.isRunning && !snapshot.hasAllocationObservation
+    }
+
+    private var healthLabel: String {
+        awaitingAllocations ? "Reading participation" : snapshot.health.label
+    }
+
     @ViewBuilder
     var body: some View {
         if isCollapsed {
@@ -52,11 +60,11 @@ struct DashboardSidebarStatus: View {
         .help(
             !observation.hasLiveTelemetry
                 ? observation.accessibilityStatus
-                : "\(snapshot.health.label) · \(privacySafeDetail) · \(privacySafePeers)"
+                : "\(healthLabel) · \(privacySafeDetail) · \(privacySafePeers)"
         )
         .accessibilityLabel(
             observation.hasLiveTelemetry
-                ? "\(snapshot.health.label), \(privacySafePeers)" : observation.accessibilityStatus)
+                ? "\(healthLabel), \(privacySafePeers)" : observation.accessibilityStatus)
     }
 
     private var expandedStatus: some View {
@@ -65,7 +73,7 @@ struct DashboardSidebarStatus: View {
                 Circle()
                     .fill(healthTint)
                     .frame(width: 7, height: 7)
-                Text(observation.hasLiveTelemetry ? snapshot.health.label : observation.headerState)
+                Text(observation.hasLiveTelemetry ? healthLabel : observation.headerState)
                     .font(.caption.weight(.semibold))
                 Spacer(minLength: 0)
             }
@@ -109,6 +117,8 @@ struct DashboardSidebarStatus: View {
             Text("Reading managed service state")
         } else if observationPhase == .loadingTelemetry {
             Text(snapshot.isRunning ? "Loading live telemetry" : "Managed service is stopped")
+        } else if awaitingAllocations {
+            Text("Reading allocation status")
         } else if snapshot.activeAllocations > 0 {
             PrivacyProtectedPhrase(
                 value: String(snapshot.activeAllocations),
@@ -131,6 +141,7 @@ struct DashboardSidebarStatus: View {
         if observationPhase == .loadingTelemetry {
             return snapshot.isRunning ? "Loading live telemetry" : "Managed service is stopped"
         }
+        if awaitingAllocations { return "Reading allocation status" }
         if snapshot.activeAllocations > 0 {
             let value = privacyMode.isEnabled ? "Hidden" : String(snapshot.activeAllocations)
             return value + " allocations active · " + rewardLabel

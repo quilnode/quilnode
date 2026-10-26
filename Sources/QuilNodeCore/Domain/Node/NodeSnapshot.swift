@@ -281,6 +281,13 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     public var activeAllocations: Int { activeShards }
     public var joiningAllocations: Int { pendingJoins }
 
+    /// Runtime counts can arrive before the prover read. Only that read can
+    /// establish an empty allocation set; older positive evidence remains valid.
+    public var hasAllocationObservation: Bool {
+        proverStatusUpdatedAt != nil || !shardAllocations.isEmpty
+            || totalAllocations > 0 || activeShards > 0 || pendingJoins > 0
+    }
+
     /// Distinguishes an observed zero from a value that has never been read.
     /// Positive values written by older QuilNode builds remain observable even
     /// when their snapshots predate explicit provenance fields.

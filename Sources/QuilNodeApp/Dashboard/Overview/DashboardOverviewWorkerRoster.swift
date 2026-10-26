@@ -61,6 +61,7 @@ extension DashboardView {
             overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Reading"))
                 .redacted(reason: .placeholder)
                 .allowsHitTesting(false)
+                .accessibilityHidden(true)
         case .privacy:
             overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Hidden"))
         case .empty:
