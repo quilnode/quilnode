@@ -14,7 +14,7 @@ struct DashboardOverviewConstellation: View {
     let hasLiveTelemetry: Bool
     let onOpenNetwork: () -> Void
 
-    private let overviewShardLimit = 5
+    private let overviewShardLimit = 3
 
     private var presentation: NetworkObservatoryPresentation {
         .make(snapshot: snapshot)

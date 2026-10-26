@@ -35,7 +35,7 @@ extension DashboardView {
                     .fixedSize(horizontal: false, vertical: true)
                 } else {
                     LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 220, maximum: 480), spacing: 10)],
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2),
                         spacing: 10
                     ) {
                         ForEach(cards) { card in
