@@ -16,6 +16,7 @@ final class InstallationCoordinator: ObservableObject {
         }
     }
     private(set) var hasVerifiedServiceThisRun = false
+    @Published var platformSetupDeferred = false
     @Published var phase: FirstInstallPhase = .inspecting
     @Published var progress: NodeUpdateProgress?
     @Published var signedRelease: SignedReleaseInfo?
@@ -71,15 +72,15 @@ final class InstallationCoordinator: ObservableObject {
             InstallationHostInspector.inspect()
         }.value
         if snapshot.nodeInstalled, !snapshot.secureServiceReady {
-            let upgrade = await Task.detached(priority: .userInitiated) {
+            _ = await Task.detached(priority: .userInitiated) {
                 PrivilegedServiceClient.request(.upgradeService, timeout: 60)
             }.value
-            if upgrade.exitCode == 0 {
-                for _ in 0..<12 {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    snapshot = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
-                    if snapshot.secureServiceReady { break }
-                }
+            // Older helpers can restart before delivering their response.
+            // Verify the installed service even when that connection closes.
+            for _ in 0..<12 {
+                try? await Task.sleep(for: .milliseconds(500))
+                snapshot = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
+                if snapshot.secureServiceReady { break }
             }
         }
         preflight = snapshot
@@ -112,6 +113,11 @@ final class InstallationCoordinator: ObservableObject {
             InstallationHostInspector.inspect()
         }.value
         preflight = snapshot
+    }
+
+    func recheckServiceAuthorization() async {
+        guard !isWorking else { return }
+        preflight = await Task.detached(priority: .utility) { InstallationHostInspector.inspect() }.value
     }
 
     /// Downloads and verifies an official signed release before privilege is

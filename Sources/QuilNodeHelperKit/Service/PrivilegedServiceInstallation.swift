@@ -174,12 +174,8 @@ extension QuilNodeHelper {
             requirement: newRequirement
         )
 
-        // Return the authenticated response before replacing this running
-        // process. launchd then starts the newly installed binary at the same
-        // fixed path; no credential or arbitrary executable is involved.
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.75) {
-            _ = try? runLaunchctl(["kickstart", "-k", operatorTarget])
-        }
+        // The socket server restarts us only after writing the response.
+        // A timer here can kill the connection before the reply is sent.
         return "Secure local service update installed; launchd is switching to it now."
     }
 }

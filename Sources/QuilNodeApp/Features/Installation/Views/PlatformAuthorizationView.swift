@@ -21,12 +21,16 @@ struct PlatformAuthorizationView: View {
             }
         } footer: {
             HStack(spacing: 16) {
-                Label("macOS handles the password; QuilNode cannot read or retain it.", systemImage: "lock.shield")
-                    .font(.caption)
-                    .foregroundStyle(theme.colors.secondaryText)
+                Button("Back to dashboard") { installer.platformSetupDeferred = true }
+                    .disabled(installer.isWorking)
+                Button("Recheck service") { Task { await installer.recheckServiceAuthorization() } }
+                    .disabled(installer.isWorking)
                 Spacer()
                 Button {
-                    Task { await installer.authorizeExistingInstallation() }
+                    Task {
+                        await installer.recheckServiceAuthorization()
+                        await installer.authorizeExistingInstallation()
+                    }
                 } label: {
                     if installer.isWorking {
                         HStack(spacing: 8) {
@@ -40,6 +44,13 @@ struct PlatformAuthorizationView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(installer.isWorking)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                await installer.recheckServiceAuthorization()
+                if !installer.requiresPlatformAuthorization { return }
+                try? await Task.sleep(for: .seconds(5))
             }
         }
     }

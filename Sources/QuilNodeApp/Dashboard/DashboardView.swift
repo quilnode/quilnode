@@ -110,7 +110,8 @@ struct DashboardView: View {
                     get: {
                         guard installationCoordinator.preflight != nil else { return false }
                         return installationCoordinator.requiresFirstInstall
-                            || installationCoordinator.requiresPlatformAuthorization
+                            || (installationCoordinator.requiresPlatformAuthorization
+                                && !installationCoordinator.platformSetupDeferred)
                             || (installationCoordinator.requiresQClientSetup
                                 && !installationCoordinator.qclientSetupDeferred)
                             || !walletManager.onboardingCompleted

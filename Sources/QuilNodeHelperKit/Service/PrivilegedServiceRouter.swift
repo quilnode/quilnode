@@ -27,7 +27,7 @@ extension QuilNodeHelper {
             )
         case .upgradeService:
             let message = try upgradeOperatorService(configuration: configuration)
-            return PrivilegedServiceResponse(success: true, message: message, nodePID: currentNodePID())
+            return PrivilegedServiceResponse(success: true, message: message)
         case .status:
             return PrivilegedServiceResponse(
                 success: true,

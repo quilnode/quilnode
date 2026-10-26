@@ -90,6 +90,7 @@ extension QuilNodeHelper {
 
     static func handleServiceClient(_ client: Int32, configuration: ServiceConfiguration) {
         let response: PrivilegedServiceResponse
+        var restartAfterReply = false
         do {
             try authenticateClient(client, configuration: configuration)
             let request = try readServiceRequest(client)
@@ -97,6 +98,7 @@ extension QuilNodeHelper {
                 throw HelperFailure.service("unsupported protocol version")
             }
             response = try routeServiceRequest(request, configuration: configuration)
+            restartAfterReply = request.action == .upgradeService && response.success
         } catch HelperFailure.unauthorized {
             // Authentication failures are intentionally indistinguishable and
             // disclose no process, service-account, capability, or build state.
@@ -111,11 +113,10 @@ extension QuilNodeHelper {
             response = PrivilegedServiceResponse(
                 success: false,
                 message: message,
-                nodePID: currentNodePID(),
                 authorizationRequired: true
             )
         } catch {
-            response = PrivilegedServiceResponse(success: false, message: "\(error)", nodePID: currentNodePID())
+            response = PrivilegedServiceResponse(success: false, message: "\(error)")
         }
         if var data = try? JSONEncoder().encode(response) {
             data.append(0x0a)
@@ -131,6 +132,11 @@ extension QuilNodeHelper {
                     if count <= 0 { break }
                     written += count
                 }
+            }
+        }
+        if restartAfterReply {
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.2) {
+                _ = try? runLaunchctl(["kickstart", "-k", operatorTarget])
             }
         }
     }
