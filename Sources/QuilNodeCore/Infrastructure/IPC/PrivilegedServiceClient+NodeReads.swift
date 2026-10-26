@@ -20,15 +20,31 @@ extension PrivilegedServiceClient {
         return result.response?.metricsOutput
     }
 
-    public static func readBalance(timeout: TimeInterval = 45) -> (balance: QuilBalance?, error: String?) {
+    public static func readBalance(timeout: TimeInterval = 195) -> (balance: QuilBalance?, error: String?) {
         let result = response(.balance, timeout: timeout)
         guard result.exitCode == 0, let response = result.response else {
             return (nil, result.error)
         }
-        guard let balance = QuilBalanceParser.parse(response.balanceOutput ?? "") else {
-            return (nil, "The local wallet returned an unreadable balance response.")
+        return parseBalanceResponse(response)
+    }
+
+    static func parseBalanceResponse(_ response: PrivilegedServiceResponse) -> (balance: QuilBalance?, error: String?) {
+        let balance = QuilBalanceParser.parse(response.balanceOutput ?? "")
+        if response.balanceTimedOut == true {
+            return (
+                balance,
+                "Wallet lookup timed out. Only completed components are shown; unavailable amounts are unknown."
+            )
         }
-        return (balance, nil)
+        if let code = response.balanceExitCode, code != 0 {
+            return (balance, "The local wallet could not read every component. Unavailable amounts are unknown.")
+        }
+        guard let balance else {
+            return (nil, "The local wallet returned an unreadable balance response. Check the managed qclient update.")
+        }
+        return (
+            balance, balance.isComplete ? nil : "Some wallet components are unavailable or not reported by this client."
+        )
     }
 
     public static func readProverTelemetry(

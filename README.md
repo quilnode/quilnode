@@ -117,6 +117,20 @@ commit, bounded downloads, exact Git LFS objects, a deny-by-default build
 sandbox, and a network-denied version probe. Selecting a source channel never
 silently weakens the signed-release path.
 
+For an existing source node, the wallet client can be updated independently
+from its protocol branch without restarting the node. QuilNode pins the client
+commit, checks its full runtime version (including the subpatch), and records
+its hash separately. Installing source code requires macOS administrator
+approval. Client preparation can be cancelled without stopping the node.
+
+The Identity screen separates confidential coins, unshielded legacy coins,
+and claimable prover rewards. Rewards require minting before becoming coins;
+QuilNode does not mint, claim, shield, or transfer them. Amounts are converted
+from base units exactly. A failed or timed-out lookup retains completed
+components and marks missing amounts unavailable. Missing reward witnesses
+are never treated as a verified zero balance, and confidential coin reads are
+the configured node's unspent view rather than a finalized balance.
+
 QuilNode application updates use a separate Ed25519 update identity and a
 signed Sparkle feed. Automatic installation is disabled; an operator approves
 each application replacement. The application-signing identity, update key,

@@ -10,11 +10,15 @@ extension InstallationCoordinator {
         _ work: @escaping @Sendable () async throws -> Value
     ) async throws -> Value {
         let worker = Task.detached(priority: .utility, operation: work)
+        cancelPreparation = { worker.cancel() }
         let activityToken = UpdateActivityGuard.shared.beginInstalling {
             worker.cancel()
             _ = try? await worker.value
         }
-        defer { UpdateActivityGuard.shared.finishInstalling(activityToken) }
+        defer {
+            cancelPreparation = nil
+            UpdateActivityGuard.shared.finishInstalling(activityToken)
+        }
 
         return try await withTaskCancellationHandler {
             try await worker.value

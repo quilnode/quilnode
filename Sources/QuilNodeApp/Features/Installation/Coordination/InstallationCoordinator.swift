@@ -19,6 +19,8 @@ final class InstallationCoordinator: ObservableObject {
     @Published var error: String?
     @Published var message: String?
     @Published var showsAuthorizationExplanation = false
+    @Published var qclientSetupDeferred = false
+    @Published var cancelPreparation: (() -> Void)?
     /// True only when this app session installed the node from scratch. It
     /// lets the first-run flow continue into network setup without forcing an
     /// onboarding sheet onto existing operators after an app upgrade.
@@ -163,11 +165,17 @@ final class InstallationCoordinator: ObservableObject {
         message = nil
         let startedAt = Date()
         phase = .downloading
+        progress = NodeUpdateProgress(
+            workflow: .qclient, step: .selectCandidate,
+            phase: "Preparing wallet client", detail: "Finding the current client for the installed protocol",
+            fraction: 0, startedAt: startedAt, isEstimate: true
+        )
         do {
             let reporter: @Sendable (NodeUpdateProgress) -> Void = { [weak self] update in
                 Task { @MainActor in
-                    self?.phase = update.phase.localizedCaseInsensitiveContains("verif") ? .verifying : .downloading
-                    self?.progress = update
+                    guard let self, [.downloading, .verifying].contains(self.phase) else { return }
+                    self.phase = update.phase.localizedCaseInsensitiveContains("verif") ? .verifying : .downloading
+                    self.progress = update
                 }
             }
             guard let preflightSnapshot = preflight else { return }
@@ -184,7 +192,9 @@ final class InstallationCoordinator: ObservableObject {
                 workflow: .qclient,
                 step: .switchRuntime,
                 phase: "Handing off to local installer",
-                detail: "The verified qclient is ready for the passwordless local service.",
+                detail: prepared.allowsInteractiveAuthorization
+                    ? "Confirm the macOS prompt to install the verified source client."
+                    : "The verified qclient is ready for the local service.",
                 fraction: 0.90,
                 startedAt: startedAt,
                 isEstimate: false
@@ -229,11 +239,15 @@ final class InstallationCoordinator: ObservableObject {
                 status: .succeeded,
                 phase: isSourceClient ? "Matching qclient ready" : "Official qclient ready",
                 detail: isSourceClient
-                    ? "Built from the installed node commit, recorded separately, and installed without restarting the node"
+                    ? "Client commit and version verified; installed without restarting the node"
                     : "Installed separately and signature-verified without restarting the node",
                 fraction: 1, startedAt: startedAt, isEstimate: false
             )
             message = result.output
+        } catch is CancellationError {
+            phase = .ready
+            progress = nil
+            message = "Client preparation cancelled. Your node is still running; the build cache is retained."
         } catch {
             markFailure(error.localizedDescription)
         }

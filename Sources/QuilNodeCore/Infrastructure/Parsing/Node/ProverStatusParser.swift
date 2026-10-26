@@ -61,7 +61,8 @@ public enum ProverStatusParser {
                 result.seniority = Int64(value.numericText) ?? 0
                 sawStatus = true
             case "Peer Score": result.peerScore = Double(value)
-            case "Running Workers": result.runningWorkers = Int(value.numericText) ?? 0
+            case "Running Workers":
+                result.runningWorkers = Int(value.split(whereSeparator: \.isWhitespace).first ?? "") ?? 0
             case "Allocated Workers": result.allocatedWorkers = Int(value.numericText) ?? 0
             case "Last Received":
                 if let frame = UInt64(value.numericText) {
@@ -103,7 +104,7 @@ public enum ProverStatusParser {
 
     private static func parseWorker(_ line: String) -> LocalWorkerObservation? {
         let pattern =
-            #"^Core\s+([0-9]+):\s+Filter:\s*([0-9a-fA-F]*)\s+Storage:\s+(.+?)\s+/\s+(.+)$"#
+            #"^Core\s+([0-9]+):\s+Filter:\s*([0-9a-fA-F]*)\s+Storage:\s+(.+?)\s+/\s+(.+?)(?:\s+Draining:.*)?$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
             let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
             let coreRange = Range(match.range(at: 1), in: line),

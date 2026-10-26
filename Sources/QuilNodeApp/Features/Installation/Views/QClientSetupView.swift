@@ -4,6 +4,7 @@ import SwiftUI
     import QuilNodeCore
 #endif
 
+/// An existing node needs a client repair, not the first-install journey.
 struct QClientSetupView: View {
     @Environment(\.quilTheme) private var theme
     @EnvironmentObject private var installer: InstallationCoordinator
@@ -14,147 +15,133 @@ struct QClientSetupView: View {
     }
 
     var body: some View {
-        OnboardingShell(stage: .runtime) {
-            HStack(alignment: .top, spacing: 0) {
-                clientContext
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                Divider().opacity(0.7)
-                provenancePanel
-                    .frame(width: 338)
-                    .frame(maxHeight: .infinity, alignment: .topLeading)
-                    .background(theme.colors.surface.opacity(0.42))
-            }
-        } footer: {
-            HStack(spacing: 16) {
-                Label("The node keeps running while qclient is prepared.", systemImage: "bolt.shield.fill")
-                    .font(.caption)
-                    .foregroundStyle(theme.colors.secondaryText)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 14) {
+                DashboardCircleIcon(systemImage: "terminal.fill", tint: theme.colors.accent, size: 42)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Update wallet client").font(.title2.bold())
+                    Text("Restore balance, rewards, and prover reads.")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.colors.secondaryText)
+                }
                 Spacer()
-                Button {
-                    Task { await installer.prepareAndInstallQClient() }
-                } label: {
-                    if installer.isWorking {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text(installer.progress?.phase ?? "Preparing qclient…")
+                Label("Node stays online", systemImage: "checkmark.shield.fill")
+                    .font(.caption)
+                    .foregroundStyle(theme.colors.success)
+            }
+            .padding(22)
+
+            Divider().opacity(0.5)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(
+                        isSourceRuntime
+                            ? "QuilNode builds the current qclient for your node's protocol. The first build can take several minutes; later builds reuse its cache."
+                            : "QuilNode downloads the official qclient and verifies its signatures before installation."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    if let error = installer.error {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Client update stopped", systemImage: "exclamationmark.triangle.fill")
+                                .font(.headline)
+                            Text(error).font(.callout).textSelection(.enabled)
+                            Text("Your running node is unchanged. Retry below or return to the dashboard.")
+                                .font(.caption)
                         }
-                    } else {
-                        Label("Verify & install", systemImage: "checkmark.shield.fill")
+                        .foregroundStyle(theme.colors.danger)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .controlSurface(tint: theme.colors.danger)
+                    } else if installer.isWorking {
+                        progress
+                    } else if let message = installer.message {
+                        Text(message).font(.callout).foregroundStyle(theme.colors.secondaryText)
                     }
+
+                    if let logURL = installer.progress?.logURL {
+                        InlineBuildLogView(
+                            logURL: logURL,
+                            isLive: installer.isWorking,
+                            privacyModeEnabled: privacyMode.isEnabled,
+                            compact: true
+                        )
+                        .id(logURL.path)
+                    }
+
+                    DisclosureGroup("Verification and privacy") {
+                        Text(
+                            isSourceRuntime
+                                ? "The exact upstream commit and binary hash are recorded and rechecked by the local service. macOS asks for approval before installing a source-built client. Private keys remain with the isolated node account."
+                                : "The official signature quorum and binary hash are checked before and during installation. Private keys remain with the isolated node account."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(theme.colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+                    }
+                    .font(.subheadline)
+                }
+                .padding(22)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider().opacity(0.5)
+            HStack(spacing: 12) {
+                if installer.isWorking {
+                    if installer.cancelPreparation != nil {
+                        Button("Cancel build") { installer.cancelPreparation?() }
+                            .buttonStyle(.bordered)
+                    }
+                    Text("You can keep the node running while this finishes.")
+                        .font(.caption)
+                        .foregroundStyle(theme.colors.secondaryText)
+                } else {
+                    Button("Back to dashboard") { installer.qclientSetupDeferred = true }
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
+                }
+                Spacer()
+                Button(installer.isWorking ? "Updating…" : (installer.error == nil ? "Update client" : "Try again")) {
+                    Task { await installer.prepareAndInstallQClient() }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
                 .disabled(installer.isWorking)
             }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
         }
+        .frame(width: 780, height: 620)
+        .background { ThemeCanvasBackground().ignoresSafeArea() }
+        .foregroundStyle(theme.colors.primaryText)
     }
 
-    private var clientContext: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                OnboardingSectionLabel(text: "Runtime dependency")
-                HStack(alignment: .top, spacing: 15) {
-                    DashboardCircleIcon(systemImage: "terminal.fill", tint: theme.colors.accent, size: 48)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Match qclient to the installed node")
-                            .font(
-                                .system(
-                                    size: 27 * theme.typography.scale,
-                                    weight: .bold,
-                                    design: theme.typography.displayDesign
-                                ))
-                        Text("Needed for local balance reads and identity creation—not bundled into QuilNode.")
-                            .font(.subheadline)
-                            .foregroundStyle(theme.colors.secondaryText)
-                    }
-                }
-
-                Text(
-                    isSourceRuntime
-                        ? "This node is pinned to a source commit. QuilNode prepares qclient from that same immutable commit, records its provenance independently, and installs it to a root-owned versioned directory."
-                        : "This node uses an official signed release. QuilNode acquires the corresponding official qclient, verifies its digest and signer quorum, and installs it to a root-owned versioned directory."
-                )
-                .font(.subheadline)
-                .foregroundStyle(theme.colors.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-                let runtimeProgress = OnboardingRuntimeProgress.qclient(
-                    phase: installer.phase,
-                    progress: installer.progress
-                )
-                OnboardingProgressPanel(
-                    progress: runtimeProgress,
-                    detail: installer.progress?.detail ?? "Resolving the client provenance that matches this runtime.",
-                    fraction: installer.progress?.boundedFraction,
-                    isEstimate: installer.progress?.isEstimate ?? true,
-                    startedAt: installer.isWorking ? installer.progress?.startedAt : nil
-                )
-
-                if let logURL = installer.progress?.logURL {
-                    InlineBuildLogView(
-                        logURL: logURL,
-                        isLive: installer.isWorking,
-                        privacyModeEnabled: privacyMode.isEnabled
-                    )
-                }
-
-                if let error = installer.error {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(theme.colors.danger)
-                        .textSelection(.enabled)
-                }
-                if let message = installer.message {
-                    Label(message, systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(theme.colors.success)
+    private var progress: some View {
+        HStack(spacing: 12) {
+            ProgressView().controlSize(.small)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(installer.progress?.phase ?? "Preparing client")
+                    .font(.headline)
+                Text(installer.progress?.detail ?? "Checking the current client for this node.")
+                    .font(.caption)
+                    .foregroundStyle(theme.colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if let startedAt = installer.progress?.startedAt {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(InstallationOperationPresentation.elapsedDescription(from: startedAt, to: context.date))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(theme.colors.secondaryText)
                 }
             }
-            .padding(26)
         }
-    }
-
-    private var provenancePanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            OnboardingSectionLabel(text: "Independent provenance")
-            Text(isSourceRuntime ? "Same immutable commit" : "Official signed artifact")
-                .font(.title3.bold())
-            VStack(alignment: .leading, spacing: 12) {
-                OnboardingEvidenceRow(
-                    systemImage: isSourceRuntime
-                        ? "point.3.connected.trianglepath.dotted" : "network.badge.shield.half.filled",
-                    title: isSourceRuntime ? "Commit identity" : "Official origin",
-                    detail: isSourceRuntime
-                        ? "Require the exact repository commit recorded for the installed node."
-                        : "Download only from Quilibrium's official release host."
-                )
-                OnboardingEvidenceRow(
-                    systemImage: "checkmark.seal.fill",
-                    title: "Verify twice",
-                    detail: "Check provenance before staging, then repeat the check inside the privileged boundary."
-                )
-                OnboardingEvidenceRow(
-                    systemImage: "doc.text.magnifyingglass",
-                    title: "Record exact evidence",
-                    detail: "Persist the filename, runtime version, signatures or commit, and SHA-256."
-                )
-                OnboardingEvidenceRow(
-                    systemImage: "arrow.clockwise.circle",
-                    title: "Install only when needed",
-                    detail: "A compatible existing qclient is reused; this flow does not reinstall it on every update."
-                )
-            }
-            .padding(15)
-            .controlSurface()
-
-            Label("No node restart", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(theme.colors.success)
-                .padding(13)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .controlSurface(tint: theme.colors.success)
-            Spacer()
-        }
-        .padding(24)
+        .padding(14)
+        .controlSurface(tint: theme.colors.accent)
     }
 }

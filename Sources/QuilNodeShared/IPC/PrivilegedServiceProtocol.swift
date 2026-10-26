@@ -5,8 +5,8 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 116
-    public static let minimumSupportedServiceBuild = 116
+    public static let currentServiceBuild = 118
+    public static let minimumSupportedServiceBuild = 118
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
 }
@@ -98,6 +98,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     public var peerInfoOutput: String?
     public var metricsOutput: String?
     public var balanceOutput: String?
+    public var balanceExitCode: Int32?
+    public var balanceTimedOut: Bool?
     public var walletOutput: String?
     public var firewallOutput: String?
     public var qclientOutput: String?
@@ -122,6 +124,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         peerInfoOutput: String? = nil,
         metricsOutput: String? = nil,
         balanceOutput: String? = nil,
+        balanceExitCode: Int32? = nil,
+        balanceTimedOut: Bool? = nil,
         walletOutput: String? = nil,
         firewallOutput: String? = nil,
         qclientOutput: String? = nil,
@@ -143,6 +147,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.peerInfoOutput = peerInfoOutput
         self.metricsOutput = metricsOutput
         self.balanceOutput = balanceOutput
+        self.balanceExitCode = balanceExitCode
+        self.balanceTimedOut = balanceTimedOut
         self.walletOutput = walletOutput
         self.firewallOutput = firewallOutput
         self.qclientOutput = qclientOutput

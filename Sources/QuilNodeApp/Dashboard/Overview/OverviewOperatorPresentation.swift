@@ -31,6 +31,8 @@ struct OverviewOperatorPresentation: Equatable {
 
     struct Rewards: Equatable {
         let balance: String?
+        let claimable: String?
+        let hasModernWallet: Bool
         let lastCreditFrame: UInt64?
     }
 
@@ -63,6 +65,8 @@ struct OverviewOperatorPresentation: Equatable {
             ),
             rewards: Rewards(
                 balance: snapshot.quilBalance,
+                claimable: snapshot.walletBalance?.rewards?.amount,
+                hasModernWallet: snapshot.walletBalance?.isLegacyFormat == false,
                 lastCreditFrame: snapshot.lastRewardCreditFrame
             ),
             latestActivity: NodeActivityAnalyzer.events(from: activitySamples).first

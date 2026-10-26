@@ -4,6 +4,12 @@ import XCTest
 @testable import QuilNodeApp
 
 final class SourceBuildToolchainTests: XCTestCase {
+    func testNativeCompilerDiscoveryRejectsUntrustedAndShimPaths() {
+        for path in ["/usr/bin/clang", "/tmp/clang", "relative/clang", "/usr/bin/clang\n/tmp/clang"] {
+            XCTAssertThrowsError(try SourceBuildToolchain.resolveNativeCompilers(lookup: { _ in path }))
+        }
+    }
+
     func testApprovedWorkspaceAdoptsMatchingLegacyCacheButRawStaysSeparated() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "quilnode-workspace-selection-\(UUID().uuidString)",

@@ -132,16 +132,6 @@ public struct LocalProverStatus: Equatable, Sendable {
     }
 }
 
-public struct QuilBalance: Equatable, Sendable {
-    public var amount: String
-    public var account: String
-
-    public init(amount: String, account: String) {
-        self.amount = amount
-        self.account = account
-    }
-}
-
 public struct NodeInfo: Equatable, Sendable {
     public var peerID: String?
     public var legacyPeerID: String?

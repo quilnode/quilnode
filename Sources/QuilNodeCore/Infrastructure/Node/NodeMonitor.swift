@@ -146,6 +146,15 @@ public final class NodeMonitor: ObservableObject {
         nextSnapshot.quilAccount = snapshot.quilAccount
         nextSnapshot.balanceUpdatedAt = snapshot.balanceUpdatedAt
         nextSnapshot.balanceError = snapshot.balanceError
+        nextSnapshot.walletBalance = snapshot.walletBalance
+        if let previous = snapshot.peerID, let current = nextSnapshot.peerID, previous != current {
+            nextSnapshot.quilBalance = nil
+            nextSnapshot.quilAccount = nil
+            nextSnapshot.walletBalance = nil
+            nextSnapshot.balanceUpdatedAt = nil
+            nextSnapshot.balanceError = nil
+            lastBalanceRefresh = nil
+        }
         nextSnapshot.preferNewerSeniorityObservation(from: snapshot)
         nextSnapshot.peerScore = snapshot.peerScore
         nextSnapshot.reachable = snapshot.reachable
@@ -183,17 +192,25 @@ public final class NodeMonitor: ObservableObject {
         }
         if shouldRefreshBalance, nextSnapshot.isRunning, balanceTask == nil {
             lastBalanceRefresh = Date()
+            let balancePeer = nextSnapshot.peerID
+            let balancePID = nextSnapshot.processID
             balanceTask = Task { [weak self] in
                 guard let self else { return }
-                defer { balanceTask = nil }
+                defer {
+                    balanceTask = nil
+                    lastBalanceRefresh = Date()
+                }
                 let result = await collector.collectBalance()
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, snapshot.isRunning,
+                    snapshot.peerID == balancePeer, snapshot.processID == balancePID
+                else { return }
                 var updated = snapshot
                 if let balance = result.balance {
                     updated.quilBalance = balance.amount
                     updated.quilAccount = balance.account
                     updated.balanceUpdatedAt = Date()
-                    updated.balanceError = nil
+                    updated.walletBalance = balance
+                    updated.balanceError = result.error
                 } else {
                     updated.balanceError = result.error
                 }

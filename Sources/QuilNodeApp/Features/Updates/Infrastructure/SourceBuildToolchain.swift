@@ -10,6 +10,7 @@ struct SourceBuildToolchain: Sendable {
     let mpfrDirectory: URL
     let opensslDirectory: URL
     let macOSSDK: URL
+    let nativeCompilerEnvironment: [String: String]
 
     static func discover(
         operatorHome: URL = FileManager.default.homeDirectoryForCurrentUser,
@@ -71,8 +72,37 @@ struct SourceBuildToolchain: Sendable {
             gmpDirectory: gmp,
             mpfrDirectory: mpfr,
             opensslDirectory: openssl,
-            macOSSDK: sdk
+            macOSSDK: sdk,
+            nativeCompilerEnvironment: try resolveNativeCompilers(fileManager: fileManager)
         )
+    }
+
+    /// Apple's /usr/bin compiler shims repeatedly try to create xcrun caches
+    /// outside the isolated build home. Resolve the real tools once, before
+    /// entering the sandbox, without granting access to the user's cache.
+    static func resolveNativeCompilers(
+        fileManager: FileManager = .default,
+        lookup: (String) throws -> String = { tool in
+            try ReleaseChecker.runChecked("/usr/bin/xcrun", ["--find", tool], timeout: 15)
+        }
+    ) throws -> [String: String] {
+        let roots = [
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/",
+            "/Library/Developer/CommandLineTools/usr/bin/",
+        ]
+        var environment: [String: String] = [:]
+        for (key, tool) in [("CC", "clang"), ("CXX", "clang++"), ("AR", "ar"), ("RANLIB", "ranlib")] {
+            let path = try lookup(tool).trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+            guard path.hasPrefix("/"),
+                !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+                roots.contains(where: { resolved.hasPrefix($0) }),
+                fileManager.isExecutableFile(atPath: resolved)
+            else { throw UpdateCenterError.sourceToolMissing("Apple \(tool) compiler tool") }
+            environment[key] = resolved
+        }
+        environment["CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"] = environment["CC"]
+        return environment
     }
 
     static func dependencyRoot(

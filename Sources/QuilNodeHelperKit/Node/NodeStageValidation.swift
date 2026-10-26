@@ -94,14 +94,13 @@ extension QuilNodeHelper {
         stage: URL
     ) throws {
         let versionPattern = #"^[0-9]+(?:\.[0-9]+){2,}$"#
-        let runtimePattern = #"^[0-9]+\.[0-9]+\.[0-9]+-p[0-9]+$"#
         let signedFilePattern = #"^qclient-[0-9]+(?:\.[0-9]+){2,}-darwin-arm64$"#
         let sourceFilePattern = #"^qclient-[0-9]+(?:\.[0-9]+){2,}-source-[0-9a-f]{8}-darwin-arm64$"#
         guard artifact.kind == .qclient,
             artifact.releaseVersion.range(of: versionPattern, options: .regularExpression) != nil,
             artifact.sha256.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil,
             artifact.reportedVersion == nil
-                || artifact.reportedVersion?.range(of: runtimePattern, options: .regularExpression) != nil
+                || artifact.reportedVersion.map(QClientVersion.isValid) == true
         else {
             throw HelperFailure.invalidManifest(
                 "qclient provenance, version, filename, hash, or signature quorum is invalid")

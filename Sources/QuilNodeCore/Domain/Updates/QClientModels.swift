@@ -68,24 +68,49 @@ public enum QClientRuntimeVersionParser {
     /// same namespace (for example a release may report `2.1.0-p22`). Preserve
     /// both values instead of pretending they match.
     public static func parse(_ output: String) -> String? {
-        guard
-            let regex = try? NSRegularExpression(
-                pattern: #"(?m)^(?:qclient version:\s*)?([0-9]+\.[0-9]+\.[0-9]+-p[0-9]+)$"#
-            )
-        else { return nil }
-        let range = NSRange(output.startIndex..., in: output)
-        guard let match = regex.firstMatch(in: output, range: range),
-            let valueRange = Range(match.range(at: 1), in: output)
-        else { return nil }
-        return String(output[valueRange])
+        QClientVersion.parse(output)
     }
 }
 
 public enum QClientCompatibility {
-    /// Development subpatches extend the node's base protocol version (for
-    /// example node 2.1.0.25.58 still uses qclient 2.1.0.25). A verified
-    /// qclient remains compatible while its complete release-version tuple is
-    /// an exact prefix of the node version. This never treats .24 as .25.
+    /// Source clients must match the selected immutable commit (the node
+    /// build's commit, or the protocol branch candidate for a client-only update).
+    public static func isCurrent(
+        _ client: ManagedQClientStatus?, nodeVersion: String?, nodeCommit: String?
+    ) -> Bool {
+        guard let client, client.isReady else { return false }
+        if let nodeCommit {
+            guard client.trust == .pinnedSource,
+                nodeCommit.count >= 8, let commit = client.commit, commit.count == 40,
+                sameProtocol(client.releaseVersion, nodeVersion)
+            else { return false }
+            return commit.hasPrefix(nodeCommit)
+        }
+        return client.trust == .officialSigned
+            && isCompatible(qclientReleaseVersion: client.releaseVersion, nodeVersion: nodeVersion)
+    }
+
+    public static func isUsable(
+        _ client: ManagedQClientStatus?, nodeVersion: String?, nodeCommit: String?
+    ) -> Bool {
+        if isCurrent(client, nodeVersion: nodeVersion, nodeCommit: nodeCommit) { return true }
+        guard let client, client.isReady, client.trust == .pinnedSource, nodeCommit != nil,
+            let runtime = client.reportedVersion, let version = NodeVersion(runtime),
+            let nodeVersion, let node = NodeVersion(nodeVersion), version >= node,
+            sameProtocol(runtime, nodeVersion)
+        else { return false }
+        return true
+    }
+
+    private static func sameProtocol(_ first: String?, _ second: String?) -> Bool {
+        guard let first, let second, let lhs = NodeVersion(first), let rhs = NodeVersion(second),
+            lhs.components.count >= 4, rhs.components.count >= 4
+        else { return false }
+        return Array(lhs.components.prefix(4)) == Array(rhs.components.prefix(4))
+    }
+
+    /// Numeric protocol matching only. Source reuse must also establish
+    /// provenance with `isCurrent`; a shared prefix alone is insufficient.
     public static func isCompatible(
         qclientReleaseVersion: String?,
         nodeVersion: String?

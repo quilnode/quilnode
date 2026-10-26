@@ -153,8 +153,11 @@ extension DashboardView {
                 systemImage: "sparkles",
                 tint: rewardTint,
                 primary: OverviewEvidenceValue(
-                    label: "QUIL balance",
-                    value: nodeObservation.value(evidence.rewards.balance?.compactDecimal ?? "—"),
+                    label: evidence.rewards.hasModernWallet ? "Claimable QUIL" : "QUIL balance",
+                    value: nodeObservation.value(
+                        (evidence.rewards.hasModernWallet ? evidence.rewards.claimable : evidence.rewards.balance)?
+                            .compactDecimal ?? "—"
+                    ),
                     privacyField: .quilBalance
                 ),
                 secondary: OverviewEvidenceValue(
@@ -167,8 +170,10 @@ extension DashboardView {
                 metadataLabel: "Evidence",
                 metadataValue: nodeObservation.detail(rewardStatusTitle),
                 metadataPrivacyField: nil,
-                detail: "Observed credits, never estimated earnings.",
-                destination: .activity
+                detail: evidence.rewards.hasModernWallet
+                    ? "Claimable rewards require minting. Open for all wallet balances."
+                    : "Observed credits, never estimated earnings.",
+                destination: .identity
             ),
         ]
     }

@@ -139,7 +139,7 @@ struct IdentitySummaryBand: View {
     private var balance: some View {
         VStack(alignment: .leading, spacing: 5) {
             summaryLabel("QUIL balance")
-            Text("Spendable")
+            Text("Local observation")
                 .font(.caption2)
                 .foregroundStyle(theme.colors.secondaryText)
 

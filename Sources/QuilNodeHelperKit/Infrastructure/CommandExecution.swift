@@ -22,6 +22,30 @@ extension QuilNodeHelper {
         timeout: TimeInterval,
         currentDirectory: URL = nodeDirectory
     ) throws -> String {
+        let result = try runCommand(executable, arguments, timeout: timeout, currentDirectory: currentDirectory)
+        guard result.exitCode == 0, !result.timedOut else {
+            let safeText = redactSensitiveCommandOutput(result.output)
+            throw HelperFailure.command(
+                safeText.isEmpty ? "\(executable.lastPathComponent) failed" : safeText
+            )
+        }
+        return result.output
+    }
+
+    struct CommandResult {
+        var output: String
+        var exitCode: Int32
+        var timedOut: Bool
+    }
+
+    /// Read-only callers may retain bounded partial evidence on a failed RPC.
+    /// Installation and mutation callers continue to use the strict `run` wrapper.
+    static func runCommand(
+        _ executable: URL,
+        _ arguments: [String],
+        timeout: TimeInterval,
+        currentDirectory: URL = nodeDirectory
+    ) throws -> CommandResult {
         let process = Process()
         var template = Array("/tmp/quilnode-helper-output.XXXXXX\0".utf8CString)
         let outputFD = template.withUnsafeMutableBufferPointer { buffer in
@@ -71,6 +95,7 @@ extension QuilNodeHelper {
             }
             Thread.sleep(forTimeInterval: 0.05)
         }
+        let timedOut = process.isRunning && !exceededOutputLimit
         if process.isRunning {
             terminateProcessTree(rootPID: process.processIdentifier, signal: SIGTERM)
             let graceDeadline = Date().addingTimeInterval(1)
@@ -100,13 +125,7 @@ extension QuilNodeHelper {
                 "\(executable.lastPathComponent) exceeded the secure command-output limit"
             )
         }
-        guard process.terminationStatus == 0 else {
-            let safeText = redactSensitiveCommandOutput(text)
-            throw HelperFailure.command(
-                safeText.isEmpty ? "\(executable.lastPathComponent) failed" : safeText
-            )
-        }
-        return text
+        return CommandResult(output: text, exitCode: process.terminationStatus, timedOut: timedOut)
     }
 
     static func redactSensitiveCommandOutput(_ text: String) -> String {

@@ -171,6 +171,7 @@ public struct LocalNodeCollector: Sendable {
             quilAccount: cachedSnapshot?.quilAccount,
             balanceUpdatedAt: cachedSnapshot?.balanceUpdatedAt,
             balanceError: cachedSnapshot?.balanceError,
+            walletBalance: cachedSnapshot?.walletBalance,
             rewardBalanceSubunits: rewardCredit?.balanceSubunits ?? cachedSnapshot?.rewardBalanceSubunits,
             lastRewardCreditFrame: rewardCredit?.frame ?? cachedSnapshot?.lastRewardCreditFrame,
             lastRewardCreditAt: rewardCredit?.date ?? cachedSnapshot?.lastRewardCreditAt,

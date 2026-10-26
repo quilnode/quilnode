@@ -206,12 +206,14 @@ final class ReleaseChecker: ObservableObject {
 
     func requestInstallQClient() {
         guard stagedUpdate == nil,
-            case let .available(snapshot) = state,
-            snapshot.installed.build.kind == .signed,
-            let release = snapshot.qclient.available
+            case let .available(snapshot) = state
         else { return }
         beginOperation { [weak self] in
-            await self?.installQClient(release)
+            if snapshot.installed.build.kind == .source {
+                await self?.installSourceQClient(snapshot)
+            } else if snapshot.installed.build.kind == .signed, let release = snapshot.qclient.available {
+                await self?.installQClient(release)
+            }
         }
     }
 

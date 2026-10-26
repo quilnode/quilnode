@@ -57,8 +57,12 @@ enum InstallationArtifactPreparation {
         if preflight.installedNodeBuild?.kind == .source,
             let installedBuild = preflight.installedNodeBuild
         {
-            let manifestURL = try ReleaseChecker.stageMatchingSourceQClient(
+            let head = try ReleaseChecker.currentQClientSourceHead(
+                installed: installedBuild, repositoryURL: repositoryURL
+            )
+            let manifestURL = try ReleaseChecker.stageStandaloneSourceQClient(
                 installed: installedBuild,
+                head: head,
                 repositoryURL: repositoryURL,
                 startedAt: startedAt,
                 progress: progress

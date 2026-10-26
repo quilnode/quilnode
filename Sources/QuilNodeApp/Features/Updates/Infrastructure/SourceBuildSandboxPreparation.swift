@@ -48,7 +48,8 @@ extension ReleaseChecker {
             try SourceBuildSandbox.profile(layout: layout, allowsNetwork: false),
             to: compileProfile
         )
-        let environment = try SourceBuildSandbox.environment(layout: layout)
+        var environment = try SourceBuildSandbox.environment(layout: layout)
+        environment.merge(toolchain.nativeCompilerEnvironment) { _, resolved in resolved }
 
         // Fail closed before cloning or compiling if the host OS can no longer
         // apply this policy. Source updates are optional; silently building

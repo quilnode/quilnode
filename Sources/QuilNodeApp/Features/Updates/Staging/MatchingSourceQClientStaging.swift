@@ -26,7 +26,10 @@ extension ReleaseChecker {
                 options: [.skipsHiddenFiles]
             )) ?? []
         var selected: (repository: URL, commit: String)?
-        for candidate in candidates where candidate.lastPathComponent.hasPrefix("source-") {
+        for candidate in candidates
+        where candidate.lastPathComponent.hasPrefix("source-")
+            || ["approved-source-v1", "raw-source-v1"].contains(candidate.lastPathComponent)
+        {
             let repository = candidate.appendingPathComponent("repo", isDirectory: true)
             guard FileManager.default.fileExists(atPath: repository.appendingPathComponent(".git").path),
                 let origin = try? runChecked(gitExecutable, ["-C", repository.path, "remote", "get-url", "origin"])
@@ -91,20 +94,9 @@ extension ReleaseChecker {
             cargoLockfileSHA256: dependencyLock.resolvedSHA256
         )
         try validateSourceBuildArtifact(built, maximumBytes: 250_000_000)
-        let output = try runChecked(
-            SourceBuildSandbox.executable,
-            try SourceBuildSandbox.arguments(
-                profileURL: sandbox.compileProfile,
-                executable: built.path,
-                arguments: ["-y", "version"]
-            ),
-            currentDirectory: selected.repository,
-            environment: sandbox.environment,
-            timeout: 15
+        let runtime = try sourceQClientRuntimeVersion(
+            binary: built, repository: selected.repository, sandbox: sandbox, sourceVersion: version
         )
-        guard let runtime = QClientRuntimeVersionParser.parse(output) else {
-            throw UpdateCenterError.versionValidationFailed
-        }
         let fileName = "qclient-\(version)-source-\(selected.commit.prefix(8))-darwin-arm64"
         let staged = directory.appendingPathComponent(fileName)
         try FileManager.default.copyItem(at: built, to: staged)

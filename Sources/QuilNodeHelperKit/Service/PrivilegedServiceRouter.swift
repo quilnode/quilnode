@@ -61,11 +61,16 @@ extension QuilNodeHelper {
         case .balance:
             try requireIdleOperation("balance checks are paused while an update is activating")
             try validateLaunchDaemonPlist()
+            let balance = try runQClientBalance(timeout: 180)
             return PrivilegedServiceResponse(
                 success: true,
-                message: "Local QUIL wallet balance read completed.",
+                message: balance.exitCode == 0 && !balance.timedOut
+                    ? "Local QUIL wallet balance read completed."
+                    : "The local wallet read is incomplete; available components are retained.",
                 nodePID: currentNodePID(),
-                balanceOutput: try runQClientBalance(timeout: 45)
+                balanceOutput: balance.output,
+                balanceExitCode: balance.exitCode,
+                balanceTimedOut: balance.timedOut
             )
         case .proverTelemetry:
             try requireIdleOperation("prover telemetry is paused while an update is activating")

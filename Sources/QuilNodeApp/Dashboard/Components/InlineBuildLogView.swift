@@ -11,6 +11,7 @@ struct InlineBuildLogView: View {
     let logURL: URL
     let isLive: Bool
     let privacyModeEnabled: Bool
+    var compact = false
 
     @State private var snapshot = BuildLogSnapshot.waiting
     @State private var revision = 0
@@ -22,7 +23,8 @@ struct InlineBuildLogView: View {
             isLive: isLive,
             privacyModeEnabled: privacyModeEnabled,
             followsLatest: $followsLatest,
-            revision: revision
+            revision: revision,
+            compact: compact
         )
         .task(id: "\(logURL.path)|\(isLive)") {
             repeat {
@@ -45,7 +47,8 @@ struct InlineBuildLogView: View {
             let data = try? BoundedLocalData.readTail(
                 from: url,
                 maximumFileBytes: 128 * 1_024 * 1_024,
-                maximumTailBytes: maximumBytes
+                maximumTailBytes: maximumBytes,
+                allowGrowth: true
             )
         else {
             return .unavailable
@@ -66,12 +69,17 @@ struct BuildEvidencePanel: View {
     let privacyModeEnabled: Bool
     @Binding var followsLatest: Bool
     let revision: Int
+    var compact = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.42)
-            evidenceStrip
+            if compact {
+                compactEvidenceStrip
+            } else {
+                evidenceStrip
+            }
             transcript
         }
         .background(theme.colors.surface.opacity(0.54), in: RoundedRectangle(cornerRadius: 11))
@@ -159,6 +167,25 @@ struct BuildEvidencePanel: View {
             }
         }
         .frame(minHeight: 68)
+        .background(theme.colors.surfaceElevated.opacity(0.36))
+    }
+
+    private var compactEvidenceStrip: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(sanitized(snapshot.latestEvent))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(snapshot.hasOutput ? "\(snapshot.visibleLineCount) recent lines" : "Waiting for compiler output")
+                    .font(.caption2)
+                    .foregroundStyle(theme.colors.secondaryText)
+            }
+            Text("\(snapshot.warningCount) warnings · \(snapshot.errorCount) errors")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(snapshot.errorCount > 0 ? theme.colors.danger : theme.colors.secondaryText)
+        }
+        .padding(12)
         .background(theme.colors.surfaceElevated.opacity(0.36))
     }
 

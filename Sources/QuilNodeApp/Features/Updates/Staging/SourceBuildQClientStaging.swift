@@ -14,10 +14,8 @@ extension ReleaseChecker {
         progress: @escaping @Sendable (NodeUpdateProgress) -> Void
     ) throws -> SignedArtifactActivation? {
         let canReuse =
-            existing?.isReady == true
-            && QClientCompatibility.isCompatible(
-                qclientReleaseVersion: existing?.releaseVersion,
-                nodeVersion: context.sourceVersion
+            QClientCompatibility.isCurrent(
+                existing, nodeVersion: context.sourceVersion, nodeCommit: context.head.commit
             )
         if canReuse {
             progress(
@@ -25,7 +23,7 @@ extension ReleaseChecker {
                     step: .client,
                     phase: "Reusing verified qclient",
                     detail:
-                        "Installed qclient \(existing?.releaseVersion ?? context.sourceVersion) remains compatible with node runtime \(context.sourceVersion)",
+                        "Installed qclient matches pinned source commit \(context.head.commit.prefix(12))",
                     fraction: 0.95,
                     startedAt: context.startedAt,
                     isEstimate: false,
@@ -42,7 +40,7 @@ extension ReleaseChecker {
             NodeUpdateProgress(
                 step: .client,
                 phase: "Compiling matching qclient",
-                detail: "Building the client from the same immutable commit as the node",
+                detail: "Building qclient from pinned source commit \(context.head.commit.prefix(12))",
                 fraction: 0.945,
                 startedAt: context.startedAt,
                 isEstimate: true,
@@ -67,24 +65,17 @@ extension ReleaseChecker {
         )
         try validateSourceBuildArtifact(built, maximumBytes: 250_000_000)
 
+        let runtimeVersion = try sourceQClientRuntimeVersion(
+            binary: built, repository: context.repository, sandbox: context.sandbox,
+            sourceVersion: context.sourceVersion
+        )
+        let releaseVersion = runtimeVersion.contains("-p") ? context.sourceVersion : runtimeVersion
         let shortCommit = String(context.head.commit.prefix(8))
-        let fileName = "qclient-\(context.sourceVersion)-source-\(shortCommit)-darwin-arm64"
+        let fileName = "qclient-\(releaseVersion)-source-\(shortCommit)-darwin-arm64"
         let staged = context.directory.appendingPathComponent(fileName)
         try FileManager.default.copyItem(at: built, to: staged)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged.path)
-        let versionOutput = try runChecked(
-            SourceBuildSandbox.executable,
-            try SourceBuildSandbox.arguments(
-                profileURL: context.sandbox.compileProfile,
-                executable: built.path,
-                arguments: ["-y", "version"]
-            ),
-            currentDirectory: context.repository,
-            environment: context.sandbox.environment,
-            timeout: 15
-        )
-        guard let runtimeVersion = QClientRuntimeVersionParser.parse(versionOutput),
-            let hash = sha256(of: staged)
+        guard let hash = sha256(of: staged)
         else { throw UpdateCenterError.versionValidationFailed }
 
         let buildInfo = """
@@ -105,7 +96,7 @@ extension ReleaseChecker {
         return SignedArtifactActivation(
             kind: .qclient,
             trust: .pinnedSource,
-            releaseVersion: context.sourceVersion,
+            releaseVersion: releaseVersion,
             reportedVersion: runtimeVersion,
             binaryFileName: fileName,
             sha256: hash,

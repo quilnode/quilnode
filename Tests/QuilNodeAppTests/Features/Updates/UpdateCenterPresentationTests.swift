@@ -4,6 +4,18 @@ import XCTest
 @testable import QuilNodeCore
 
 final class UpdateCenterPresentationTests: XCTestCase {
+    func testClientOnlyUpdatePinsVersionBranchAndNeverCrossesProtocols() {
+        var snapshot = makeSnapshot()
+        XCTAssertEqual(snapshot.qclientSourceHead?.commit, approvedCommit)
+        snapshot.qclient.installed = ManagedQClientStatus(
+            state: .verified, releaseVersion: "2.1.0.25.62", reportedVersion: "2.1.0.25.62",
+            trust: .pinnedSource, commit: approvedCommit, detail: "fixture"
+        )
+        XCTAssertTrue(snapshot.qclientIsCurrent)
+        snapshot.source.highestVersionBranch?.name = "v2.1.0.26"
+        XCTAssertNil(snapshot.qclientSourceHead)
+    }
+
     func testBoundedDownloadProgressReportsKnownAndUnknownTransferSizes() {
         let known = BoundedDownloadProgress(bytesReceived: 65_255_961, totalBytes: 130_511_922)
         XCTAssertEqual(known.fraction ?? -1, 0.5, accuracy: 0.000_001)

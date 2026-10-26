@@ -81,16 +81,15 @@ public final class BoundedProcessOutputPump: @unchecked Sendable {
     }
 
     private func drain() {
+        var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
         while true {
-            let chunk: Data
-            do {
-                guard let next = try pipe.fileHandleForReading.read(upToCount: 64 * 1_024),
-                    !next.isEmpty
-                else { return }
-                chunk = next
-            } catch {
-                return
-            }
+            // FileHandle.read(upToCount:) can wait for the requested size on
+            // a pipe. POSIX read returns available bytes immediately, keeping
+            // sparse compiler output visible long before the child exits.
+            let count = Darwin.read(pipe.fileHandleForReading.fileDescriptor, &buffer, buffer.count)
+            if count < 0, errno == EINTR { continue }
+            guard count > 0 else { return }
+            let chunk = Data(buffer.prefix(count))
 
             let remaining: Int
             lock.lock()

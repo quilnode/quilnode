@@ -117,13 +117,16 @@ extension QuilNodeHelper {
         // release signature at all. The restricted node account is therefore
         // the execution boundary for both provenance classes.
         progress?(.probingRuntime, "Checking the qclient runtime version (up to 15 seconds).")
-        let runtimeOutput = try runArtifactVersionProbe(
-            destination,
-            trustArguments + ["version"],
-            timeout: 15
-        )
-        let reported = artifact.reportedVersion ?? qclientRuntimeVersion(runtimeOutput)
-        guard let reported, runtimeOutput.contains(reported) else {
+        let modernOutput = try? runArtifactVersionProbe(destination, ["--version"], timeout: 15)
+        let runtimeOutput: String
+        if let modernOutput, qclientRuntimeVersion(modernOutput) != nil {
+            runtimeOutput = modernOutput
+        } else {
+            runtimeOutput = try runArtifactVersionProbe(destination, trustArguments + ["version"], timeout: 15)
+        }
+        guard let reported = qclientRuntimeVersion(runtimeOutput),
+            artifact.reportedVersion == nil || artifact.reportedVersion == reported
+        else {
             throw HelperFailure.invalidManifest("installed qclient runtime version does not match staged provenance")
         }
         progress?(.recordingProvenance, "Recording verified qclient provenance.")
@@ -161,7 +164,7 @@ extension QuilNodeHelper {
                 installedAt: record.installedAt,
                 detail: record.trust == .officialSigned
                     ? "Official qclient is root-owned and matches its recorded signed-release provenance."
-                    : "Source qclient is root-owned and matches the installed node's recorded commit and SHA-256 provenance."
+                    : "Source qclient is root-owned and matches its recorded commit and SHA-256 provenance."
             )
         } catch {
             let missing = !FileManager.default.fileExists(atPath: qclientRecordURL.path)
@@ -213,7 +216,7 @@ extension QuilNodeHelper {
         guard record.schemaVersion == 1,
             record.binaryFileName == expectedName,
             record.sha256.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil,
-            record.reportedVersion.range(of: #"^[0-9]+\.[0-9]+\.[0-9]+-p[0-9]+$"#, options: .regularExpression) != nil,
+            QClientVersion.isValid(record.reportedVersion),
             (record.trust == .pinnedSource
                 ? record.signatureIndices.isEmpty
                 : (record.signatureIndices.count >= ReleaseTrustPolicy.minimumSignatures

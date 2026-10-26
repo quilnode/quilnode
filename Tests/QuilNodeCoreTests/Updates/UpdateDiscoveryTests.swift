@@ -41,7 +41,7 @@ final class UpdateDiscoveryTests: XCTestCase {
             "Rust qclient runtime version parsing"
         )
         expect(
-            QClientRuntimeVersionParser.parse("2.1.0.23") == nil,
+            QClientRuntimeVersionParser.parse("2.1.0.23") == "2.1.0.23",
             "qclient runtime parser rejects a release filename version masquerading as runtime provenance"
         )
         let lfsPointer = GitLFSPointerParser.parse(

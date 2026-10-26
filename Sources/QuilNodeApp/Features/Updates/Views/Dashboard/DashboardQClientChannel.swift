@@ -7,22 +7,16 @@ import SwiftUI
 extension DashboardView {
     func managedQClientStrip(_ snapshot: UpdateCenterSnapshot) -> some View {
         let installed = snapshot.qclient.installed
-        let available = snapshot.qclient.available
-        let compatible =
-            installed?.isReady == true
-            && QClientCompatibility.isCompatible(
-                qclientReleaseVersion: installed?.releaseVersion,
-                nodeVersion: snapshot.installed.build.version
-            )
+        let compatible = snapshot.qclientIsCurrent
         return Group {
             if !dashboardLayoutClass.isWide {
                 VStack(alignment: .leading, spacing: 12) {
                     qclientIdentity
                     HStack(alignment: .bottom, spacing: 16) {
                         UpdateDetailRow(label: "Installed", value: installed?.releaseVersion ?? "Not managed")
-                        UpdateDetailRow(label: "Available", value: available?.releaseVersion ?? "Unavailable")
+                        UpdateDetailRow(label: "Target", value: snapshot.qclientTargetLabel)
                         Spacer(minLength: 4)
-                        qclientAction(installed: installed, available: available, compatible: compatible)
+                        qclientAction(snapshot: snapshot, compatible: compatible)
                     }
                 }
             } else {
@@ -30,14 +24,14 @@ extension DashboardView {
                     qclientIdentity
                     Spacer()
                     UpdateDetailRow(label: "Installed", value: installed?.releaseVersion ?? "Not managed")
-                    UpdateDetailRow(label: "Available", value: available?.releaseVersion ?? "Unavailable")
+                    UpdateDetailRow(label: "Target", value: snapshot.qclientTargetLabel)
                     Label(
-                        compatible ? "Compatible · reused" : "Needs attention",
+                        compatible ? "Current" : "Update available",
                         systemImage: compatible ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
                     )
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(compatible ? theme.colors.success : theme.colors.warning)
-                    qclientAction(installed: installed, available: available, compatible: compatible)
+                    qclientAction(snapshot: snapshot, compatible: compatible)
                 }
             }
         }
@@ -51,7 +45,7 @@ extension DashboardView {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Managed qclient dependency")
                     .font(.subheadline.weight(.semibold))
-                Text("Not a node channel · reused while protocol-compatible")
+                Text("Wallet and prover reads · updated independently")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -59,16 +53,16 @@ extension DashboardView {
     }
 
     private func qclientAction(
-        installed: ManagedQClientStatus?,
-        available: OfficialQClientRelease?,
+        snapshot: UpdateCenterSnapshot,
         compatible: Bool
     ) -> some View {
-        Button(compatible ? "Compatible" : (installed == nil ? "Install qclient" : "Update qclient")) {
+        Button(compatible ? "Current" : (snapshot.qclient.installed == nil ? "Install qclient" : "Update qclient")) {
             releaseChecker.requestInstallQClient()
         }
         .buttonStyle(.bordered)
         .disabled(
-            compatible || available == nil || releaseChecker.isInstalling
+            compatible || (snapshot.installed.build.kind != .source && snapshot.qclient.available == nil)
+                || releaseChecker.isInstalling
                 || releaseChecker.stagedUpdate != nil
         )
     }

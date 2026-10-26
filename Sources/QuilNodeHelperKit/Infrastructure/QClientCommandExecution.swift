@@ -6,7 +6,7 @@ import Foundation
 #endif
 
 extension QuilNodeHelper {
-    static func runQClientBalance(timeout: TimeInterval) throws -> String {
+    static func runQClientBalance(timeout: TimeInterval) throws -> CommandResult {
         try runQClientRead(
             ["token", "--config", "/opt/quilibrium/node/.config", "balance"],
             timeout: timeout
@@ -18,14 +18,17 @@ extension QuilNodeHelper {
     /// process never gains access to identity material.
     static func runQClientProverTelemetry(timeout: TimeInterval) throws -> String {
         let status = try runQClientRead(["node", "prover", "status"], timeout: timeout)
+        guard status.exitCode == 0, !status.timedOut else {
+            throw HelperFailure.command("The local prover status read did not complete. \(status.output)")
+        }
         let shardInfo = try runQClientRead(["node", "prover", "shardinfo"], timeout: timeout)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return String(
             decoding: try encoder.encode(
                 QClientProverTelemetryPayload(
-                    statusOutput: status,
-                    shardInfoOutput: shardInfo,
+                    statusOutput: status.output,
+                    shardInfoOutput: shardInfo.exitCode == 0 && !shardInfo.timedOut ? shardInfo.output : "",
                     observedAt: Date()
                 )
             ),
@@ -36,7 +39,7 @@ extension QuilNodeHelper {
     private static func runQClientRead(
         _ arguments: [String],
         timeout: TimeInterval
-    ) throws -> String {
+    ) throws -> CommandResult {
         let (qclient, qclientRecord) = try trustedQClient()
         let trustArguments = qclientRecord.trust == .officialSigned ? ["--signature-check=false"] : ["-y"]
         let runtimeHome = URL(
@@ -48,7 +51,7 @@ extension QuilNodeHelper {
             chmod(runtimeHome.path, 0o700) == 0
         else { throw HelperFailure.service("unable to prepare the isolated qclient runtime") }
 
-        return try run(
+        var result = try runCommand(
             URL(fileURLWithPath: "/usr/bin/sudo"),
             [
                 "-n", "-H", "-u", serviceUser, "--",
@@ -58,6 +61,8 @@ extension QuilNodeHelper {
             timeout: timeout,
             currentDirectory: nodeDirectory
         )
+        result.output = redactSensitiveCommandOutput(result.output)
+        return result
     }
 
     static func runAsServiceUser(
@@ -114,16 +119,7 @@ extension QuilNodeHelper {
     }
 
     static func qclientRuntimeVersion(_ output: String) -> String? {
-        guard
-            let expression = try? NSRegularExpression(
-                pattern: #"(?m)^(?:qclient version:\s*)?([0-9]+\.[0-9]+\.[0-9]+-p[0-9]+)$"#
-            )
-        else { return nil }
-        let fullRange = NSRange(output.startIndex..<output.endIndex, in: output)
-        guard let match = expression.firstMatch(in: output, range: fullRange),
-            let valueRange = Range(match.range(at: 1), in: output)
-        else { return nil }
-        return String(output[valueRange])
+        QClientVersion.parse(output)
     }
 
     private static func sandboxLiteral(_ value: String) -> String {

@@ -116,13 +116,11 @@ enum InstallationHostInspector {
         let qclientCompatible: Bool =
             switch installedNodeBuild?.kind {
             case .signed:
-                qclientStatus?.isReady == true && qclientStatus?.trust == .officialSigned
+                QClientCompatibility.isUsable(qclientStatus, nodeVersion: installedNodeBuild?.version, nodeCommit: nil)
             case .source:
-                qclientStatus?.isReady == true
-                    && QClientCompatibility.isCompatible(
-                        qclientReleaseVersion: qclientStatus?.releaseVersion,
-                        nodeVersion: installedNodeBuild?.version
-                    )
+                QClientCompatibility.isUsable(
+                    qclientStatus, nodeVersion: installedNodeBuild?.version, nodeCommit: installedNodeBuild?.commit
+                )
             case .unknown, nil:
                 false
             }

@@ -104,6 +104,8 @@ struct IdentityOverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             IdentitySummaryBand(presentation: presentation)
 
+            IdentityWalletBalances(snapshot: snapshot)
+
             IdentityRelationshipPath(
                 roles: presentation.roles,
                 selectedRole: $selectedRole

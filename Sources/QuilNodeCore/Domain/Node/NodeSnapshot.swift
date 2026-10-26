@@ -57,6 +57,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
     public var quilAccount: String?
     public var balanceUpdatedAt: Date?
     public var balanceError: String?
+    public var walletBalance: QuilBalance?
     public var rewardBalanceSubunits: String?
     public var lastRewardCreditFrame: UInt64?
     public var lastRewardCreditAt: Date?
@@ -154,6 +155,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         quilAccount: String? = nil,
         balanceUpdatedAt: Date? = nil,
         balanceError: String? = nil,
+        walletBalance: QuilBalance? = nil,
         rewardBalanceSubunits: String? = nil,
         lastRewardCreditFrame: UInt64? = nil,
         lastRewardCreditAt: Date? = nil,
@@ -217,6 +219,7 @@ public struct NodeSnapshot: Codable, Equatable, Sendable {
         self.quilAccount = quilAccount
         self.balanceUpdatedAt = balanceUpdatedAt
         self.balanceError = balanceError
+        self.walletBalance = walletBalance
         self.rewardBalanceSubunits = rewardBalanceSubunits
         self.lastRewardCreditFrame = lastRewardCreditFrame
         self.lastRewardCreditAt = lastRewardCreditAt
