@@ -1,10 +1,11 @@
 import Foundation
 
 public enum ProverStatusParser {
-    public static func parse(_ output: String) -> LocalProverStatus? {
+    public static func parse(_ output: String, readAt: Date = Date()) -> LocalProverStatus? {
         var result = LocalProverStatus()
         var allocations: [ShardAllocation] = []
         var currentAllocation: Int?
+        var currentWorker: Int?
         var sawStatus = false
 
         for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
@@ -12,16 +13,30 @@ public enum ProverStatusParser {
             if let allocation = parseAllocation(line) {
                 allocations.append(allocation)
                 currentAllocation = allocations.count - 1
+                currentWorker = nil
                 sawStatus = true
                 continue
             }
 
             if let worker = parseWorker(line) {
                 result.workers.append(worker)
+                currentWorker = result.workers.count - 1
+                currentAllocation = nil
+                continue
+            }
+
+            if let index = currentWorker,
+                let execution = WorkerExecutionParser.parse(line, readAt: readAt)
+            {
+                result.workers[index].execution = execution
                 continue
             }
 
             if let index = currentAllocation {
+                if line.hasPrefix("Next Action:") {
+                    allocations[index].action = line
+                    continue
+                }
                 if line.hasPrefix("Action:") {
                     allocations[index].action = value(after: "Action:", in: line)
                     continue
@@ -117,7 +132,8 @@ public enum ProverStatusParser {
             coreID: coreID,
             filter: String(line[filterRange]),
             availableStorage: String(line[availableRange]).trimmingCharacters(in: .whitespaces),
-            totalStorage: String(line[totalRange]).trimmingCharacters(in: .whitespaces)
+            totalStorage: String(line[totalRange]).trimmingCharacters(in: .whitespaces),
+            isDraining: line.contains("  Draining:") ? true : nil
         )
     }
 

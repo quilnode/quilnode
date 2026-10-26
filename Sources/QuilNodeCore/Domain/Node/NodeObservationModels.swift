@@ -5,6 +5,9 @@ public struct LocalWorkerObservation: Codable, Equatable, Sendable, Identifiable
     public var filter: String
     public var availableStorage: String
     public var totalStorage: String
+    /// Local engine evidence is independent of the registry assignment.
+    public var execution: WorkerExecutionObservation?
+    public var isDraining: Bool?
 
     public var id: Int { coreID }
 
@@ -12,12 +15,16 @@ public struct LocalWorkerObservation: Codable, Equatable, Sendable, Identifiable
         coreID: Int,
         filter: String,
         availableStorage: String,
-        totalStorage: String
+        totalStorage: String,
+        execution: WorkerExecutionObservation? = nil,
+        isDraining: Bool? = nil
     ) {
         self.coreID = coreID
         self.filter = filter
         self.availableStorage = availableStorage
         self.totalStorage = totalStorage
+        self.execution = execution
+        self.isDraining = isDraining
     }
 }
 
