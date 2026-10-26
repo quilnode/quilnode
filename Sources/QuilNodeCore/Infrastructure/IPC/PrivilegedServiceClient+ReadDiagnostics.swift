@@ -10,12 +10,26 @@ extension PrivilegedServiceClient {
     /// executable, transaction, or arbitrary privileged action from the CLI.
     public static func localReadDiagnostics(serviceOnly: Bool = false) -> String {
         var report: [String: Any] = [:]
+        if !serviceOnly {
+            let info = LocalNodeRPC.read(.nodeInfo).flatMap(LocalNodeRPC.nodeInfo)
+            let metrics = LocalNodeRPC.read(.metrics)?[1]?.bytes.map { String(decoding: $0, as: UTF8.self) }
+            report["telemetry"] = [
+                "source": "managed node loopback RPC",
+                "nodeInfoAvailable": info != nil,
+                "metricsAvailable": metrics != nil,
+                "frame": info?.frame as Any? ?? NSNull(),
+                "runningWorkers": info?.runningWorkers as Any? ?? NSNull(),
+                "version": info?.version as Any? ?? NSNull(),
+                "metrics": (metrics ?? "").split(separator: "\n")
+                    .filter { $0.contains("libp2p_") }.map(String.init).joined(separator: "\n"),
+            ]
+        }
         let reads: [(String, PrivilegedServiceAction, TimeInterval)] =
             serviceOnly
             ? [("service", .capabilities, 10)]
             : [
                 ("service", .capabilities, 10), ("client", .qclientStatus, 10), ("identity", .nodeInfo, 75),
-                ("metrics", .metrics, 10), ("prover", .proverTelemetry, 35), ("wallet", .balance, 195),
+                ("prover", .proverTelemetry, 35), ("wallet", .balance, 195),
             ]
         for (name, action, timeout) in reads {
             let result = response(action, timeout: timeout)
