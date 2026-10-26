@@ -27,9 +27,7 @@ extension InstallationCoordinator {
     }
 
     var requiresQClientSetup: Bool {
-        guard let preflight else { return false }
-        return preflight.nodeInstalled && preflight.secureServiceReady
-            && (preflight.qclientStatus?.isReady != true || !preflight.qclientCompatibleWithNode)
+        preflight?.needsQClientRepair == true
     }
 
     var isWorking: Bool {

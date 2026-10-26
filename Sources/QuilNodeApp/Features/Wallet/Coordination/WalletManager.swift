@@ -275,7 +275,8 @@ final class WalletManager: ObservableObject {
             let result = await Task.detached(priority: .userInitiated) {
                 ReleaseChecker.runAuthorizedHelper(
                     arguments: ["wallet-transact", manifestURL.path],
-                    durableOperation: true
+                    durableOperation: true,
+                    allowsInteractiveAuthorization: true
                 )
             }.value
             guard result.exitCode == 0 else {

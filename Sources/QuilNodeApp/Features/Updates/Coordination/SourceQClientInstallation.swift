@@ -39,7 +39,10 @@ extension ReleaseChecker {
             try Task.checkCancellation()
             operation = .awaitingAuthorization
             let result = await Task.detached(priority: .userInitiated) {
-                Self.runAuthorizedHelper(arguments: ["qclient-install", manifest.path], durableOperation: true)
+                Self.runAuthorizedHelper(
+                    arguments: ["qclient-install", manifest.path], durableOperation: true,
+                    allowsInteractiveAuthorization: true
+                )
             }.value
             guard result.exitCode == 0 else { throw UpdateCenterError.activationFailed(result.output) }
             let status = await Task.detached(priority: .utility) {

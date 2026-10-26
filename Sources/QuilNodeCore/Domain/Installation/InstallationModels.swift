@@ -57,6 +57,18 @@ public struct InstallationPreflight: Codable, Sendable {
     public var productionReady: Bool {
         !(hardware + productionRequirements).contains { $0.state == .blocked }
     }
+
+    /// A failed read is unknown, not proof that a client needs replacing.
+    public var needsQClientRepair: Bool {
+        nodeInstalled && secureServiceReady && qclientStatus != nil
+            && (qclientStatus?.isReady != true || !qclientCompatibleWithNode)
+    }
+
+    /// Startup may fill a proven missing, officially signed dependency. Repairs
+    /// and source trust decisions always stay behind an explicit operator action.
+    public var canAutomaticallyInstallQClient: Bool {
+        needsQClientRepair && qclientStatus?.state == .missing && installedNodeBuild?.kind == .signed
+    }
 }
 
 public enum FirstInstallPhase: String, Codable, Sendable {

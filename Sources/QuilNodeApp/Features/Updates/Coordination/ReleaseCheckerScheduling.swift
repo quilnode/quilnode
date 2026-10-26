@@ -6,7 +6,9 @@ extension ReleaseChecker {
         operation = .awaitingAuthorization
         lastError = nil
         let result = await Task.detached(priority: .userInitiated) {
-            Self.runAuthorizedHelper(arguments: ["rollback"], durableOperation: true)
+            Self.runAuthorizedHelper(
+                arguments: ["rollback"], durableOperation: true, allowsInteractiveAuthorization: true
+            )
         }.value
         operation = .idle
         guard result.exitCode == 0 else {

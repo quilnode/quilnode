@@ -81,7 +81,6 @@ extension QuilNodeHelper {
             return PrivilegedServiceResponse(
                 success: true,
                 message: status.detail,
-                nodePID: currentNodePID(),
                 qclientOutput: String(decoding: try encoder.encode(status), as: UTF8.self)
             )
         case .qclientInstall:

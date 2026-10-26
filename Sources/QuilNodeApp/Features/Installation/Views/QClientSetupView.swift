@@ -106,7 +106,7 @@ struct QClientSetupView: View {
                 }
                 Spacer()
                 Button(installer.isWorking ? "Updating…" : (installer.error == nil ? "Update client" : "Try again")) {
-                    Task { await installer.prepareAndInstallQClient() }
+                    Task { await installer.prepareAndInstallQClient(allowsInteractiveAuthorization: true) }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

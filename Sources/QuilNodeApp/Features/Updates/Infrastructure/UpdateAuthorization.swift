@@ -13,7 +13,7 @@ import Foundation
 extension ReleaseChecker {
     nonisolated static func runAuthorizedActivation(
         manifestURL: URL,
-        allowsInteractiveAuthorization: Bool = true
+        allowsInteractiveAuthorization: Bool = false
     ) -> (output: String, exitCode: Int32) {
         runAuthorizedHelper(
             arguments: ["activate", manifestURL.path],
@@ -25,7 +25,7 @@ extension ReleaseChecker {
     nonisolated static func runAuthorizedHelper(
         arguments: [String],
         durableOperation: Bool = false,
-        allowsInteractiveAuthorization: Bool = true,
+        allowsInteractiveAuthorization: Bool = false,
         progress: (@Sendable (PrivilegedServiceClient.OperationProgress) -> Void)? = nil
     ) -> (output: String, exitCode: Int32) {
         if let actionName = arguments.first,
@@ -60,6 +60,9 @@ extension ReleaseChecker {
             if !allowsInteractiveAuthorization {
                 return serviceResult
             }
+        }
+        guard allowsInteractiveAuthorization else {
+            return ("This operation requires an explicit administrator approval action in QuilNode.", 77)
         }
         let helperURL =
             Bundle.main.url(forAuxiliaryExecutable: "QuilNodeHelper")

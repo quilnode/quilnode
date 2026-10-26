@@ -5,6 +5,49 @@ import XCTest
 @testable import QuilNodeShared
 
 final class OnboardingPresentationTests: XCTestCase {
+    func testHelperDoesNotOpenAdministratorPromptWithoutExplicitOptIn() {
+        let result = ReleaseChecker.runAuthorizedHelper(arguments: ["bootstrap", "501"])
+        XCTAssertEqual(result.exitCode, 77)
+        XCTAssertTrue(result.output.contains("explicit administrator approval"))
+    }
+
+    @MainActor
+    func testUnknownClientStatusNeverStartsRepairOnboarding() {
+        let coordinator = InstallationCoordinator()
+        coordinator.preflight = InstallationPreflight(
+            hardware: [], productionRequirements: [], sourceToolchain: [],
+            nodeInstalled: true, secureServiceReady: true
+        )
+        XCTAssertFalse(coordinator.requiresQClientSetup)
+        XCTAssertFalse(coordinator.preflight?.canAutomaticallyInstallQClient == true)
+    }
+
+    func testAutomaticClientInstallRequiresProvenMissingOfficialDependency() {
+        var preflight = InstallationPreflight(
+            hardware: [], productionRequirements: [], sourceToolchain: [],
+            nodeInstalled: true, secureServiceReady: true,
+            qclientStatus: ManagedQClientStatus(state: .missing, detail: "Not installed"),
+            installedNodeBuild: InstalledNodeBuild(
+                version: "2.1.0.25", kind: .signed, commit: nil, fileName: "node"
+            )
+        )
+        XCTAssertTrue(preflight.needsQClientRepair)
+        XCTAssertTrue(preflight.canAutomaticallyInstallQClient)
+
+        preflight.installedNodeBuild?.kind = .source
+        XCTAssertTrue(preflight.needsQClientRepair)
+        XCTAssertFalse(preflight.canAutomaticallyInstallQClient, "Source trust decisions require an explicit click")
+
+        preflight.installedNodeBuild?.kind = .signed
+        preflight.qclientStatus?.state = .invalid
+        XCTAssertFalse(preflight.canAutomaticallyInstallQClient, "Invalid evidence requires a visible repair")
+
+        preflight.qclientStatus?.state = .verified
+        preflight.qclientCompatibleWithNode = true
+        XCTAssertFalse(preflight.needsQClientRepair)
+        XCTAssertFalse(preflight.canAutomaticallyInstallQClient)
+    }
+
     @MainActor
     func testTransientServiceTimeoutDoesNotReopenAdministratorOnboarding() {
         let coordinator = InstallationCoordinator()

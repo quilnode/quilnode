@@ -68,7 +68,7 @@ extension PrivilegedServiceClient {
     }
 
     public static func readQClientStatus(
-        timeout: TimeInterval = 8
+        timeout: TimeInterval = 20
     ) -> (status: ManagedQClientStatus?, error: String?) {
         let result = response(.qclientStatus, timeout: timeout)
         guard result.exitCode == 0,

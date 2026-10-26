@@ -111,7 +111,7 @@ enum InstallationHostInspector {
         let serviceReady = (serviceBuild ?? -1) >= requiredServiceBuild
         let qclientStatus =
             serviceReady
-            ? PrivilegedServiceClient.readQClientStatus(timeout: 8).status
+            ? PrivilegedServiceClient.readQClientStatus().status
             : nil
         let qclientCompatible: Bool =
             switch installedNodeBuild?.kind {
