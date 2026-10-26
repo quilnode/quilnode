@@ -47,7 +47,7 @@ public final class NodeMonitor: ObservableObject {
     public init(
         collector: LocalNodeCollector = LocalNodeCollector(),
         refreshInterval: Duration = .seconds(2),
-        nodeInfoRefreshInterval: TimeInterval = 300,
+        nodeInfoRefreshInterval: TimeInterval = 15,
         balanceRefreshInterval: TimeInterval = 60,
         proverTelemetryRefreshInterval: TimeInterval = 60
     ) {
@@ -85,7 +85,7 @@ public final class NodeMonitor: ObservableObject {
                 // the UI never turns an unobserved bootstrap snapshot into an
                 // offline verdict.
                 await self.refreshProcessPresence()
-                await self.refresh(skipNodeInfo: true)
+                await self.refresh()
             }
             while !Task.isCancelled {
                 guard let self else { return }
@@ -142,51 +142,14 @@ public final class NodeMonitor: ObservableObject {
             recoverHistoricalEvidence: shouldRecoverHistoricalEvidence
         )
         var nextSnapshot = result.snapshot
-        // A balance read runs independently from the faster telemetry loop.
-        // Preserve the newest wallet result if it completed while this
-        // telemetry collection was in flight, rather than overwriting it with
-        // the older snapshot captured at the start of the collection.
-        nextSnapshot.quilBalance = snapshot.quilBalance
-        nextSnapshot.quilAccount = snapshot.quilAccount
-        nextSnapshot.balanceUpdatedAt = snapshot.balanceUpdatedAt
-        nextSnapshot.balanceError = snapshot.balanceError
-        nextSnapshot.walletBalance = snapshot.walletBalance
-        if nextSnapshot.processID == snapshot.processID {
-            nextSnapshot.legacyPeerID = nextSnapshot.legacyPeerID ?? snapshot.legacyPeerID
-            nextSnapshot.proverAddress = nextSnapshot.proverAddress ?? snapshot.proverAddress
-        }
-        if let previous = snapshot.peerID, let current = nextSnapshot.peerID, previous != current {
-            nextSnapshot.quilBalance = nil
-            nextSnapshot.quilAccount = nil
-            nextSnapshot.walletBalance = nil
-            nextSnapshot.balanceUpdatedAt = nil
-            nextSnapshot.balanceError = nil
+        if !nextSnapshot.preserveConcurrentReads(from: snapshot) {
+            cachedNodeInfo = nil
+            lastNodeInfoRefresh = nil
             lastBalanceRefresh = nil
+            lastProverTelemetryRefresh = nil
+            lastIdentityDetailsRefresh = nil
+            hasRecoveredHistoricalEvidence = false
         }
-        nextSnapshot.preferNewerSeniorityObservation(from: snapshot)
-        nextSnapshot.preferNewerProverObservation(from: snapshot)
-        nextSnapshot.peerScore = snapshot.peerScore
-        nextSnapshot.reachable = snapshot.reachable
-        nextSnapshot.allocatedWorkers = snapshot.allocatedWorkers
-        nextSnapshot.lastReceivedFrame = snapshot.lastReceivedFrame
-        nextSnapshot.lastGlobalHeadFrame = snapshot.lastGlobalHeadFrame
-        nextSnapshot.epoch = snapshot.epoch
-        nextSnapshot.epochLength = snapshot.epochLength
-        nextSnapshot.nextEpochFrame = snapshot.nextEpochFrame
-        nextSnapshot.shardAllocations = snapshot.shardAllocations
-        nextSnapshot.networkShards = snapshot.networkShards
-        nextSnapshot.networkShardSummary = snapshot.networkShardSummary
-        nextSnapshot.networkShardError = snapshot.networkShardError
-        nextSnapshot.inboundConnectionsEstablished =
-            result.snapshot.inboundConnectionsEstablished
-            ?? snapshot.inboundConnectionsEstablished
-        nextSnapshot.outboundConnectionsEstablished =
-            result.snapshot.outboundConnectionsEstablished
-            ?? snapshot.outboundConnectionsEstablished
-        nextSnapshot.localWorkerCount =
-            result.snapshot.localWorkerCount
-            ?? snapshot.localWorkerCount
-        nextSnapshot.localWorkers = result.snapshot.localWorkers ?? snapshot.localWorkers
         processorUsageSampler.apply(to: &nextSnapshot)
         frameProgressTracker.apply(to: &nextSnapshot)
         snapshot = nextSnapshot
@@ -316,7 +279,8 @@ public final class NodeMonitor: ObservableObject {
                 PrivilegedServiceClient.readNodeInfo()
             }.value
             guard !Task.isCancelled, snapshot.processID == identityPID, let info,
-                identityPeer == nil || info.peerID == identityPeer
+                snapshot.peerID == identityPeer,
+                info.peerID == nil || identityPeer == nil || info.peerID == identityPeer
             else { return }
             snapshot.legacyPeerID = info.legacyPeerID ?? snapshot.legacyPeerID
             snapshot.proverAddress = info.proverAddress ?? snapshot.proverAddress

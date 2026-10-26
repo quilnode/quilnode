@@ -4,6 +4,21 @@ import XCTest
 @testable import QuilNodeCore
 
 final class TelemetryRefreshTests: XCTestCase {
+    func testConcurrentWalletReadCannotCrossProcessOrIdentityChanges() {
+        let current = NodeSnapshot(processID: 123, peerID: "old-peer", quilBalance: "1.5", peers: 20)
+        var same = NodeSnapshot(processID: 123, peerID: "old-peer", peers: 25)
+        XCTAssertTrue(same.preserveConcurrentReads(from: current))
+        XCTAssertEqual(same.quilBalance, "1.5")
+        XCTAssertEqual(same.peers, 25)
+        var replacement = NodeSnapshot(processID: 124, peerID: "old-peer")
+        XCTAssertFalse(replacement.preserveConcurrentReads(from: current))
+        XCTAssertNil(replacement.quilBalance)
+        replacement.processID = 123
+        replacement.peerID = "new-peer"
+        XCTAssertFalse(replacement.preserveConcurrentReads(from: current))
+        XCTAssertNil(replacement.quilBalance)
+    }
+
     func testMissingStatusSampleDoesNotEraseKnownCounts() {
         let warning = "2026-10-26T09:54:17Z\twarn\tworker.rs:244\tworker thread blocked\t{\"coreId\":2}"
         let status = NodeStatusParser.latestStatus(in: warning) ?? [:]

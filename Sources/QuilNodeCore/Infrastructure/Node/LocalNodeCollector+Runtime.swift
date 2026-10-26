@@ -33,8 +33,17 @@ extension LocalNodeCollector {
 
     func readNodeInfo() -> NodeInfo? {
         if paths.nodeDirectory.path == "/opt/quilibrium/node",
-            let fields = LocalNodeRPC.read(.nodeInfo), let info = LocalNodeRPC.nodeInfo(fields)
+            let fields = LocalNodeRPC.read(.nodeInfo), var info = LocalNodeRPC.nodeInfo(fields)
         {
+            // RPC advertises the protocol version only. Retain the installed
+            // subpatch label when the fixed managed link agrees with it.
+            if let target = try? FileManager.default.destinationOfSymbolicLink(atPath: paths.nodeBinary.path),
+                let installed = InstalledNodeBuildParser.parse(symlinkTarget: target).version,
+                let protocolVersion = info.version,
+                installed == protocolVersion || installed.hasPrefix(protocolVersion + ".")
+            {
+                info.version = installed
+            }
             return info
         }
         guard paths.nodeDirectory.path != "/opt/quilibrium/node" else { return nil }
