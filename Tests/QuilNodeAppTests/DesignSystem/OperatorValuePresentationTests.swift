@@ -50,4 +50,15 @@ final class OperatorValuePresentationTests: XCTestCase {
             WorkerExecutionPresentation(observation: running, nodeRunning: true, now: now).title, "Host running")
         XCTAssertEqual(WorkerExecutionPresentation(observation: nil, nodeRunning: true, now: now).title, "Not reported")
     }
+
+    func testFrameAdvanceAgeIsIndependentFromTheReadTime() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let observation = WorkerExecutionObservation(
+            state: "serve", lastAdvanceAt: now.addingTimeInterval(-2_460), observedAt: now, readAt: now)
+        let presentation = WorkerExecutionPresentation(observation: observation, nodeRunning: true, now: now)
+        XCTAssertEqual(presentation.title, "Serving")
+        XCTAssertEqual(presentation.advanceText, "41m ago")
+        XCTAssertEqual(
+            WorkerExecutionPresentation(observation: nil, nodeRunning: true, now: now).advanceText, "Not reported")
+    }
 }

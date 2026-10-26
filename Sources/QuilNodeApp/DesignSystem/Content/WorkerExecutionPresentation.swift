@@ -46,7 +46,7 @@ struct WorkerExecutionPresentation {
         if !isCurrent { return "Waiting for a current worker observation." }
         if let blocker = observation.blocker { return blocker }
         if let failures = observation.recoveryFailures, failures > 0 {
-            return "Recovery: \(failures) consecutive failed attempts"
+            return "Recovery: \(failures) consecutive failed \(failures == 1 ? "attempt" : "attempts")"
         }
         if let phase = observation.recoveryPhase, phase != "idle" {
             return "Recovery: " + phase.replacingOccurrences(of: "_", with: " ")
@@ -60,6 +60,8 @@ struct WorkerExecutionPresentation {
     var frameText: String { observation?.frame.map(\.grouped) ?? "—" }
 
     var advanceText: String {
-        ObservationFreshness(observedAt: observation?.lastAdvanceAt, now: now, maximumAge: .infinity).label
+        guard observation?.lastAdvanceAt != nil else { return "Not reported" }
+        return ObservationFreshness(observedAt: observation?.lastAdvanceAt, now: now).elapsedLabel
+            ?? "Observation clock mismatch"
     }
 }

@@ -13,9 +13,16 @@ struct ObservationFreshness {
     }
 
     var label: String {
-        guard let observedAt else { return "Not yet observed" }
+        guard observedAt != nil else { return "Not yet observed" }
+        guard let elapsed = elapsedLabel else { return "Observation clock mismatch" }
+        return (isCurrent ? "Read " : "Last read ") + elapsed
+    }
+
+    /// Event age without implying that the event occurred when it was read.
+    var elapsedLabel: String? {
+        guard let observedAt else { return nil }
         let age = now.timeIntervalSince(observedAt)
-        guard age.isFinite, age < Double(Int.max), age >= -5 else { return "Observation clock mismatch" }
+        guard age.isFinite, age < Double(Int.max), age >= -5 else { return nil }
         let seconds = max(Int(age), 0)
         let elapsed: String
         if seconds < 5 {
@@ -29,6 +36,6 @@ struct ObservationFreshness {
         } else {
             elapsed = "\(seconds / 86_400)d ago"
         }
-        return (isCurrent ? "Read " : "Last read ") + elapsed
+        return elapsed
     }
 }

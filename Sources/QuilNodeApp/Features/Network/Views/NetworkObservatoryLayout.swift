@@ -38,8 +38,18 @@ enum ShardConstellationLayout {
 
         var result: [String: ShardConstellationNodeLayout] = [:]
         for (index, shard) in foreground.enumerated() {
+            // Small overview samples need label spacing, not the dense map's
+            // first three adjacent constellation positions.
+            let basePoint: CGPoint
+            if size.width < 720 && background.isEmpty && foreground.count <= 3 {
+                basePoint = CGPoint(
+                    x: size.width * CGFloat(index + 1) / CGFloat(foreground.count + 1),
+                    y: size.height * 0.28)
+            } else {
+                basePoint = featuredPoint(index: index, size: size)
+            }
             let point = scaledPoint(
-                base: featuredPoint(index: index, size: size),
+                base: basePoint,
                 around: localNodePoint(size: size),
                 zoom: zoom
             )

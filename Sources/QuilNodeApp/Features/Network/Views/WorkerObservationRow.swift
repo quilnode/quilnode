@@ -18,6 +18,15 @@ struct WorkerObservationRow: View {
                 datum("App frame", execution.frameText)
                 datum("Last advance", execution.advanceText)
                 datum("Observation", ObservationFreshness(observedAt: worker?.execution?.observedAt).label)
+                if let phase = worker?.execution?.recoveryPhase {
+                    datum("Recovery phase", phase.replacingOccurrences(of: "_", with: " "))
+                }
+                if let recorded = worker?.execution?.sealRecorded {
+                    datum("Session seal", recorded ? "Recorded by GLOBAL" : "Awaiting GLOBAL recording")
+                }
+                if let blocker = worker?.execution?.blocker {
+                    datum("Reported blocker", blocker)
+                }
                 datum("Shard", worker?.filter ?? "—")
                 datum(
                     "Storage available / total",
@@ -54,8 +63,12 @@ struct WorkerObservationRow: View {
                     )
                     .font(.caption).foregroundStyle(theme.colors.secondaryText)
                 }
-                PrivacyProtectedText(value: execution.detail, field: .shardAllocation)
-                    .font(.caption2).foregroundStyle(theme.colors.secondaryText).lineLimit(2)
+                PrivacyProtectedText(
+                    value: execution.isCurrent && !execution.needsReview
+                        ? "Last advance: \(execution.advanceText)" : execution.detail,
+                    field: .shardAllocation
+                )
+                .font(.caption2).foregroundStyle(theme.colors.secondaryText).lineLimit(2)
             }
         }
         .padding(10)
