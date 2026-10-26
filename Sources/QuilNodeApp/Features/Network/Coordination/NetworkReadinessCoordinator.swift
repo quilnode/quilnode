@@ -119,7 +119,9 @@ final class NetworkReadinessCoordinator: ObservableObject {
         let firewallResult = await firewallInspection
         if let status = firewallResult.status {
             firewall = status
-            firewallError = nil
+            // A successful read is not a successful repair. Preserve the
+            // actionable failure until the rule is actually ready or retried.
+            if status.isReady { firewallError = nil }
         } else {
             firewallError = firewallResult.error
         }

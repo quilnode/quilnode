@@ -178,13 +178,15 @@ extension QuilNodeHelper {
             let installedBinary = try installVerifiedNodeCandidate(manifest, stage: stage)
             try configureSignatureCheck(manifest.channel == "signed")
             try switchLinks(to: installedBinary, manifest: manifest)
+            // Install the previously authorized rule before the new binary
+            // opens sockets; otherwise macOS can prompt before we maintain it.
+            try refreshManagedFirewallAfterUpdate()
             progress?(.activatingRuntime, "Switching to the verified node runtime.")
             progress?(.validatingHealth, "Validating the updated node and local metrics.")
             try restartAndValidate(
                 expectedVersion: manifest.reportedVersion ?? manifest.version,
                 progress: progress
             )
-            try? refreshManagedFirewallAfterUpdate()
             if let qclient = manifest.qclient {
                 _ = try installManagedQClient(qclient, stage: stage, progress: progress)
             }
@@ -193,6 +195,7 @@ extension QuilNodeHelper {
             let updateError = error
             do {
                 try restore(previous)
+                try refreshManagedFirewallAfterUpdate()
                 try restartAndValidate(expectedVersion: nil)
             } catch {
                 throw HelperFailure.healthCheck(
@@ -219,8 +222,8 @@ extension QuilNodeHelper {
         try validateInstalledTarget(target.binaryTarget)
         let current = try captureCurrentRollback()
         try restore(target)
+        try refreshManagedFirewallAfterUpdate()
         try restartAndValidate(expectedVersion: nil)
-        try? refreshManagedFirewallAfterUpdate()
         try writeRollback(current)
         print(
             "Rolled back to \(URL(fileURLWithPath: target.binaryTarget).lastPathComponent); startup and local metrics passed."
