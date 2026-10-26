@@ -46,20 +46,25 @@ extension QuilNodeHelper {
         guard !before.blockAllEnabled else {
             throw HelperFailure.service("Block All is enabled; review that intentional macOS setting first")
         }
-        if before.nodeRule == .missing {
-            _ = try run(firewall, ["--add", binary.path], timeout: 10)
-        }
-        _ = try run(firewall, ["--unblockapp", binary.path], timeout: 10)
-        if !before.globalEnabled {
-            _ = try run(firewall, ["--setglobalstate", "on"], timeout: 10)
-        }
-
-        let verified = try inspectFirewall()
-        guard verified.globalEnabled,
-            !verified.blockAllEnabled,
-            verified.nodeRule == .allowed
-        else {
-            throw HelperFailure.service("macOS did not confirm the node firewall rule")
+        let stalePaths = before.nodeRule == .missing ? try staleFirewallRulePaths(for: binary) : []
+        _ = try replacingStaleFirewallRules(stalePaths) { option, path in
+            _ = try run(firewall, [option, path], timeout: 10)
+        } operation: {
+            if before.nodeRule == .missing {
+                _ = try run(firewall, ["--add", binary.path], timeout: 10)
+            }
+            _ = try run(firewall, ["--unblockapp", binary.path], timeout: 10)
+            if !before.globalEnabled {
+                _ = try run(firewall, ["--setglobalstate", "on"], timeout: 10)
+            }
+            let verified = try inspectFirewall()
+            guard verified.globalEnabled,
+                !verified.blockAllEnabled,
+                verified.nodeRule == .allowed
+            else {
+                throw HelperFailure.service("macOS did not confirm the node firewall rule")
+            }
+            return verified
         }
 
         let previousRecord = readManagedFirewallRecord()
@@ -72,14 +77,9 @@ extension QuilNodeHelper {
         )
         try writeManagedFirewallRecord(record)
 
-        // Remove only a rule whose provenance QuilNode recorded itself, and
-        // only after the replacement rule has passed verification.
-        if let oldPath = previousRecord?.nodeBinaryPath,
-            oldPath != binary.path,
-            isInstalledNodePath(oldPath)
-        {
-            _ = try? run(firewall, ["--remove", oldPath], timeout: 10)
-        }
+        // Keep distinct older identities available for rollback. Removing an
+        // old path again after migration can remove the new rule too: ALF may
+        // resolve both paths to the same signing identifier.
         return try inspectFirewall()
     }
 
@@ -92,18 +92,7 @@ extension QuilNodeHelper {
         for path: String,
         in listOutput: String
     ) -> FirewallStatusPayload.NodeRule {
-        let lines = listOutput.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        for index in lines.indices {
-            let line = lines[index].trimmingCharacters(in: .whitespaces)
-            guard line.range(of: #"^\d+\s*:\s*"#, options: .regularExpression) != nil,
-                line.hasSuffix(path) || line.hasSuffix("\(path) ")
-            else { continue }
-            let detail = index + 1 < lines.count ? lines[index + 1] : ""
-            if detail.localizedCaseInsensitiveContains("allow incoming") { return .allowed }
-            if detail.localizedCaseInsensitiveContains("block incoming") { return .blocked }
-            return .unavailable
-        }
-        return .missing
+        firewallEntries(in: listOutput).first { $0.path == path }?.rule ?? .missing
     }
 
     static func readManagedFirewallRecord() -> ManagedFirewallRecord? {
