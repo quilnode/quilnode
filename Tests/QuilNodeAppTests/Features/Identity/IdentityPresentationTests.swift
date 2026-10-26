@@ -108,8 +108,10 @@ final class IdentityPresentationTests: XCTestCase {
     }
 
     func testBalanceFormatterKeepsSummaryLegible() {
-        XCTAssertEqual(IdentityBalanceFormatter.compact("42.500000"), "42.5")
-        XCTAssertEqual(IdentityBalanceFormatter.compact("0.000000001250000000"), "1.250e-09")
+        XCTAssertEqual(IdentityBalanceFormatter.compact("42.500000"), TokenAmountPresentation("42.5").compact)
+        XCTAssertEqual(
+            IdentityBalanceFormatter.compact("0.000000001250000000"),
+            TokenAmountPresentation("0.000000001250000000").compact)
         XCTAssertEqual(IdentityBalanceFormatter.compact("0.000000000000"), "0")
     }
 

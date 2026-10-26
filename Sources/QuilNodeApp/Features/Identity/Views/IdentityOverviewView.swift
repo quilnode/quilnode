@@ -16,6 +16,7 @@ struct IdentityOverviewView: View {
     let onManageRecovery: () -> Void
 
     @State private var selectedRole: IdentityRole = .seniority
+    @State private var identityExpanded = false
 
     private var presentation: IdentityWorkspacePresentation {
         .make(snapshot: snapshot, seniorityTrend: seniorityTrend)
@@ -25,19 +26,25 @@ struct IdentityOverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            if dashboardLayoutClass.isWide {
-                HStack(alignment: .top, spacing: 12) {
-                    workspace
-                        .frame(maxWidth: .infinity)
-                    inspector
-                        .frame(width: 300)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    workspace
-                    inspector
+            IdentityWalletBalances(snapshot: snapshot)
+            DisclosureGroup("Public identities & seniority", isExpanded: $identityExpanded) {
+                if dashboardLayoutClass.isWide {
+                    HStack(alignment: .top, spacing: 12) {
+                        workspace.frame(maxWidth: .infinity)
+                        inspector.frame(width: 300)
+                    }
+                    .padding(.top, 14)
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        workspace
+                        inspector
+                    }
+                    .padding(.top, 14)
                 }
             }
+            .font(.headline)
+            .padding(16)
+            .controlSurface()
         }
         .onChange(of: presentation.roles.map(\.kind)) { _, roles in
             if !roles.contains(selectedRole) {
@@ -62,14 +69,14 @@ struct IdentityOverviewView: View {
 
     private var headerCopy: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("Node Identity")
+            Text("Wallet & identity")
                 .font(
                     .system(
                         size: 28 * theme.typography.scale,
                         weight: .bold,
                         design: theme.typography.displayDesign
                     ))
-            Text("Understand the public roles your node presents without exposing its private keys.")
+            Text("Your locally observed balances, rewards and public node identities.")
                 .font(.subheadline)
                 .foregroundStyle(theme.colors.secondaryText)
         }
@@ -104,8 +111,6 @@ struct IdentityOverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             IdentitySummaryBand(presentation: presentation)
 
-            IdentityWalletBalances(snapshot: snapshot)
-
             IdentityRelationshipPath(
                 roles: presentation.roles,
                 selectedRole: $selectedRole
@@ -118,7 +123,6 @@ struct IdentityOverviewView: View {
                 onOpen: IdentityActions.open
             )
 
-            IdentityCustodyBoundary()
         }
     }
 }

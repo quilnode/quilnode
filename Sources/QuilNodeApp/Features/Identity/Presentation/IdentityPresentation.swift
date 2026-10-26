@@ -233,16 +233,6 @@ struct IdentityWorkspacePresentation {
 
 enum IdentityBalanceFormatter {
     static func compact(_ value: String) -> String {
-        let trimmed = value.compactDecimal
-        guard trimmed.count > 10, let number = Double(trimmed), number.isFinite else {
-            return trimmed
-        }
-        guard number != 0 else { return "0" }
-
-        if abs(number) < 0.0001 || abs(number) >= 1_000_000_000 {
-            return String(format: "%.3e", locale: Locale(identifier: "en_US_POSIX"), number)
-                .lowercased()
-        }
-        return String(format: "%.7g", locale: Locale(identifier: "en_US_POSIX"), number)
+        TokenAmountPresentation(value).compact
     }
 }

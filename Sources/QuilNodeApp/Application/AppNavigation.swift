@@ -18,7 +18,7 @@ enum DashboardDestination: String, CaseIterable, Identifiable {
         case .overview: "Overview"
         case .activity: "Activity"
         case .network: "Network"
-        case .identity: "Identity"
+        case .identity: "Wallet & identity"
         case .recovery: "Recovery"
         case .updates: "Updates"
         case .diagnostics: "Diagnostics"
