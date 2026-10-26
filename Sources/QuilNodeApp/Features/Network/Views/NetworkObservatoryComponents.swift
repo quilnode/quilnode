@@ -79,7 +79,7 @@ struct NetworkObservatoryMetricStrip: View {
     @ViewBuilder
     private var metrics: some View {
         metric(
-            title: "Network shards", value: String(presentation.summary?.totalShards ?? presentation.shards.count),
+            title: "Observed shards", value: String(presentation.summary?.totalShards ?? presentation.shards.count),
             tint: theme.colors.accentSecondary)
         metric(
             title: "Prover memberships",
@@ -87,7 +87,9 @@ struct NetworkObservatoryMetricStrip: View {
             tint: theme.colors.info,
             help: "Sum of per-shard prover memberships in this observation; not a unique-prover count"
         )
-        metric(title: "Healthy", value: String(presentation.summary?.healthyShards ?? 0), tint: theme.colors.success)
+        metric(
+            title: "Coverage at target", value: String(presentation.summary?.healthyShards ?? 0),
+            tint: theme.colors.success)
         metric(
             title: "Needs coverage",
             value: String((presentation.summary?.belowTargetShards ?? 0) + (presentation.summary?.atRiskShards ?? 0)),
@@ -111,10 +113,12 @@ struct NetworkObservatoryMetricStrip: View {
                 .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundStyle(theme.colors.secondaryText)
-            PrivacyProtectedText(value: value, field: privacyField)
-                .font(.system(size: 19, weight: .semibold, design: theme.typography.dataDesign).monospacedDigit())
-                .foregroundStyle(tint)
-                .quilLiveValueTransition(value: value)
+            PrivacyProtectedText(
+                value: presentation.shards.isEmpty && title != "My allocations" ? "—" : value, field: privacyField
+            )
+            .font(.system(size: 19, weight: .semibold, design: theme.typography.dataDesign).monospacedDigit())
+            .foregroundStyle(tint)
+            .quilLiveValueTransition(value: value)
         }
         .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         .padding(.horizontal, 13)
@@ -141,9 +145,9 @@ struct NetworkObservatoryEvidenceRail: View {
     @ViewBuilder
     private var telemetryCells: some View {
         telemetryCell(
-            title: "Frame",
+            title: "Observed frame",
             value: presentation.frame.formatted(.number.grouping(.automatic)),
-            detail: "Local chain head",
+            detail: "Local node / qclient",
             tint: theme.colors.frame
         )
         epochCell

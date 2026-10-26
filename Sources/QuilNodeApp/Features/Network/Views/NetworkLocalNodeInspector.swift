@@ -107,7 +107,7 @@ struct NetworkLocalNodeInspector: View {
                 )
                 if node.allocationCoverage.hasEvidence {
                     compactMetric(
-                        "Healthy coverage",
+                        "Coverage at target",
                         String(node.allocationCoverage.healthy),
                         tint: theme.colors.success,
                         privacyField: .allocationCount

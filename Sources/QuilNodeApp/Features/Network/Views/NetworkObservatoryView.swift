@@ -63,6 +63,10 @@ struct NetworkObservatoryView: View {
             observatoryHeader
             NetworkObservatoryScopeGuide()
             NetworkObservatoryMetricStrip(presentation: presentation)
+            Text(
+                "Coverage uses mainnet membership thresholds (target: 6). It does not measure recent frame or proof production."
+            )
+            .font(.caption).foregroundStyle(theme.colors.secondaryText)
 
             if presentation.isUsingSavedTopology || presentation.topologyIssue != nil {
                 topologyAvailabilityNotice

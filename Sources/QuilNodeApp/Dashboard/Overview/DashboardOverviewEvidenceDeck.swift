@@ -21,7 +21,7 @@ extension DashboardView {
 
             Group {
                 if layoutClass.isWide {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach(cards) { card in
                             OverviewEvidenceCard(card: card) {
                                 if card.destination == .network {
@@ -32,6 +32,7 @@ extension DashboardView {
                             }
                         }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 } else {
                     LazyVGrid(
                         columns: [GridItem(.adaptive(minimum: 220, maximum: 480), spacing: 10)],
@@ -102,7 +103,7 @@ extension DashboardView {
                 metadataValue: ObservationFreshness(observedAt: snapshot.balanceUpdatedAt).label,
                 metadataPrivacyField: .localTimestamp,
                 detail: evidence.rewards.hasModernWallet
-                    ? "Rewards require minting. View all balances →" : "View exact balance and identities →",
+                    ? "Rewards require minting. View all balances" : "View exact balance and identities",
                 destination: .identity, observedAt: snapshot.balanceUpdatedAt),
             OverviewEvidenceCardDescriptor(
                 id: "progress", title: "Chain progress", systemImage: "square.stack.3d.up", tint: theme.colors.frame,
@@ -112,7 +113,7 @@ extension DashboardView {
                 secondary: nil, metadataLabel: "Received",
                 metadataValue: nodeObservation.value(
                     snapshot.lastReceivedFrame > 0 ? snapshot.lastReceivedFrame.grouped : "—"),
-                metadataPrivacyField: nil, detail: "Local observation, not a global sync guarantee. →",
+                metadataPrivacyField: nil, detail: "Local observation, not a global sync guarantee.",
                 destination: .activity,
                 observedAt: snapshot.lastGlobalHeadFrame > 0
                     ? snapshot.proverStatusUpdatedAt : snapshot.metricsUpdatedAt),
@@ -126,7 +127,7 @@ extension DashboardView {
                 secondary: nil, metadataLabel: "Joining",
                 metadataValue: nodeObservation.value(evidence.participation.joiningAllocations.map(String.init) ?? "—"),
                 metadataPrivacyField: .allocationCount,
-                detail: "Registry membership. Worker execution below. →", destination: .network,
+                detail: "Registry membership. Worker execution below.", destination: .network,
                 observedAt: snapshot.proverStatusUpdatedAt),
             OverviewEvidenceCardDescriptor(
                 id: "network", title: "Connectivity", systemImage: "network", tint: theme.colors.info,
@@ -138,7 +139,7 @@ extension DashboardView {
                 secondary: nil, metadataLabel: "Archives",
                 metadataValue: nodeObservation.value(evidence.network.archiveSources.map(String.init) ?? "—"),
                 metadataPrivacyField: .networkActivity,
-                detail: "Verify listeners, firewall and inbound traffic →", destination: .network,
+                detail: "Verify listeners, firewall and inbound traffic", destination: .network,
                 observedAt: snapshot.metricsUpdatedAt),
         ]
     }
@@ -279,7 +280,8 @@ private struct OverviewEvidenceCard: View {
                     .lineLimit(2)
             }
             .padding(13)
-            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
             .contentShape(Rectangle())
             .controlSurface(tint: card.tint.opacity(0.48))
         }

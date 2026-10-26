@@ -172,7 +172,7 @@ private struct OverviewWorkerRuntimeCard: View {
                     .foregroundStyle(theme.colors.primaryText)
                     Spacer(minLength: 4)
                     PrivacyProtectedText(
-                        value: worker.allocationLabel,
+                        value: execution.title,
                         field: .shardAllocation
                     )
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -187,10 +187,13 @@ private struct OverviewWorkerRuntimeCard: View {
                     field: .shardAllocation
                 )
 
-                workerDatum(label: "Execution", value: execution.title, field: .shardAllocation)
+                workerDatum(label: "Assignment", value: worker.allocationLabel, field: .shardAllocation)
                 workerDatum(label: "App frame", value: execution.frameText, field: .shardAllocation)
                 PrivacyProtectedText(
-                    value: worker.isDraining ? "Draining surplus worker" : execution.detail, field: .shardAllocation
+                    value: worker.isDraining
+                        ? "Draining surplus worker"
+                        : (execution.needsReview || worker.execution?.recoveryPhase.map({ $0 != "idle" }) == true
+                            ? execution.detail : "Last advance: " + execution.advanceText), field: .shardAllocation
                 )
                 .font(.caption2).foregroundStyle(theme.colors.secondaryText)
                 .lineLimit(2)

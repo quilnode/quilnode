@@ -197,18 +197,10 @@ struct DiagnosticsDashboardView: View {
                 } else {
                     ForEach(Array(monitor.snapshot.recentWarnings.prefix(12).enumerated()), id: \.offset) {
                         index, warning in
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(
-                                systemName: recoveryEvidenceIsWaiting
-                                    ? "hourglass.circle.fill" : "exclamationmark.circle.fill"
-                            )
-                            .foregroundStyle(recoveryEvidenceIsWaiting ? theme.colors.info : theme.colors.warning)
-                            .padding(.top, 1)
-                            Text(PrivacySanitizer.display(warning, enabled: privacyMode.isEnabled))
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                        DiagnosticMessageRow(
+                            message: PrivacySanitizer.display(warning, enabled: privacyMode.isEnabled),
+                            isWaiting: recoveryEvidenceIsWaiting
+                        )
                         .padding(13)
                         if index < min(monitor.snapshot.recentWarnings.count, 12) - 1 {
                             Divider().padding(.leading, 40)

@@ -96,7 +96,9 @@ struct DashboardStatusFooter: View {
     private var statusTint: Color {
         switch observationPhase {
         case .checkingProcess, .loadingTelemetry: theme.colors.info
-        case .ready: snapshot.isRunning ? theme.colors.success : theme.colors.danger
+        case .ready:
+            ObservationFreshness(observedAt: snapshot.collectedAt, maximumAge: 30).isCurrent
+                ? (snapshot.isRunning ? theme.colors.success : theme.colors.danger) : theme.colors.warning
         }
     }
 }

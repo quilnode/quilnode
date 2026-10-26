@@ -23,7 +23,7 @@ public enum ShardCoverageState: String, Codable, Equatable, Sendable {
         case .unassigned: "Unassigned"
         case .atRisk: "At risk"
         case .belowTarget: "Below target"
-        case .healthy: "Healthy"
+        case .healthy: "At target"
         }
     }
 }

@@ -45,6 +45,9 @@ struct WorkerExecutionPresentation {
         if !nodeRunning { return "Last worker observation retained; the node is stopped." }
         if !isCurrent { return "Waiting for a current worker observation." }
         if let blocker = observation.blocker { return blocker }
+        if let failures = observation.recoveryFailures, failures > 0 {
+            return "Recovery: \(failures) consecutive failed attempts"
+        }
         if let phase = observation.recoveryPhase, phase != "idle" {
             return "Recovery: " + phase.replacingOccurrences(of: "_", with: " ")
         }

@@ -225,7 +225,7 @@ struct MenuBarContent: View {
                     Divider().opacity(0.40).padding(.leading, 54)
 
                     MenuBarEvidenceRow(
-                        title: "Identity",
+                        title: "Wallet & identity",
                         systemImage: "person.text.rectangle.fill",
                         tint: theme.colors.accentSecondary,
                         metrics: [
@@ -236,7 +236,7 @@ struct MenuBarContent: View {
                                 tint: theme.colors.accentSecondary
                             ),
                             MenuBarEvidenceMetric(
-                                label: "QUIL",
+                                label: presentation.walletAmountLabel,
                                 value: presentation.hasLiveTelemetry ? presentation.quilBalanceText : "—",
                                 privacyField: .quilBalance,
                                 tint: theme.colors.wallet

@@ -24,7 +24,11 @@ extension DashboardView {
             if let progress = releaseChecker.progress {
                 updateProgressCard(progress)
             } else {
-                updateFlightPlanIdle
+                DisclosureGroup("How node updates work", isExpanded: $updateExplanationExpanded) {
+                    updateFlightPlanIdle.padding(.top, 12)
+                }
+                .font(.subheadline.weight(.medium))
+                .padding(14).controlSurface()
             }
 
             updateMessageStrip

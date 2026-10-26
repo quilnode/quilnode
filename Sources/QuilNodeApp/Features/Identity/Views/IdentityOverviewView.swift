@@ -87,7 +87,7 @@ struct IdentityOverviewView: View {
         Button(action: onManageRecovery) {
             Label("Manage recovery", systemImage: "externaldrive.badge.checkmark")
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.bordered)
         .controlSize(.large)
         .help("Back up, import, or switch the complete node identity")
         .accessibilityLabel("Manage identity recovery")

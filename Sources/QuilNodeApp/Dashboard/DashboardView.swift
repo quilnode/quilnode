@@ -23,6 +23,7 @@ struct DashboardView: View {
     @State var pendingUpdatePolicy: NodeUpdatePolicy?
     @State var buildLogExpanded = false
     @State var overviewDetailsExpanded = false
+    @State var updateExplanationExpanded = false
     @AppStorage("networkWorkspaceMode") var overviewNetworkMode = NetworkWorkspaceMode.observatory.rawValue
     @State var destination: DashboardDestination = .overview
     @AppStorage("dashboardSidebarCollapsed") var sidebarCollapsed = false

@@ -141,6 +141,10 @@ struct IdentityWalletBalances: View {
             }
             PrivacyProtectedText(value: value.exact.map { "\($0) QUIL" } ?? "Unavailable", field: .quilBalance)
                 .font(.callout.monospacedDigit()).fixedSize(horizontal: false, vertical: true)
+            if let count = component?.coinCount {
+                PrivacyProtectedText(value: "\(count.grouped) coins reported", field: .quilBalance)
+                    .font(.caption).foregroundStyle(theme.colors.secondaryText)
+            }
             if let frame = component?.frame {
                 PrivacyProtectedText(value: "Reported at frame \(frame.grouped)", field: .rewardActivity)
                     .font(.caption).foregroundStyle(theme.colors.secondaryText)

@@ -155,8 +155,13 @@ struct MenuBarPresentation {
         return min(max(memory / totalMB, 0), 1)
     }
 
+    var walletAmountLabel: String { snapshot.walletBalance?.isLegacyFormat == false ? "Claimable QUIL" : "QUIL" }
+
     var quilBalanceText: String {
-        TokenAmountPresentation(snapshot.quilBalance).compact
+        TokenAmountPresentation(
+            snapshot.walletBalance?.isLegacyFormat == false
+                ? snapshot.walletBalance?.rewards?.amount : snapshot.quilBalance
+        ).compact
     }
 
     var cpuText: String {

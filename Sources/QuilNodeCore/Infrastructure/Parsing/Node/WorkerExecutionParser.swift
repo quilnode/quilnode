@@ -9,8 +9,8 @@ enum WorkerExecutionParser {
             "start", "starting", "wait", "waiting", "sync", "syncing", "serve", "serving",
             "close", "closing", "handoff", "running", "blocked", "stopped", "unknown", "stale",
         ]
-        let observationAge = capture(#"; observation ([0-9]+)s ago"#, in: line).flatMap(Double.init)
-        let advanceAge = capture(#"; last advance ([0-9]+)s ago"#, in: line).flatMap(Double.init)
+        let observationAge = capture(#"; observation ([0-9]+)s ago"#, in: line).flatMap(boundedAge)
+        let advanceAge = capture(#"; last advance ([0-9]+)s ago"#, in: line).flatMap(boundedAge)
         return WorkerExecutionObservation(
             state: known.contains(state) ? state : "unknown",
             blocker: capture(#"^Local execution: [a-z]+ \(([^;]{1,512})\);"#, in: line),
@@ -22,6 +22,11 @@ enum WorkerExecutionParser {
             recoveryFailures: capture(#"\(([0-9]+) failed in a row\)"#, in: line).flatMap(Int.init),
             sealRecorded: line.contains("; Seal:") ? line.contains(", recorded by GLOBAL ") : nil
         )
+    }
+
+    private static func boundedAge(_ value: String) -> TimeInterval? {
+        guard let seconds = UInt64(value), seconds <= 3_155_760_000 else { return nil }
+        return TimeInterval(seconds)
     }
 
     private static func capture(_ pattern: String, in text: String) -> String? {
