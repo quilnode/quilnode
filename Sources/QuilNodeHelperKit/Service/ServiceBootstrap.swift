@@ -30,6 +30,13 @@ extension QuilNodeHelper {
             action, loaded: isLoaded(), running: action == .start && nodeProcessIsRunning()
         )
         for command in commands { try runLaunchctl(command) }
+        // A manually started job must also run when its saved boot policy is
+        // off. bootstrap alone only loads a RunAtLoad=false job.
+        if !commands.isEmpty, action == .start || action == .restart,
+            try readPlist()["RunAtLoad"] as? Bool == false
+        {
+            try runLaunchctl(["kickstart", serviceTarget])
+        }
     }
 
     static func lifecycleCommands(_ action: HelperAction, loaded: Bool, running: Bool) throws -> [[String]] {

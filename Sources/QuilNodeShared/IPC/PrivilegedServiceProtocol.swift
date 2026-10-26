@@ -5,8 +5,8 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 121
-    public static let minimumSupportedServiceBuild = 121
+    public static let currentServiceBuild = 122
+    public static let minimumSupportedServiceBuild = 122
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
 }
@@ -51,6 +51,9 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
     case qclientInstall
     case nodeUpdatePolicyStatus
     case nodeUpdatePolicyConfigure
+    case nodeStartupStatus
+    case nodeStartupEnable
+    case nodeStartupDisable
 }
 
 /// Bounded output from two fixed, read-only qclient commands. The privileged
@@ -114,6 +117,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     /// passwordless high-risk operation and requires fresh macOS user presence.
     public var authorizationRequired: Bool?
     public var nodeUpdatePolicy: AutomaticNodeUpdatePolicy?
+    public var nodeStartAtBoot: Bool?
 
     public init(
         success: Bool,
@@ -137,7 +141,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         operationUpdatedAt: Date? = nil,
         serviceBuild: Int? = nil,
         authorizationRequired: Bool? = nil,
-        nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil
+        nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil,
+        nodeStartAtBoot: Bool? = nil
     ) {
         self.success = success
         self.message = message
@@ -161,5 +166,6 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.serviceBuild = serviceBuild
         self.authorizationRequired = authorizationRequired
         self.nodeUpdatePolicy = nodeUpdatePolicy
+        self.nodeStartAtBoot = nodeStartAtBoot
     }
 }

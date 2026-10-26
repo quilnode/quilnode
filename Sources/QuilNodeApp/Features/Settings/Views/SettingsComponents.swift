@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum SettingsPane: String, CaseIterable, Identifiable {
+    case startup
     case appearance
     case privacy
     case updates
@@ -9,6 +10,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .startup: "Startup"
         case .appearance: "Appearance"
         case .privacy: "Privacy"
         case .updates: "App Updates"
@@ -17,6 +19,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .startup: "power.circle.fill"
         case .appearance: "paintpalette.fill"
         case .privacy: "eye.slash.fill"
         case .updates: "arrow.down.app.fill"
@@ -25,6 +28,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var windowHeight: CGFloat {
         switch self {
+        case .startup: 500
         case .appearance: 510
         case .privacy: 520
         case .updates: 650

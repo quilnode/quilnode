@@ -159,6 +159,13 @@ extension QuilNodeHelper {
         case .firewallStatus:
             let status = try inspectFirewall()
             return try firewallResponse(status)
+        case .nodeStartupStatus:
+            return try nodeStartupResponse()
+        case .nodeStartupEnable, .nodeStartupDisable:
+            return try withMutationLock {
+                try configureNodeStartup(enabled: request.action == .nodeStartupEnable)
+                return try nodeStartupResponse()
+            }
         case .firewallConfigure:
             let status = try withMutationLock { try configureFirewall() }
             return try firewallResponse(status)

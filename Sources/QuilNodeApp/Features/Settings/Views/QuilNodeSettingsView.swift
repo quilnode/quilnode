@@ -10,6 +10,10 @@ struct QuilNodeSettingsView: View {
 
     var body: some View {
         TabView(selection: $selectedPane) {
+            StartupSettingsPane()
+                .tabItem { Label(SettingsPane.startup.title, systemImage: SettingsPane.startup.systemImage) }
+                .tag(SettingsPane.startup.rawValue)
+
             AppearanceSettingsPane()
                 .tabItem {
                     Label(SettingsPane.appearance.title, systemImage: SettingsPane.appearance.systemImage)
