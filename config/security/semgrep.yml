@@ -74,7 +74,7 @@ rules:
     pattern-regex: '(?:curl|wget)[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z)?sh\b'
 
   - id: quilnode.no-plain-http-remote-endpoints
-    message: Remote application endpoints must use HTTPS. Local router discovery is separately reviewed.
+    message: Remote endpoints must use HTTPS. Only the fixed managed-node loopback RPC and separately reviewed router discovery use HTTP.
     severity: ERROR
     languages: [generic]
     paths:
@@ -82,4 +82,6 @@ rules:
         - /Sources/**
       exclude:
         - /Sources/QuilNodeApp/Infrastructure/Networking/RouterAccessDiscovery.swift
-    pattern-regex: 'http://'
+    # Exact loopback literal plus the closed Method enum; no arbitrary host,
+    # port, path, redirect, or proxy is accepted by LocalNodeRPC.
+    pattern-regex: 'http://(?!127\.0\.0\.1:8337/quilibrium\.node\.node\.pb\.NodeService/\\\(method\.rawValue\)")'
