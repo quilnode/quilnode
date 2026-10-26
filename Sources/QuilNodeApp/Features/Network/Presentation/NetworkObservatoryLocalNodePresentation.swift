@@ -97,7 +97,7 @@ struct NetworkLocalNodePresentation {
             version: snapshot.version,
             runningWorkers: snapshot.localWorkerCount,
             allocatedWorkers: snapshot.allocatedWorkers,
-            workers: snapshot.localWorkers ?? [],
+            workers: (snapshot.localWorkers ?? []).sorted { $0.coreID < $1.coreID },
             activeAllocations: snapshot.activeAllocations,
             joiningAllocations: snapshot.joiningAllocations,
             totalAllocations: max(

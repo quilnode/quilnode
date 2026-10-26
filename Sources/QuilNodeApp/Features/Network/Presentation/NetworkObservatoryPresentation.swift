@@ -5,6 +5,7 @@ import Foundation
 #endif
 
 enum NetworkWorkspaceMode: String, CaseIterable, Identifiable {
+    case workers
     case observatory
     case connectivity
 
@@ -12,6 +13,7 @@ enum NetworkWorkspaceMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .workers: "Workers"
         case .observatory: "Observatory"
         case .connectivity: "Connectivity"
         }
@@ -19,6 +21,7 @@ enum NetworkWorkspaceMode: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .workers: "cpu"
         case .observatory: "point.3.filled.connected.trianglepath.dotted"
         case .connectivity: "cable.connector"
         }

@@ -5,6 +5,7 @@ struct WorkerObservationRow: View {
     @Environment(\.quilTheme) private var theme
     let worker: LocalWorkerObservation?
     let nodeRunning: Bool
+    var allocationLabel: String? = nil
     @State private var expanded = false
 
     private var execution: WorkerExecutionPresentation {
@@ -45,6 +46,13 @@ struct WorkerObservationRow: View {
                     PrivacyProtectedText(value: execution.title, field: .shardAllocation)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(execution.needsReview ? theme.colors.warning : theme.colors.secondaryText)
+                }
+                if let allocationLabel {
+                    PrivacyProtectedText(
+                        value: "Assignment: \(allocationLabel) · App frame: \(execution.frameText)",
+                        field: .shardAllocation
+                    )
+                    .font(.caption).foregroundStyle(theme.colors.secondaryText)
                 }
                 PrivacyProtectedText(value: execution.detail, field: .shardAllocation)
                     .font(.caption2).foregroundStyle(theme.colors.secondaryText).lineLimit(2)

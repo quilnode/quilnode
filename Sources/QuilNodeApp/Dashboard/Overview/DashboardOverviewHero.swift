@@ -48,7 +48,7 @@ extension DashboardView {
         VStack(alignment: .leading, spacing: 9) {
             Button {
                 if status.workersNeedingReview > 0 {
-                    openOverviewNetwork(.observatory)
+                    openOverviewNetwork(.workers)
                 } else {
                     destination = .diagnostics
                 }

@@ -30,7 +30,7 @@ extension DashboardView {
                         .accessibilityLabel("Loading worker runtime")
                 } else {
                     Button {
-                        openOverviewNetwork(.observatory)
+                        openOverviewNetwork(.workers)
                     } label: {
                         Label("View all", systemImage: "arrow.right")
                             .labelStyle(.titleAndIcon)
@@ -66,7 +66,7 @@ extension DashboardView {
             overviewWorkerCardRow(placeholderWorkers(count: visibleCardCount, label: "Hidden"))
         case .empty:
             Button {
-                openOverviewNetwork(.observatory)
+                openOverviewNetwork(.workers)
             } label: {
                 HStack(spacing: 11) {
                     DashboardCircleIcon(
@@ -113,7 +113,7 @@ extension DashboardView {
         HStack(spacing: 9) {
             ForEach(workers) { worker in
                 OverviewWorkerRuntimeCard(worker: worker) {
-                    openOverviewNetwork(.observatory)
+                    openOverviewNetwork(.workers)
                 }
             }
         }

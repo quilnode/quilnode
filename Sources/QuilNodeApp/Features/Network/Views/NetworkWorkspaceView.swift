@@ -18,7 +18,7 @@ struct NetworkWorkspaceView: View {
                 HStack(alignment: .center, spacing: 14) {
                     workspaceTitle
                     Spacer(minLength: 12)
-                    modePicker.frame(width: 286)
+                    modePicker.frame(width: 360)
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     workspaceTitle
@@ -27,6 +27,8 @@ struct NetworkWorkspaceView: View {
             }
 
             switch mode.wrappedValue {
+            case .workers:
+                NetworkWorkersView()
             case .observatory:
                 NetworkObservatoryView()
             case .connectivity:
@@ -39,7 +41,7 @@ struct NetworkWorkspaceView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Network")
                 .font(.system(size: 24 * theme.typography.scale, weight: .bold, design: theme.typography.displayDesign))
-            Text("Explore locally observed network state or verify this Mac's inbound path.")
+            Text("Inspect local workers, explore shard coverage or verify inbound connectivity.")
                 .font(.subheadline)
                 .foregroundStyle(theme.colors.secondaryText)
         }

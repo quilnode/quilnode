@@ -159,7 +159,7 @@ struct NetworkLocalNodeInspector: View {
             }
             datum(
                 "QUIL balance",
-                node.quilBalance?.compactDecimal ?? "—",
+                TokenAmountPresentation(node.quilBalance).compact,
                 privacyField: node.quilBalance == nil ? nil : .quilBalance
             )
             datum(
@@ -211,10 +211,10 @@ struct NetworkLocalNodeInspector: View {
             )
             datum(
                 "Node memory",
-                node.memoryMB.map { String(format: "%.0f MB", $0) } ?? "—",
+                RuntimeResourceFormatter.memory(node.memoryMB),
                 privacyField: .hardwareProfile
             )
-            datum("Node uptime", node.processUptime ?? "—", privacyField: .nodeUptime)
+            datum("Node uptime", RuntimeResourceFormatter.uptime(node.processUptime), privacyField: .nodeUptime)
         }
     }
 

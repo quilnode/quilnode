@@ -69,7 +69,7 @@ struct NetworkObservatoryLegend: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            legendItem("Healthy", color: theme.colors.success)
+            legendItem("At target", color: theme.colors.success)
             legendItem("Below target", color: theme.colors.warning)
             legendItem("At risk", color: theme.colors.danger)
             legendItem("Unassigned", color: theme.colors.muted)
