@@ -158,7 +158,8 @@ struct NetworkObservatoryView: View {
                 onSelectLocalNode: { selection = .localNode },
                 zoom: zoom,
                 archiveSources: presentation.archiveSources,
-                localAllocationCount: presentation.localAllocationCount
+                localAllocationCount: presentation.localAllocationCount,
+                topologyIsCurrent: presentation.evidenceState == .current
             )
 
             if visibleShards.isEmpty {

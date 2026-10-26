@@ -233,9 +233,11 @@ struct NetworkStateBadge: View {
 
 enum NetworkFreshnessFormatter {
     static func string(from date: Date) -> String {
+        let now = Date()
+        if abs(date.timeIntervalSince(now)) < 1 { return "Just now" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return formatter.localizedString(for: min(date, now), relativeTo: now)
     }
 }
 

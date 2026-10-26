@@ -62,11 +62,13 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
 public struct QClientProverTelemetryPayload: Codable, Equatable, Sendable {
     public var statusOutput: String
     public var shardInfoOutput: String
+    public var shardInfoError: String?
     public var observedAt: Date
 
-    public init(statusOutput: String, shardInfoOutput: String, observedAt: Date) {
+    public init(statusOutput: String, shardInfoOutput: String, observedAt: Date, shardInfoError: String? = nil) {
         self.statusOutput = statusOutput
         self.shardInfoOutput = shardInfoOutput
+        self.shardInfoError = shardInfoError
         self.observedAt = observedAt
     }
 }

@@ -7,7 +7,7 @@ import QuilNodeShared
 public enum QClientShardInfoParser {
     private static let rowExpression = try! NSRegularExpression(
         pattern:
-            #"^\s*Filter:\s+([0-9a-fA-F]+)\s+Size:\s+(.+?)\s+Shards:\s+([0-9]+)\s+Provers:\s+([0-9]+)\s+Ring:\s+([0-9]+)\s+Reward:\s+~(.+?)\s+QUIL/frame(?:\s+\[(?:Worker\s+([^\]]+)|ACTIVE)\])?\s*$"#
+            #"^\s*Filter:\s+([0-9a-fA-F]+)\s+Size:\s+(.+?)\s+Shards:\s+([0-9]+)\s+Provers:\s+([0-9]+)\s+Ring:\s+([0-9]+|-)\s+Reward:\s+~?([0-9]+(?:\.[0-9]+)?|-)\s+(QUIL/frame|Q/d)(?:\s+\[(?:Worker\s+([^\]]+)|ACTIVE)\])?\s*$"#
     )
     private static let footerExpression = try! NSRegularExpression(
         pattern: #"^Difficulty:\s+([0-9]+)\s+Frame:\s+([0-9]+)\s*$"#
@@ -47,21 +47,23 @@ public enum QClientShardInfoParser {
     }
 
     private static func parseRow(_ line: String) -> NetworkShardObservation? {
-        guard let values = captures(rowExpression, in: line), values.count == 7,
+        guard let values = captures(rowExpression, in: line), values.count == 8,
             let dataShards = Int(values[2]),
             let activeProvers = Int(values[3]),
-            let ring = Int(values[4])
+            values[4] == "-" || Int(values[4]) != nil
         else { return nil }
-        let worker = values[6].isEmpty ? nil : values[6]
+        let worker = values[7].isEmpty ? nil : values[7]
+        let reward = values[5] == "-" ? nil : values[5]
         return NetworkShardObservation(
             filter: values[0].lowercased(),
             shardSize: values[1],
             dataShards: dataShards,
             activeProvers: activeProvers,
-            ring: ring,
-            estimatedRewardPerFrame: values[5],
+            ring: Int(values[4]),
+            estimatedRewardPerFrame: values[6] == "QUIL/frame" ? reward : nil,
             isAllocated: worker != nil || line.contains("[ACTIVE]"),
-            worker: worker
+            worker: worker,
+            estimatedRewardPerDay: values[6] == "Q/d" ? reward : nil
         )
     }
 
@@ -84,6 +86,11 @@ public enum LocalProverTelemetryParser {
         let shardError: String?
         if shardInfo != nil {
             shardError = nil
+        } else if let error = payload.shardInfoError {
+            shardError = error
+        } else if payload.shardInfoOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            shardError =
+                "The local shard lookup did not complete. Saved topology remains available while QuilNode retries."
         } else if payload.shardInfoOutput
             .split(separator: "\n")
             .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "No shards found" })

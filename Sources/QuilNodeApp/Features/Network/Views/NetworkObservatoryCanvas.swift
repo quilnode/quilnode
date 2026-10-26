@@ -17,6 +17,7 @@ struct NetworkObservatoryCanvas: View {
     let zoom: CGFloat
     let archiveSources: Int?
     let localAllocationCount: Int
+    let topologyIsCurrent: Bool
 
     private var hidesLocalTopology: Bool {
         redactionReasons.contains(.privacy)
@@ -96,8 +97,9 @@ struct NetworkObservatoryCanvas: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: 6) {
-                Circle().fill(theme.colors.success).frame(width: 6, height: 6)
-                Text("LIVE LOCAL VANTAGE")
+                Circle().fill(topologyIsCurrent ? theme.colors.success : theme.colors.warning).frame(
+                    width: 6, height: 6)
+                Text(topologyIsCurrent ? "CURRENT LOCAL OBSERVATION" : "SAVED LOCAL OBSERVATION")
                     .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                     .tracking(1.1)
             }
@@ -169,6 +171,6 @@ struct NetworkObservatoryCanvas: View {
     private func accessibilityLabel(for shard: NetworkShardPresentation) -> String {
         let local = shard.observation.isAllocated && !hidesLocalTopology ? ", allocated to this node" : ""
         return
-            "Shard \(shard.shortFilter), \(shard.coverage.label), \(shard.observation.activeProvers) active provers, ring \(shard.observation.ring)\(local)"
+            "Shard \(shard.shortFilter), \(shard.coverage.label), \(shard.observation.activeProvers) active provers, ring \(shard.observation.ringLabel)\(local)"
     }
 }

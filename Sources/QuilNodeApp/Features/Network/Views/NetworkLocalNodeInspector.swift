@@ -126,10 +126,12 @@ struct NetworkLocalNodeInspector: View {
                     privacyField: .shardAllocation
                 )
             }
-            Text("Workers are local processes. Allocations are registry assignments. Coverage describes their shards.")
-                .font(.system(size: 9.2))
-                .foregroundStyle(theme.colors.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Workers execute within the local node. Allocations are registry assignments. Coverage describes their shards."
+            )
+            .font(.system(size: 9.2))
+            .foregroundStyle(theme.colors.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -144,10 +146,10 @@ struct NetworkLocalNodeInspector: View {
                     .foregroundStyle(theme.colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if let perFrame = node.estimatedRewardPerFrame,
-                let perDay = node.estimatedRewardPerTargetDay
-            {
-                datum("Model estimate / frame", "~\(perFrame) QUIL", privacyField: .rewardActivity)
+            if let perDay = node.estimatedRewardPerTargetDay {
+                if let perFrame = node.estimatedRewardPerFrame {
+                    datum("Model estimate / frame", "~\(perFrame) QUIL", privacyField: .rewardActivity)
+                }
                 datum("At target cadence / day", "~\(perDay) QUIL", privacyField: .rewardActivity)
                 Text("Shard-model estimate only; it is not proof of work or payment.")
                     .font(.system(size: 9.2))
@@ -314,7 +316,8 @@ struct NetworkLocalNodeInspector: View {
             )
             workerDatum(
                 "Storage",
-                worker.map { "\($0.availableStorage) / \($0.totalStorage)" } ?? "hidden",
+                worker.map { $0.totalStorage == "0 B" ? "Not reported" : "\($0.availableStorage) / \($0.totalStorage)" }
+                    ?? "hidden",
                 privacyField: .hardwareProfile,
                 width: nil
             )

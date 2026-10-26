@@ -49,7 +49,7 @@ extension PrivilegedServiceClient {
     }
 
     public static func readProverTelemetry(
-        timeout: TimeInterval = 35
+        timeout: TimeInterval = 75
     ) -> (telemetry: LocalProverTelemetry?, error: String?) {
         let result = response(.proverTelemetry, timeout: timeout)
         guard result.exitCode == 0,

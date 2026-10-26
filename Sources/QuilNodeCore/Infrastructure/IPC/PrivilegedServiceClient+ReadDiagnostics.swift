@@ -29,7 +29,7 @@ extension PrivilegedServiceClient {
             ? [("service", .capabilities, 10)]
             : [
                 ("service", .capabilities, 10), ("client", .qclientStatus, 10), ("identity", .nodeInfo, 75),
-                ("prover", .proverTelemetry, 35), ("wallet", .balance, 195),
+                ("prover", .proverTelemetry, 75), ("wallet", .balance, 195),
             ]
         for (name, action, timeout) in reads {
             let result = response(action, timeout: timeout)

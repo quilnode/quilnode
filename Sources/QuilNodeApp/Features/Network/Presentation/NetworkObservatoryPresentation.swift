@@ -96,7 +96,7 @@ struct NetworkShardPresentation: Identifiable, Equatable {
         let publicMatch =
             observation.filter.lowercased().contains(normalized)
             || coverage.label.lowercased().contains(normalized)
-            || "ring \(observation.ring)".contains(normalized)
+            || "ring \(observation.ringLabel)".contains(normalized)
         guard !publicMatch, includesLocalAssignments else { return publicMatch }
         return observation.worker?.lowercased().contains(normalized) == true
             || "worker \(observation.worker ?? "")".contains(normalized)
@@ -179,7 +179,8 @@ struct NetworkObservatoryPresentation {
         let epochClock = NodeEpochClock(frame: effectiveFrame, epochLength: snapshot.epochLength)
         let topologyIssue = NetworkTopologyFallbackPresentation.issue(for: snapshot)
 
-        let localNode = NetworkLocalNodePresentation.make(snapshot: snapshot, shards: shards)
+        let localNode = NetworkLocalNodePresentation.make(
+            snapshot: snapshot, shards: shards, estimatesAreCurrent: evidenceState == .current)
         return Self(
             shards: shards,
             summary: summary,
@@ -294,8 +295,8 @@ struct NetworkObservatoryPresentation {
         _ lhs: NetworkShardPresentation,
         _ rhs: NetworkShardPresentation
     ) -> Bool {
-        let lhsValue = NetworkReportedQuantity.decimal(lhs.observation.estimatedRewardPerFrame)
-        let rhsValue = NetworkReportedQuantity.decimal(rhs.observation.estimatedRewardPerFrame)
+        let lhsValue = lhs.observation.rewardPerTargetDay
+        let rhsValue = rhs.observation.rewardPerTargetDay
         if lhsValue != rhsValue {
             return (lhsValue ?? -1) > (rhsValue ?? -1)
         }

@@ -21,7 +21,14 @@ extension QuilNodeHelper {
         guard status.exitCode == 0, !status.timedOut else {
             throw HelperFailure.command("The local prover status read did not complete. \(status.output)")
         }
-        let shardInfo = try runQClientRead(["node", "prover", "shardinfo"], timeout: timeout)
+        // The node may consult its archive peers before answering shardinfo.
+        // Give that fixed read its own budget without slowing frame/mesh polls.
+        let shardInfo = try runQClientRead(["node", "prover", "shardinfo"], timeout: 45)
+        let shardError: String? =
+            shardInfo.timedOut
+            ? "The local node's shard lookup timed out after 45 seconds. Saved topology is retained; QuilNode retries automatically."
+            : (shardInfo.exitCode == 0
+                ? nil : "The local node could not return shard topology. QuilNode retries automatically.")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return String(
@@ -29,7 +36,8 @@ extension QuilNodeHelper {
                 QClientProverTelemetryPayload(
                     statusOutput: status.output,
                     shardInfoOutput: shardInfo.exitCode == 0 && !shardInfo.timedOut ? shardInfo.output : "",
-                    observedAt: Date()
+                    observedAt: Date(),
+                    shardInfoError: shardError
                 )
             ),
             as: UTF8.self

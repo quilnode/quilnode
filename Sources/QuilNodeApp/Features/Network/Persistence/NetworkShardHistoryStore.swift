@@ -203,7 +203,8 @@ final class NetworkShardHistoryStore: ObservableObject {
                         dataShards: shard.dataShards,
                         activeProvers: shard.activeProvers,
                         ring: shard.ring,
-                        estimatedRewardPerFrame: shard.estimatedRewardPerFrame
+                        estimatedRewardPerFrame: shard.estimatedRewardPerFrame,
+                        estimatedRewardPerDay: shard.estimatedRewardPerDay
                     )
                 )
             }
@@ -224,6 +225,7 @@ final class NetworkShardHistoryStore: ObservableObject {
             case .dataShards: previous.dataShards != current.dataShards
             case .estimatedReward:
                 previous.estimatedRewardPerFrame != current.estimatedRewardPerFrame
+                    || previous.estimatedRewardPerDay != current.estimatedRewardPerDay
             }
         }
     }
@@ -247,8 +249,9 @@ private struct NetworkShardFingerprint: Codable, Equatable, Sendable {
     let shardSize: String
     let dataShards: Int
     let activeProvers: Int
-    let ring: Int
-    let estimatedRewardPerFrame: String
+    let ring: Int?
+    let estimatedRewardPerFrame: String?
+    let estimatedRewardPerDay: String?
 
     func observation(filter: String) -> NetworkShardObservation {
         NetworkShardObservation(
@@ -258,7 +261,8 @@ private struct NetworkShardFingerprint: Codable, Equatable, Sendable {
             activeProvers: activeProvers,
             ring: ring,
             estimatedRewardPerFrame: estimatedRewardPerFrame,
-            isAllocated: false
+            isAllocated: false,
+            estimatedRewardPerDay: estimatedRewardPerDay
         )
     }
 }

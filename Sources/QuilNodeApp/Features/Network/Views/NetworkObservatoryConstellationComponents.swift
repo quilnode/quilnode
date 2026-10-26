@@ -25,7 +25,7 @@ struct NetworkShardHitTarget: View {
                     )
                     .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(theme.colors.primaryText)
-                    Text("Ring \(shard.observation.ring)")
+                    Text("Ring \(shard.observation.ringLabel)")
                         .font(.system(size: 8.5, design: .monospaced).monospacedDigit())
                         .foregroundStyle(theme.colors.secondaryText)
                     Text("\(shard.observation.activeProvers) provers")

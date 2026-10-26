@@ -14,16 +14,19 @@ struct NetworkRingDistribution: Equatable {
     let ring1: Int
     let ring2: Int
     let ring3Plus: Int
+    let unknown: Int
 
     init(shards: [NetworkShardPresentation]) {
         ring0 = shards.count { $0.observation.ring == 0 }
         ring1 = shards.count { $0.observation.ring == 1 }
         ring2 = shards.count { $0.observation.ring == 2 }
-        ring3Plus = shards.count { $0.observation.ring >= 3 }
+        ring3Plus = shards.count { ($0.observation.ring ?? -1) >= 3 }
+        unknown = shards.count { $0.observation.ring == nil }
     }
 
     var compactLabel: String {
         "R0 \(ring0) · R1 \(ring1) · R2 \(ring2) · R3+ \(ring3Plus)"
+            + (unknown > 0 ? " · Unknown \(unknown)" : "")
     }
 }
 
@@ -77,7 +80,9 @@ struct NetworkLocalNodePresentation {
     let processUptime: String?
     let observedAt: Date?
 
-    static func make(snapshot: NodeSnapshot, shards: [NetworkShardPresentation]) -> Self {
+    static func make(snapshot: NodeSnapshot, shards: [NetworkShardPresentation], estimatesAreCurrent: Bool = true)
+        -> Self
+    {
         let localShards = shards.filter(\.observation.isAllocated)
         let allocationCoverageStates: [ShardCoverageState]
         if !localShards.isEmpty {
@@ -86,7 +91,7 @@ struct NetworkLocalNodePresentation {
             allocationCoverageStates = snapshot.shardAllocations.compactMap(\.coverageState)
         }
 
-        let estimate = RewardEstimate.make(localShards.map(\.observation.estimatedRewardPerFrame))
+        let estimate = estimatesAreCurrent ? RewardEstimate.make(localShards.map(\.observation)) : nil
         return Self(
             isRunning: snapshot.isRunning,
             version: snapshot.version,
@@ -135,20 +140,19 @@ struct NetworkLocalNodePresentation {
 }
 
 private struct RewardEstimate {
-    /// The upstream qclient uses the protocol's ten-second target cadence when
-    /// it prints a daily estimate: 8,640 target frames per day.
-    private static let targetFramesPerDay = Decimal(8_640)
-
-    let perFrame: String
+    let perFrame: String?
     let perTargetDay: String
 
-    static func make(_ values: [String]) -> Self? {
-        let decimals = values.compactMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
-        guard !decimals.isEmpty else { return nil }
-        let total = decimals.reduce(Decimal.zero, +)
+    static func make(_ shards: [NetworkShardObservation]) -> Self? {
+        guard !shards.isEmpty else { return nil }
+        let daily = shards.compactMap(\.rewardPerTargetDay)
+        guard daily.count == shards.count else { return nil }
+        let perFrame = shards.compactMap { shard in
+            shard.estimatedRewardPerFrame.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+        }
         return Self(
-            perFrame: format(total),
-            perTargetDay: format(total * targetFramesPerDay)
+            perFrame: perFrame.count == shards.count ? format(perFrame.reduce(.zero, +)) : nil,
+            perTargetDay: format(daily.reduce(.zero, +))
         )
     }
 

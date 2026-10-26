@@ -48,7 +48,8 @@ struct DashboardOverviewConstellation: View {
                     onSelectLocalNode: onOpenNetwork,
                     zoom: 0.88,
                     archiveSources: presentation.archiveSources,
-                    localAllocationCount: presentation.localAllocationCount
+                    localAllocationCount: presentation.localAllocationCount,
+                    topologyIsCurrent: presentation.evidenceState == .current
                 )
             } else {
                 LocalNetworkTopologyView(

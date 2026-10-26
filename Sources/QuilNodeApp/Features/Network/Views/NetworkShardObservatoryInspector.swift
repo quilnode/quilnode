@@ -49,10 +49,14 @@ struct NetworkShardObservatoryInspector: View {
 
                 VStack(spacing: 10) {
                     datum("Active provers", String(shard.observation.activeProvers))
-                    datum("Ring", String(shard.observation.ring))
+                    datum("Ring", shard.observation.ringLabel)
                     datum("Data shards", String(shard.observation.dataShards))
                     datum("Shard size", shard.observation.shardSize)
-                    datum("Estimated reward / frame", shard.observation.estimatedRewardPerFrame)
+                    if let daily = shard.observation.estimatedRewardPerDay {
+                        datum("Estimated QUIL / target day", "~\(daily)")
+                    } else {
+                        datum("Estimated QUIL / frame", shard.observation.estimatedRewardPerFrame ?? "Unavailable")
+                    }
                     if shard.observation.isAllocated && !hidesLocalAssociation {
                         datum(
                             "Local worker",

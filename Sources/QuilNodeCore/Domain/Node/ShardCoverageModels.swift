@@ -33,8 +33,11 @@ public struct NetworkShardObservation: Codable, Equatable, Identifiable, Sendabl
     public var shardSize: String
     public var dataShards: Int
     public var activeProvers: Int
-    public var ring: Int
-    public var estimatedRewardPerFrame: String
+    public var ring: Int?
+    public var estimatedRewardPerFrame: String?
+    /// New qclient versions report a rounded daily estimate. Preserve its unit
+    /// and precision instead of inventing a per-frame amount by division.
+    public var estimatedRewardPerDay: String?
     public var isAllocated: Bool
     public var worker: String?
 
@@ -45,10 +48,11 @@ public struct NetworkShardObservation: Codable, Equatable, Identifiable, Sendabl
         shardSize: String,
         dataShards: Int,
         activeProvers: Int,
-        ring: Int,
-        estimatedRewardPerFrame: String,
+        ring: Int?,
+        estimatedRewardPerFrame: String?,
         isAllocated: Bool,
-        worker: String? = nil
+        worker: String? = nil,
+        estimatedRewardPerDay: String? = nil
     ) {
         self.filter = filter
         self.shardSize = shardSize
@@ -56,12 +60,21 @@ public struct NetworkShardObservation: Codable, Equatable, Identifiable, Sendabl
         self.activeProvers = activeProvers
         self.ring = ring
         self.estimatedRewardPerFrame = estimatedRewardPerFrame
+        self.estimatedRewardPerDay = estimatedRewardPerDay
         self.isAllocated = isAllocated
         self.worker = worker
     }
 
     public var coverageState: ShardCoverageState {
         ShardCoverageState(activeProvers: activeProvers)
+    }
+
+    public var ringLabel: String { ring.map(String.init) ?? "Unknown" }
+
+    public var rewardPerTargetDay: Decimal? {
+        let locale = Locale(identifier: "en_US_POSIX")
+        if let estimatedRewardPerDay { return Decimal(string: estimatedRewardPerDay, locale: locale) }
+        return estimatedRewardPerFrame.flatMap { Decimal(string: $0, locale: locale) }.map { $0 * 8_640 }
     }
 }
 
