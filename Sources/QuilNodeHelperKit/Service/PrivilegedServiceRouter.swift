@@ -23,7 +23,6 @@ extension QuilNodeHelper {
                 message: verifierReady
                     ? "capability-wallet-v2; signed-first-install-v3; durable-operations-v1; self-upgrade-v1; root-release-verification-v1; application-firewall-v1; managed-qclient-v1; local-prover-telemetry-v1; permanent-app-identity-v1; automatic-node-update-policy-v1"
                     : "The root-owned release verifier is missing; service repair is required.",
-                nodePID: currentNodePID(),
                 serviceBuild: verifierReady ? PrivilegedServiceProtocol.currentServiceBuild : nil
             )
         case .upgradeService:
@@ -38,13 +37,7 @@ extension QuilNodeHelper {
         case .nodeInfo:
             try requireIdleOperation("node inspection is paused while an update is activating")
             try validateLaunchDaemonPlist()
-            return PrivilegedServiceResponse(
-                success: true,
-                message: "Local node identity read completed.",
-                nodePID: currentNodePID(),
-                nodeInfoOutput: try runNodeTool(["--node-info"], timeout: 15),
-                peerInfoOutput: try runNodeTool(["--peer-info"], timeout: 10)
-            )
+            return try readNodeIdentity()
         case .metrics:
             try requireIdleOperation("metrics are paused while an update is activating")
             try validateLaunchDaemonPlist()

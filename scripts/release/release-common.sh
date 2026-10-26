@@ -22,7 +22,7 @@ require_command() {
 require_sparkle_tools() {
     for tool in generate_appcast sign_update; do
         if [[ ! -x "$SPARKLE_TOOLS_DIR/$tool" ]]; then
-            echo "Missing Sparkle 2.9.6 tool: $SPARKLE_TOOLS_DIR/$tool" >&2
+            echo "Missing Sparkle 2.10.1 tool: $SPARKLE_TOOLS_DIR/$tool" >&2
             echo "Run xcodebuild package resolution before preparing a release." >&2
             exit 1
         fi

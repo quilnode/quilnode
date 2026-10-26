@@ -5,11 +5,12 @@ import Foundation
 #endif
 
 extension PrivilegedServiceClient {
-    public static func readNodeInfo(timeout: TimeInterval = 30) -> NodeInfo? {
+    public static func readNodeInfo(timeout: TimeInterval = 75) -> NodeInfo? {
         let result = response(.nodeInfo, timeout: timeout)
         guard result.exitCode == 0, let response = result.response else { return nil }
         var info = NodeInfoParser.parse(response.nodeInfoOutput ?? "")
         let peerInfo = NodeInfoParser.parse(response.peerInfoOutput ?? "")
+        info.peerID = info.peerID ?? peerInfo.peerID
         info.legacyPeerID = peerInfo.legacyPeerID
         return info.version == nil && info.peerID == nil && info.proverAddress == nil ? nil : info
     }

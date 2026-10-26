@@ -1,3 +1,4 @@
+import Darwin
 import SwiftUI
 
 #if canImport(QuilNodeCore)
@@ -25,6 +26,12 @@ struct QuilNodeApp: App {
 
     @MainActor
     init() {
+        let serviceOnly = ProcessInfo.processInfo.arguments.contains("--local-service-diagnostics")
+        if serviceOnly || ProcessInfo.processInfo.arguments.contains("--local-read-diagnostics") {
+            FileHandle.standardOutput.write(
+                Data(PrivilegedServiceClient.localReadDiagnostics(serviceOnly: serviceOnly).utf8))
+            exit(0)
+        }
         #if DEBUG
             designPreviewMode = ProcessInfo.processInfo.arguments.first { $0.hasPrefix("--design-preview=") }
                 .map { String($0.dropFirst("--design-preview=".count)) }

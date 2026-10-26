@@ -149,11 +149,11 @@ class BundleTests(unittest.TestCase):
             (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info()))
             framework = app / "Contents/Frameworks/Sparkle.framework/Resources"
             framework.mkdir(parents=True)
-            (framework / "Info.plist").write_bytes(plistlib.dumps({"CFBundleShortVersionString": "2.9.6"}))
+            (framework / "Info.plist").write_bytes(plistlib.dumps({"CFBundleShortVersionString": "2.10.1"}))
             openssl = root / "toolchain"
             (openssl / "lib").mkdir(parents=True)
             (openssl / "lib/libcrypto.a").write_bytes(b"fixture static archive")
-            with patch("evidence.bundle.run", return_value="OpenSSL 3.5.9"):
+            with patch("evidence.bundle.run", return_value="OpenSSL 4.1.0"):
                 prepare_bundle(PROJECT, app, openssl)
             dependencies, manifest = inventory(PROJECT, app)
             self.assertEqual([item["id"] for item in dependencies["components"]], ["quilnode", "sparkle", "openssl"])

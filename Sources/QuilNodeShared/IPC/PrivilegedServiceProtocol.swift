@@ -5,8 +5,8 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 118
-    public static let minimumSupportedServiceBuild = 118
+    public static let currentServiceBuild = 121
+    public static let minimumSupportedServiceBuild = 121
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
 }

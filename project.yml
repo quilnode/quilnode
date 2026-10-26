@@ -17,7 +17,7 @@ settings:
 packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
-    exactVersion: 2.9.6
+    exactVersion: 2.10.1
 
 targets:
   QuilNodeShared:

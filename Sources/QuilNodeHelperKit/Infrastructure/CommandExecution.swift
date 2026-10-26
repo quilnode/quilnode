@@ -25,6 +25,9 @@ extension QuilNodeHelper {
         let result = try runCommand(executable, arguments, timeout: timeout, currentDirectory: currentDirectory)
         guard result.exitCode == 0, !result.timedOut else {
             let safeText = redactSensitiveCommandOutput(result.output)
+            if result.timedOut {
+                throw HelperFailure.command("Local command timed out after \(Int(timeout)) seconds. \(safeText)")
+            }
             throw HelperFailure.command(
                 safeText.isEmpty ? "\(executable.lastPathComponent) failed" : safeText
             )

@@ -39,8 +39,8 @@ if ! rg -q 'GNU AFFERO GENERAL PUBLIC LICENSE' LICENSE ||
     echo "FAIL: AGPL or independent-project disclosure is incomplete" >&2
     failures=$((failures + 1))
 fi
-if ! rg -q 'exact: "2\.9\.6"' Package.swift ||
-   ! rg -q 'exactVersion: 2\.9\.6' project.yml ||
+if ! rg -q 'exact: "2\.10\.1"' Package.swift ||
+   ! rg -q 'exactVersion: 2\.10\.1' project.yml ||
    ! rg -q 'SURequireSignedFeed.*true' project.yml ||
    ! rg -q 'SUVerifyUpdateBeforeExtraction.*true' project.yml ||
    ! rg -q 'SUAllowsAutomaticUpdates.*false' project.yml ||
@@ -175,8 +175,8 @@ if ! rg -q 'authorizationRequired\(' Sources/QuilNodeHelperKit ||
     failures=$((failures + 1))
 fi
 
-if ! rg -q 'currentServiceBuild = 118' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
-   ! rg -q 'minimumSupportedServiceBuild = 118' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+if ! rg -q 'currentServiceBuild = 121' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
+   ! rg -q 'minimumSupportedServiceBuild = 121' Sources/QuilNodeShared/IPC/PrivilegedServiceProtocol.swift ||
    ! rg -q 'PrivilegedServiceProtocol\.minimumSupportedServiceBuild' Sources/QuilNodeCore/Infrastructure/IPC/PrivilegedServiceClient.swift ||
    [[ "$(rg -o 'serviceBuild: verifierReady \? PrivilegedServiceProtocol\.currentServiceBuild : nil' Sources/QuilNodeHelperKit | wc -l | tr -d ' ')" -ne 1 ]]; then
     echo "FAIL: privileged service compatibility floor is inconsistent" >&2
@@ -330,10 +330,10 @@ if [[ ! -x scripts/release/audit-app-bundle.sh ]] ||
    [[ ! -x scripts/release/audit-metadata-privacy.sh ]] ||
    [[ ! -x scripts/release/test-metadata-privacy.sh ]] ||
    ! rg -q 'quilnode_default_openssl_toolchain' scripts/build-app.sh scripts/test-release-verifier.sh ||
-   ! rg -q 'QUILNODE_OPENSSL_VERSION="3\.5\.9"' scripts/release/toolchain-policy.sh ||
-   ! rg -q 'openssl-3\.5\.9-macos14-arm64-neutral-v2' scripts/release/toolchain-policy.sh ||
-   ! rg -q 'QUILNODE_OPENSSL_NEUTRAL_PREFIX="/opt/quilnode/toolchains/openssl/3\.5\.9"' scripts/release/toolchain-policy.sh ||
-   ! rg -q '603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'QUILNODE_OPENSSL_VERSION="4\.1\.0"' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'openssl-4\.1\.0-macos14-arm64-neutral-v2' scripts/release/toolchain-policy.sh ||
+   ! rg -q 'QUILNODE_OPENSSL_NEUTRAL_PREFIX="/opt/quilnode/toolchains/openssl/4\.1\.0"' scripts/release/toolchain-policy.sh ||
+   ! rg -q '50c17baf54cb008f6ce42d50deb4b28050a1aad711636cabd4b241c7e90cc2fd' scripts/release/toolchain-policy.sh ||
    ! rg -q 'no-shared no-module no-pinshared' scripts/release/build-openssl-toolchain.sh ||
    ! rg -q 'OPENSSL_INIT_NO_LOAD_CONFIG' Sources/QuilNodeReleaseVerifier/main.c ||
    ! rg -q 'hostile-openssl\.cnf' scripts/test-release-verifier.sh ||
