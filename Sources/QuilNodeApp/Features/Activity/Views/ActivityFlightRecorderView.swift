@@ -38,19 +38,12 @@ struct ActivityFlightRecorderView: View {
         max(orderedPoints.map(\.framesPerMinute).max() ?? 1, 1)
     }
 
-    private var peerRange: ClosedRange<Int> {
-        let minimum = orderedPoints.map(\.peers).min() ?? 0
-        let maximum = orderedPoints.map(\.peers).max() ?? max(minimum + 1, 1)
-        return minimum...max(maximum, minimum + 1)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 Text("Activity flight recorder")
                     .font(.headline)
                 legend("Frames / min", tint: theme.colors.frame)
-                legend("Peers", tint: theme.colors.accentSecondary, privacyField: .networkActivity)
                 Spacer()
                 if mode == .live {
                     Label("Following live", systemImage: "dot.radiowaves.left.and.right")
@@ -74,7 +67,11 @@ struct ActivityFlightRecorderView: View {
                 .frame(minHeight: 220)
             } else {
                 chart
-                    .frame(height: 218)
+                    .frame(height: 170)
+                if !redactionReasons.contains(.privacy) {
+                    legend("Connected peers", tint: theme.colors.accentSecondary, privacyField: .networkActivity)
+                    peerChart.frame(height: 80)
+                }
                 ActivityTimelineScrubber(
                     points: orderedPoints,
                     selectedTimestamp: $selectedTimestamp,
@@ -98,17 +95,7 @@ struct ActivityFlightRecorderView: View {
                 )
                 .foregroundStyle(by: .value("Series", "Frames / min"))
                 .lineStyle(StrokeStyle(lineWidth: 1.35))
-                .interpolationMethod(.catmullRom)
-
-                if !redactionReasons.contains(.privacy) {
-                    LineMark(
-                        x: .value("Time", point.timestamp),
-                        y: .value("Peer mesh", scaledPeerValue(point.peers))
-                    )
-                    .foregroundStyle(by: .value("Series", "Peers"))
-                    .lineStyle(StrokeStyle(lineWidth: 1.05))
-                    .interpolationMethod(.catmullRom)
-                }
+                .interpolationMethod(.linear)
             }
 
             ForEach(visibleEvents) { event in
@@ -175,7 +162,7 @@ struct ActivityFlightRecorderView: View {
                     )
             }
         }
-        .accessibilityLabel("Local frame pace and peer mesh flight recorder")
+        .accessibilityLabel("Local frame pace in frames per minute")
         .accessibilityValue(accessibilitySummary)
     }
 
@@ -194,10 +181,22 @@ struct ActivityFlightRecorderView: View {
         selectedEventID = ActivityPresentation.nearestEvent(to: nearestPoint.timestamp, in: events)?.id
     }
 
-    private func scaledPeerValue(_ peers: Int) -> Double {
-        let span = max(peerRange.upperBound - peerRange.lowerBound, 1)
-        let normalized = Double(peers - peerRange.lowerBound) / Double(span)
-        return maximumFramePace * (0.82 + normalized * 0.14)
+    private var peerChart: some View {
+        Chart(orderedPoints) { point in
+            LineMark(x: .value("Time", point.timestamp), y: .value("Connected peers", point.peers))
+                .foregroundStyle(theme.colors.accentSecondary)
+                .interpolationMethod(.linear)
+        }
+        .chartXScale(domain: chartDomain)
+        .chartXAxis(.hidden)
+        .chartYScale(domain: 0...max(orderedPoints.map(\.peers).max() ?? 1, 1))
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) {
+                AxisGridLine().foregroundStyle(theme.colors.border.opacity(0.30))
+                AxisValueLabel().foregroundStyle(theme.colors.accentSecondary)
+            }
+        }
+        .accessibilityLabel("Connected peers, actual peer count")
     }
 
     private func legend(_ title: String, tint: Color, privacyField: PrivacyField? = nil) -> some View {

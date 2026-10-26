@@ -5,6 +5,20 @@ import XCTest
 @testable import QuilNodeCore
 
 final class ActivityPresentationTests: XCTestCase {
+    func testMissingFrameBaselinesNeverBecomeProgressSpikes() {
+        let start = Date(timeIntervalSince1970: 2_000_000_000)
+        let samples = [
+            sample(at: start, frame: 0, peers: 0),
+            sample(at: start.addingTimeInterval(60), frame: 935_000, peers: 80),
+            sample(at: start.addingTimeInterval(90), frame: 0, peers: 0),
+            sample(at: start.addingTimeInterval(120), frame: 935_006, peers: 81),
+        ]
+        let summary = NodeActivityAnalyzer.summarize(samples)
+        XCTAssertEqual(summary.frameDelta, 6)
+        XCTAssertEqual(summary.averageFramesPerMinute, 6)
+        XCTAssertEqual(ActivityPresentation.intervalPoints(from: samples).map(\.framesPerMinute), [6])
+    }
+
     func testIntervalPointsAndStableNarrativeUseLocalEvidence() {
         let start = Date(timeIntervalSince1970: 2_000_000_000)
         let samples = [

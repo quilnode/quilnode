@@ -104,7 +104,7 @@ enum ActivityActionState: Equatable {
 
 enum ActivityPresentation {
     static func intervalPoints(from samples: [NodeActivitySample]) -> [ActivityIntervalPoint] {
-        let ordered = samples.sorted { $0.timestamp < $1.timestamp }
+        let ordered = samples.filter { $0.isRunning && $0.frame > 0 }.sorted { $0.timestamp < $1.timestamp }
         guard ordered.count > 1 else { return [] }
 
         // Thirty-second samples are intentionally precise for evidence, but a

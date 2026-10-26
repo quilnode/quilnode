@@ -11,8 +11,18 @@ public enum NodeActivityAnalyzer {
         }
 
         let duration = max(last.timestamp.timeIntervalSince(first.timestamp), 0)
-        let frameDelta = last.frame >= first.frame ? last.frame - first.frame : 0
-        let rate = duration > 0 ? Double(frameDelta) / duration * 60 : nil
+        // Older app versions persisted zero while a frame read was pending.
+        // These are missing baselines, not progress from genesis. Ignore them
+        // when deriving movement, including in already-retained history.
+        let observed = ordered.filter { $0.isRunning && $0.frame > 0 }
+        var frameDelta: UInt64 = 0
+        var observedDuration: TimeInterval = 0
+        for (previous, current) in zip(observed, observed.dropFirst()) {
+            guard current.frame >= previous.frame else { continue }
+            frameDelta += current.frame - previous.frame
+            observedDuration += max(current.timestamp.timeIntervalSince(previous.timestamp), 0)
+        }
+        let rate = observedDuration > 0 ? Double(frameDelta) / observedDuration * 60 : nil
         let peers = ordered.map(\.peers)
         let runningCount = ordered.filter(\.isRunning).count
         let continuity = ordered.isEmpty ? nil : Double(runningCount) / Double(ordered.count)

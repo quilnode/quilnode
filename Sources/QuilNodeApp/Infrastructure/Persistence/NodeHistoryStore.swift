@@ -71,6 +71,13 @@ final class NodeHistoryStore: ObservableObject {
     }
 
     func record(_ snapshot: NodeSnapshot) {
+        // Startup placeholders cannot establish a new chain/allocation state.
+        // Wait for public chain evidence before persisting an online sample.
+        if snapshot.isRunning,
+            snapshot.frame == 0 || (snapshot.proverStatusUpdatedAt == nil && snapshot.totalAllocations == 0)
+        {
+            return
+        }
         let now = snapshot.collectedAt
         let previous = points.last
         let stateChanged =
