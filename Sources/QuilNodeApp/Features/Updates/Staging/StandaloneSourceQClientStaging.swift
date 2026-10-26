@@ -37,6 +37,15 @@ extension ReleaseChecker {
         guard installed.kind == .source,
             QClientCompatibility.isCompatible(qclientReleaseVersion: head.version, nodeVersion: installed.version)
         else { throw UpdateCenterError.versionValidationFailed }
+        if let cached = try cachedSourceQClientManifest(installed: installed, head: head) {
+            progress(
+                NodeUpdateProgress(
+                    step: .client, phase: "Retrying verified client installation",
+                    detail: "Reusing the compiled client for \(head.commit.prefix(12)); no rebuild is needed.",
+                    fraction: 1, startedAt: startedAt, isEstimate: false
+                ))
+            return cached
+        }
         let context = try prepareSourceBuildContext(
             head: head, repositoryURL: repositoryURL, startedAt: startedAt,
             channel: "qclient", displayVersion: nil, progress: progress
