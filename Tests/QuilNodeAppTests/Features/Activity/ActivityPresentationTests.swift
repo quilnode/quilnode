@@ -16,7 +16,9 @@ final class ActivityPresentationTests: XCTestCase {
         let summary = NodeActivityAnalyzer.summarize(samples)
         XCTAssertEqual(summary.frameDelta, 6)
         XCTAssertEqual(summary.averageFramesPerMinute, 6)
-        XCTAssertEqual(ActivityPresentation.intervalPoints(from: samples).map(\.framesPerMinute), [6])
+        XCTAssertTrue(
+            ActivityPresentation.intervalPoints(from: samples).isEmpty,
+            "Missing readings split the plotted observation runs")
     }
 
     func testIntervalPointsAndStableNarrativeUseLocalEvidence() {
@@ -65,6 +67,33 @@ final class ActivityPresentationTests: XCTestCase {
         XCTAssertEqual(event.evidenceSource, "Router statistics")
         XCTAssertEqual(event.actionState, .review)
         XCTAssertEqual(event.privacyField, .networkActivity)
+    }
+
+    func testChartDoesNotBridgeAnUnobservedHour() {
+        let start = Date(timeIntervalSince1970: 2_000_000_000)
+        let samples = [
+            sample(at: start, frame: 100, peers: 80),
+            sample(at: start.addingTimeInterval(30), frame: 103, peers: 81),
+            sample(at: start.addingTimeInterval(3600), frame: 200, peers: 82),
+            sample(at: start.addingTimeInterval(3630), frame: 203, peers: 83),
+        ]
+        let points = ActivityPresentation.intervalPoints(from: samples)
+        XCTAssertEqual(points.map(\.framesPerMinute), [6, 6])
+        XCTAssertEqual(Set(points.map(\.segment)).count, 2)
+    }
+
+    func testMissingPeerReadIsNotAZeroOrConnectivityEvent() {
+        let start = Date(timeIntervalSince1970: 2_000_000_000)
+        var missing = sample(at: start, frame: 100, peers: 0)
+        missing.peersObserved = false
+        let known = sample(at: start.addingTimeInterval(30), frame: 103, peers: 80)
+        let summary = NodeActivityAnalyzer.summarize([missing, known])
+        XCTAssertEqual(summary.peerMinimum, 80)
+        XCTAssertEqual(summary.peerDelta, 0)
+        XCTAssertFalse(NodeActivityAnalyzer.events(from: [missing, known]).contains { $0.kind == .peerMeshChanged })
+        missing.peersObserved = true
+        XCTAssertEqual(NodeActivityAnalyzer.summarize([missing, known]).peerMinimum, 0)
+        XCTAssertTrue(NodeActivityAnalyzer.events(from: [missing, known]).contains { $0.kind == .peerMeshChanged })
     }
 
     private func sample(at timestamp: Date, frame: UInt64, peers: Int) -> NodeActivitySample {

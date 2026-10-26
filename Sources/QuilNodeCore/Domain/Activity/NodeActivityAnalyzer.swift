@@ -23,7 +23,7 @@ public enum NodeActivityAnalyzer {
             observedDuration += max(current.timestamp.timeIntervalSince(previous.timestamp), 0)
         }
         let rate = observedDuration > 0 ? Double(frameDelta) / observedDuration * 60 : nil
-        let peers = ordered.map(\.peers)
+        let peers = ordered.filter(\.hasPeerObservation).map(\.peers)
         let runningCount = ordered.filter(\.isRunning).count
         let continuity = ordered.isEmpty ? nil : Double(runningCount) / Double(ordered.count)
         let lifecycleChanges = zip(ordered, ordered.dropFirst()).reduce(into: 0) { total, pair in
@@ -42,7 +42,7 @@ public enum NodeActivityAnalyzer {
             averageFramesPerMinute: rate,
             peerMinimum: peers.min(),
             peerMaximum: peers.max(),
-            peerDelta: last.peers - first.peers,
+            peerDelta: (peers.last ?? 0) - (peers.first ?? 0),
             continuity: continuity,
             lifecycleChanges: lifecycleChanges,
             eventCount: eventCount
@@ -130,7 +130,9 @@ public enum NodeActivityAnalyzer {
             )
 
             let peerThreshold = max(5, Int((Double(max(previous.peers, 1)) * 0.20).rounded(.up)))
-            if abs(current.peers - previous.peers) >= peerThreshold {
+            if previous.hasPeerObservation, current.hasPeerObservation,
+                abs(current.peers - previous.peers) >= peerThreshold
+            {
                 output.append(
                     event(
                         at: current.timestamp,

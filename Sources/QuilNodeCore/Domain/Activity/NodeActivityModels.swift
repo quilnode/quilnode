@@ -8,6 +8,10 @@ public struct NodeActivitySample: Codable, Equatable, Identifiable, Sendable {
     public var timestamp: Date
     public var frame: UInt64
     public var peers: Int
+    /// Nil in legacy history. A legacy zero cannot distinguish missing telemetry.
+    public var peersObserved: Bool?
+
+    public var hasPeerObservation: Bool { peersObserved ?? (peers > 0) }
     public var pendingJoins: Int
     public var activeShards: Int
     public var totalAllocations: Int
@@ -36,11 +40,13 @@ public struct NodeActivitySample: Codable, Equatable, Identifiable, Sendable {
         routerDrops: UInt64? = nil,
         lastRewardCreditFrame: UInt64? = nil,
         version: String? = nil,
-        chainProgressState: ChainProgressState? = nil
+        chainProgressState: ChainProgressState? = nil,
+        peersObserved: Bool? = nil
     ) {
         self.timestamp = timestamp
         self.frame = frame
         self.peers = peers
+        self.peersObserved = peersObserved
         self.pendingJoins = pendingJoins
         self.activeShards = activeShards
         self.totalAllocations = totalAllocations

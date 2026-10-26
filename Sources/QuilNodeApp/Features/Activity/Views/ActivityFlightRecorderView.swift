@@ -91,7 +91,8 @@ struct ActivityFlightRecorderView: View {
             ForEach(orderedPoints) { point in
                 LineMark(
                     x: .value("Time", point.timestamp),
-                    y: .value("Frames per minute", point.framesPerMinute)
+                    y: .value("Frames per minute", point.framesPerMinute),
+                    series: .value("Observation run", point.segment)
                 )
                 .foregroundStyle(by: .value("Series", "Frames / min"))
                 .lineStyle(StrokeStyle(lineWidth: 1.35))
@@ -183,20 +184,25 @@ struct ActivityFlightRecorderView: View {
 
     private var peerChart: some View {
         Chart(orderedPoints) { point in
-            LineMark(x: .value("Time", point.timestamp), y: .value("Connected peers", point.peers))
+            if let peers = point.peers {
+                LineMark(
+                    x: .value("Time", point.timestamp), y: .value("Connected peers", peers),
+                    series: .value("Observation run", point.segment)
+                )
                 .foregroundStyle(theme.colors.accentSecondary)
                 .interpolationMethod(.linear)
+            }
         }
         .chartXScale(domain: chartDomain)
         .chartXAxis(.hidden)
-        .chartYScale(domain: 0...max(orderedPoints.map(\.peers).max() ?? 1, 1))
+        .chartYScale(domain: 0...max(orderedPoints.compactMap(\.peers).max() ?? 1, 1))
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) {
                 AxisGridLine().foregroundStyle(theme.colors.border.opacity(0.30))
                 AxisValueLabel().foregroundStyle(theme.colors.accentSecondary)
             }
         }
-        .accessibilityLabel("Connected peers, actual peer count")
+        .accessibilityLabel("Connected peers, observed counts. Gaps indicate missing or interrupted observations.")
     }
 
     private func legend(_ title: String, tint: Color, privacyField: PrivacyField? = nil) -> some View {

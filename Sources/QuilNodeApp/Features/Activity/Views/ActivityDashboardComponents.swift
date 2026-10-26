@@ -100,7 +100,7 @@ struct ActivitySummaryBand: View {
             )
             separator
             metric(
-                title: "Runtime continuity",
+                title: "Running samples",
                 value: summary.continuity.map { String(format: "%.0f%%", $0 * 100) } ?? "Calibrating",
                 detail: "of local samples observed",
                 tint: continuityTint

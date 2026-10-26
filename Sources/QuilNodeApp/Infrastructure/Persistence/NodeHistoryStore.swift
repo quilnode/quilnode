@@ -11,6 +11,7 @@ struct NodeHistoryPoint: Codable, Equatable, Identifiable, Sendable {
     var timestamp: Date
     var frame: UInt64
     var peers: Int
+    var peersObserved: Bool? = nil
     var pendingJoins: Int
     var activeShards: Int
     var cpuPercent: Double
@@ -45,7 +46,8 @@ struct NodeHistoryPoint: Codable, Equatable, Identifiable, Sendable {
             routerDrops: routerDrops,
             lastRewardCreditFrame: lastRewardCreditFrame,
             version: version,
-            chainProgressState: chainProgressState
+            chainProgressState: chainProgressState,
+            peersObserved: peersObserved
         )
     }
 }
@@ -103,6 +105,8 @@ final class NodeHistoryStore: ObservableObject {
                 timestamp: now,
                 frame: snapshot.frame,
                 peers: snapshot.peers,
+                peersObserved: snapshot.isRunning
+                    && ObservationFreshness(observedAt: snapshot.metricsUpdatedAt, now: now).isCurrent,
                 pendingJoins: snapshot.pendingJoins,
                 activeShards: snapshot.activeShards,
                 cpuPercent: snapshot.cpuPercent ?? 0,

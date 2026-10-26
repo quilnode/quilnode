@@ -66,7 +66,8 @@ enum ActivityFilter: String, CaseIterable, Identifiable {
 struct ActivityIntervalPoint: Identifiable, Equatable {
     let timestamp: Date
     let framesPerMinute: Double
-    let peers: Int
+    let peers: Int?
+    var segment = 0
 
     var id: Date { timestamp }
 }
@@ -104,9 +105,36 @@ enum ActivityActionState: Equatable {
 
 enum ActivityPresentation {
     static func intervalPoints(from samples: [NodeActivitySample]) -> [ActivityIntervalPoint] {
-        let ordered = samples.filter { $0.isRunning && $0.frame > 0 }.sorted { $0.timestamp < $1.timestamp }
-        guard ordered.count > 1 else { return [] }
+        // Split at missing readings, process stops, resets and gaps longer
+        // than four ordinary samples. Never draw continuity across absence.
+        let ordered = samples.sorted { $0.timestamp < $1.timestamp }
+        var segments: [[NodeActivitySample]] = []
+        var current: [NodeActivitySample] = []
+        for sample in ordered {
+            guard sample.isRunning, sample.frame > 0 else {
+                if !current.isEmpty {
+                    segments.append(current)
+                    current = []
+                }
+                continue
+            }
+            if let previous = current.last,
+                sample.frame < previous.frame || sample.timestamp.timeIntervalSince(previous.timestamp) > 120
+                    || sample.hasPeerObservation != previous.hasPeerObservation
+            {
+                segments.append(current)
+                current = []
+            }
+            current.append(sample)
+        }
+        if !current.isEmpty { segments.append(current) }
+        return segments.enumerated().flatMap { index, samples in
+            points(in: samples, segment: index)
+        }
+    }
 
+    private static func points(in ordered: [NodeActivitySample], segment: Int) -> [ActivityIntervalPoint] {
+        guard ordered.count > 1 else { return [] }
         // Thirty-second samples are intentionally precise for evidence, but a
         // literal line between every delta creates a barcode rather than a
         // useful trend. Aggregate into a bounded number of time buckets and
@@ -129,7 +157,8 @@ enum ActivityPresentation {
                     ActivityIntervalPoint(
                         timestamp: current.timestamp,
                         framesPerMinute: Double(current.frame - previous.frame) / duration * 60,
-                        peers: current.peers
+                        peers: current.hasPeerObservation ? current.peers : nil,
+                        segment: segment
                     ))
             }
             endIndex += bucketSampleCount
@@ -144,7 +173,8 @@ enum ActivityPresentation {
                     ActivityIntervalPoint(
                         timestamp: current.timestamp,
                         framesPerMinute: Double(current.frame - previous.frame) / duration * 60,
-                        peers: current.peers
+                        peers: current.hasPeerObservation ? current.peers : nil,
+                        segment: segment
                     ))
             }
         }
