@@ -130,6 +130,9 @@ extension DashboardView {
                     + Text("joining.").foregroundStyle(protocolSignal))
                 (Text("Activation ").foregroundStyle(theme.colors.primaryText)
                     + Text("in progress.").foregroundStyle(protocolSignal))
+            } else if participationEvidence.state == .reading {
+                Text("Reading participation.").foregroundStyle(protocolSignal)
+                Text("Allocation check in progress.").foregroundStyle(theme.colors.primaryText)
             } else {
                 (Text("Online · ").foregroundStyle(theme.colors.primaryText)
                     + Text("awaiting allocation.").foregroundStyle(protocolSignal))

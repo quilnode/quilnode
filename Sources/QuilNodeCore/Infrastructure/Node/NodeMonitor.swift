@@ -116,7 +116,7 @@ public final class NodeMonitor: ObservableObject {
             !skipNodeInfo
             && (forceNodeInfo
                 || lastNodeInfoRefresh.map {
-                    Date().timeIntervalSince($0) >= (cachedNodeInfo == nil ? 30 : nodeInfoRefreshInterval)
+                    Date().timeIntervalSince($0) >= (cachedNodeInfo == nil ? 3 : nodeInfoRefreshInterval)
                 } != false)
         let shouldRefreshBalance =
             forceNodeInfo
@@ -154,7 +154,7 @@ public final class NodeMonitor: ObservableObject {
         frameProgressTracker.apply(to: &nextSnapshot)
         snapshot = nextSnapshot
         hasCompletedInitialRefresh = true
-        observationPhase = .ready
+        observationPhase = nextSnapshot.isRunning && nextSnapshot.frame == 0 ? .loadingTelemetry : .ready
         if shouldRecoverHistoricalEvidence {
             hasRecoveredHistoricalEvidence = true
         }

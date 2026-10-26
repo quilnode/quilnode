@@ -132,7 +132,8 @@ extension DashboardView {
     }
 
     var overviewMilestoneSelection: ProtocolMilestonePresentationPolicy.OverviewSelection? {
-        ProtocolMilestonePresentationPolicy.overviewSelection(
+        guard monitor.snapshot.frame > 0 || monitor.snapshot.lastReceivedFrame > 0 else { return nil }
+        return ProtocolMilestonePresentationPolicy.overviewSelection(
             from: releaseChecker.protocolMilestones,
             currentFrame: max(monitor.snapshot.frame, monitor.snapshot.lastReceivedFrame),
             observedMilestones: monitor.snapshot.observedProtocolMilestones ?? [:],
