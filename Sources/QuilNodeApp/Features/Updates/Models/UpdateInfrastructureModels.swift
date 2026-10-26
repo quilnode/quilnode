@@ -24,7 +24,7 @@ enum UpdateCenterError: LocalizedError {
     case invalidDigest, digestMismatch, invalidSignatureIndex, versionValidationFailed
     case commitValidationFailed, branchIsNotNodeBuildable(String), sourceBuildMissing, sourceQClientMissing
     case matchingSourceCheckoutUnavailable
-    case sourceCheckoutModified, sourceToolMissing(String)
+    case sourceCheckoutModified, sourceToolMissing(String), appleDeveloperToolUnavailable(String)
     case sourceSandboxUnavailable, sourceArtifactUnsafe(String)
     case seniorityDatasetUnavailable, sourceCacheInvalid
     case sourceDependencyLockInvalid
@@ -60,7 +60,9 @@ enum UpdateCenterError: LocalizedError {
         case .sourceCheckoutModified:
             "The matching source checkout contains tracked modifications; QuilNode will not label its qclient as an exact commit build."
         case let .sourceToolMissing(tool):
-            "\(tool) is required for approved source builds but was not detected in a standard Homebrew location. Install the source-build toolchain, then retry."
+            "\(tool) is required for source builds but was not detected in a supported toolchain location. Check the installed source-build dependencies, then retry."
+        case let .appleDeveloperToolUnavailable(tool):
+            "Apple's \(tool) tool could not be validated in a supported Xcode or Command Line Tools installation. Check the selected Command Line Tools in Xcode Settings > Locations, then retry."
         case .sourceSandboxUnavailable:
             "The host could not apply QuilNode's deny-by-default source-build sandbox. The source update was refused rather than compiled with access to your account."
         case let .sourceArtifactUnsafe(name):

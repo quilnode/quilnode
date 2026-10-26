@@ -147,7 +147,7 @@ public enum SourceBuildSandbox {
         arguments: [String]
     ) throws -> [String] {
         guard executable.hasPrefix("/"),
-            !executable.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            executable.rangeOfCharacter(from: .controlCharacters) == nil
         else { throw SourceBuildSandboxError.invalidPath(executable) }
         return ["-f", try validatedPath(profileURL), executable] + arguments
     }
@@ -155,7 +155,7 @@ public enum SourceBuildSandbox {
     private static func validatedPath(_ url: URL) throws -> String {
         let path = url.standardizedFileURL.path
         guard path.hasPrefix("/"), path != "/",
-            !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            path.rangeOfCharacter(from: .controlCharacters) == nil
         else { throw SourceBuildSandboxError.invalidPath(path) }
         return path
     }

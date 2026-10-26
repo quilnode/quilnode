@@ -93,13 +93,24 @@ struct SourceBuildToolchain: Sendable {
         var environment: [String: String] = [:]
         for (key, tool) in [("CC", "clang"), ("CXX", "clang++"), ("AR", "ar"), ("RANLIB", "ranlib")] {
             let path = try lookup(tool).trimmingCharacters(in: .whitespacesAndNewlines)
-            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
-            guard path.hasPrefix("/"),
-                !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
-                roots.contains(where: { resolved.hasPrefix($0) }),
-                fileManager.isExecutableFile(atPath: resolved)
-            else { throw UpdateCenterError.sourceToolMissing("Apple \(tool) compiler tool") }
-            environment[key] = resolved
+            // Validate text before constructing a URL. Avoid a bound
+            // CharacterSet predicate: release builds rejected valid Apple
+            // paths despite their containing no control characters.
+            guard path.hasPrefix("/"), path.rangeOfCharacter(from: .controlCharacters) == nil else {
+                throw UpdateCenterError.appleDeveloperToolUnavailable(tool)
+            }
+            let executable = URL(fileURLWithPath: path).standardizedFileURL
+            let resolved = executable.resolvingSymlinksInPath().standardizedFileURL.path
+            guard executable.lastPathComponent == tool,
+                roots.contains(where: { executable.path.hasPrefix($0) }),
+                roots.contains(where: { resolved.hasPrefix($0) })
+            else { throw UpdateCenterError.appleDeveloperToolUnavailable(tool) }
+            guard fileManager.isExecutableFile(atPath: executable.path) else {
+                throw UpdateCenterError.appleDeveloperToolUnavailable(tool)
+            }
+            // Validate the symlink target, but invoke the original driver.
+            // clang++ and ranlib select behavior from their executable name.
+            environment[key] = executable.path
         }
         environment["CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER"] = environment["CC"]
         return environment

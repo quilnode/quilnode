@@ -4,8 +4,20 @@ import XCTest
 @testable import QuilNodeApp
 
 final class SourceBuildToolchainTests: XCTestCase {
+    func testInstalledAppleCompilersKeepTheirDriverNames() throws {
+        let environment = try SourceBuildToolchain.resolveNativeCompilers()
+        for (key, tool) in [("CC", "clang"), ("CXX", "clang++"), ("AR", "ar"), ("RANLIB", "ranlib")] {
+            XCTAssertEqual(URL(fileURLWithPath: try XCTUnwrap(environment[key])).lastPathComponent, tool)
+        }
+    }
+
     func testNativeCompilerDiscoveryRejectsUntrustedAndShimPaths() {
-        for path in ["/usr/bin/clang", "/tmp/clang", "relative/clang", "/usr/bin/clang\n/tmp/clang"] {
+        for path in [
+            "/usr/bin/clang", "/tmp/clang", "relative/clang", "/usr/bin/clang\n/tmp/clang",
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang\u{0}suffix",
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cla\u{7F}ng",
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cla\u{200B}ng",
+        ] {
             XCTAssertThrowsError(try SourceBuildToolchain.resolveNativeCompilers(lookup: { _ in path }))
         }
     }
