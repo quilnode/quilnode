@@ -41,4 +41,4 @@ Regression tests cover rescheduling during a probe, obsolete completion, manual-
 
 The signed local build was installed and visually checked. The service upgraded to build 125 through its existing signed self-upgrade path, with no new administrator or firewall prompt. The node PID stayed unchanged. A real signal cycle advanced from 07:38:32 UTC to 07:43:54 UTC and scheduled its successor, while the UI verified both required listeners. Private before/after screenshots and logs are retained outside the repository.
 
-This is a local fix and audit, not a public release. The app version remains alpha.7/build 117 until a separate release is prepared; the local binary includes the subsequent fix commits. The public feed and release artifacts were not changed.
+These fixes are included in the alpha.8/build 118 release candidate. The local validation above was performed before the version bump. Public distribution requires the separate signed release pipeline, verification of the uploaded artifacts, and publication of the signed update feeds.
