@@ -19,7 +19,7 @@ extension ReleaseChecker {
             lastSignalCheck = baseline?.observedAt
         }
         let delay = UpdateDiscoveryPolicy.nextSignalDelay(
-            consecutiveFailures: signalFailureCount,
+            consecutiveFailures: max(signalFailureCount, reconciliationFailureCount),
             jitterUnit: Double.random(in: 0...1),
             lastSuccessfulProbeAt: baseline?.observedAt
         )
@@ -50,20 +50,14 @@ extension ReleaseChecker {
             do {
                 let endpoint = self.releaseEndpoint
                 let repository = self.repositoryURL
-                let probe = try await Task.detached(priority: .utility) {
-                    try Self.probeUpdateSignal(
-                        policy: selectedPolicy,
-                        baseline: baseline,
-                        releaseEndpoint: endpoint,
-                        repositoryURL: repository
-                    )
-                }.value
+                let probe = try await self.signalProbe(selectedPolicy, baseline, endpoint, repository)
                 try Task.checkCancellation()
                 guard self.signalGeneration == generation, self.policy == selectedPolicy else { return }
 
                 let now = Date()
                 self.lastSignalCheck = now
                 self.signalCheckError = nil
+                self.signalFailureCount = 0
                 self.persistSignalBaseline(
                     UpdateSignalBaseline(
                         policy: selectedPolicy,
@@ -73,7 +67,7 @@ extension ReleaseChecker {
                     )
                 )
                 if probe.result == .changed {
-                    self.signalFailureCount = 0
+                    self.reconciliationFailureCount = 0
                     self.automaticReconciliationPending = true
                     self.clearAutomaticFailureSuppression()
                 }

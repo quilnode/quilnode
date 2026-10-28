@@ -57,7 +57,8 @@ final class ReleaseChecker: ObservableObject {
     @Published var stagedUpdate: StagedNodeUpdate?
     @Published var automaticAuthorizationState: AutomaticUpdateAuthorizationState = .inactive
 
-    let defaults = UserDefaults.standard
+    let defaults: UserDefaults
+    var signalProbe: SignalProbe = ReleaseChecker.performSignalProbe
     let checkInterval = UpdateDiscoveryPolicy.fullReconciliationInterval
     let protocolCheckInterval: TimeInterval = 30 * 60
     let checkDurationKey = "node-update-check-duration-v1"
@@ -78,6 +79,7 @@ final class ReleaseChecker: ObservableObject {
     var shouldCheckAfterOperation = false
     var automaticCheckPending = false
     var signalFailureCount = 0
+    var reconciliationFailureCount = 0
     var automaticReconciliationPending = false
     var activeAutomaticCandidateID: String?
     var started = false
@@ -89,7 +91,8 @@ final class ReleaseChecker: ObservableObject {
     let releaseBase = URL(string: "https://releases.quilibrium.com/")!
     let repositoryURL = "https://github.com/QuilibriumNetwork/monorepo.git"
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         policy =
             defaults.string(forKey: "node-update-policy")
             .flatMap(NodeUpdatePolicy.init(rawValue:)) ?? .manual
@@ -105,7 +108,8 @@ final class ReleaseChecker: ObservableObject {
 
     #if DEBUG
         /// Isolated visual fixture: no journal recovery or saved policy reads.
-        init(preview: Void) {
+        init(preview: Void, defaults: UserDefaults = .standard) {
+            self.defaults = defaults
             policy = .manual
         }
     #endif
@@ -174,7 +178,8 @@ final class ReleaseChecker: ObservableObject {
     /// Runs the selected automatic policy immediately. Unlike a read-only
     /// refresh, a newer eligible candidate continues into build and install.
     func requestAutomaticCheck() {
-        guard policy != .manual else { return }
+        guard policy != .manual, !isWorking else { return }
+        clearAutomaticFailureSuppression()
         beginCheck(origin: .automatic)
     }
 

@@ -31,6 +31,12 @@ extension ReleaseChecker {
         automationTask?.cancel()
         signalTask?.cancel()
         signalCheckTask?.cancel()
+        // Cancellation does not run the task's defer synchronously. Detach the
+        // obsolete handles before changing generations so a replacement can
+        // start, while the old completion cannot clear the new task.
+        automationTask = nil
+        signalTask = nil
+        signalCheckTask = nil
         signalGeneration = UUID()
         nextAutomaticCheck = nil
         nextSignalCheck = nil
@@ -38,6 +44,7 @@ extension ReleaseChecker {
             automaticCheckPending = false
             automaticReconciliationPending = false
             signalFailureCount = 0
+            reconciliationFailureCount = 0
             signalCheckError = nil
             return
         }

@@ -83,35 +83,7 @@ extension DashboardView {
     }
 
     var automaticScheduleDescription: String {
-        if releaseChecker.policy != .manual {
-            switch releaseChecker.automaticAuthorizationState {
-            case .synchronizing:
-                return "Preparing passwordless automatic activation"
-            case .failed:
-                return "Automatic install paused · secure service setup needs attention"
-            case .inactive:
-                return "Automatic install is not authorized"
-            case .ready:
-                break
-            }
-        }
-        if releaseChecker.isChecking {
-            return "Checking the selected channel now"
-        }
-        if releaseChecker.isInstalling {
-            return "Building or installing the selected update"
-        }
-        let signal = releaseChecker.nextSignalCheck.map {
-            "signal \($0.formatted(date: .omitted, time: .shortened))"
-        }
-        let reconciliation = releaseChecker.nextAutomaticCheck.map {
-            "full reconciliation \($0.formatted(date: .omitted, time: .shortened))"
-        }
-        let schedule = [signal, reconciliation].compactMap { $0 }.joined(separator: " · ")
-        guard !schedule.isEmpty else {
-            return "Preparing the automatic schedule"
-        }
-        return "Automatic install ready · next \(schedule)"
+        releaseChecker.automaticDiscoveryStatus()
     }
 
 }

@@ -21,6 +21,7 @@ extension ReleaseChecker {
                     }
                 }
             }
+            guard !Task.isCancelled else { return }
             let candidate = await self.check(origin: origin, generation: generation)
             guard self.checkGeneration == generation else { return }
             guard let candidate else { return }
@@ -129,7 +130,7 @@ extension ReleaseChecker {
             state = .available(snapshot)
             if origin == .automatic {
                 automaticReconciliationPending = false
-                signalFailureCount = 0
+                reconciliationFailureCount = 0
             }
             defaults.set(snapshot.checkedAt, forKey: "node-update-last-check")
             let duration = max(snapshot.checkedAt.timeIntervalSince(startedAt), 0)
@@ -163,7 +164,7 @@ extension ReleaseChecker {
             lastError = error.localizedDescription
             if origin == .automatic {
                 automaticReconciliationPending = true
-                signalFailureCount = min(signalFailureCount + 1, 4)
+                reconciliationFailureCount = min(reconciliationFailureCount + 1, 4)
                 scheduleNextSignalProbe()
             }
             state = previousSnapshot.map(State.available) ?? .failed(error.localizedDescription)
