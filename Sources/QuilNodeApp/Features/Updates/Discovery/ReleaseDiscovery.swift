@@ -97,20 +97,20 @@ extension ReleaseChecker {
     }
 
     nonisolated static func readQClientUpdateInfo(endpoint: URL) async -> QClientUpdateInfo {
-        let installed = PrivilegedServiceClient.readQClientStatus(timeout: 8).status
+        let local = PrivilegedServiceClient.readQClientStatus(timeout: 8)
         do {
             return QClientUpdateInfo(
                 available: try await fetchSignedQClientRelease(endpoint: endpoint),
-                installed: installed,
+                installed: local.status,
                 checkedAt: Date(),
-                error: nil
+                error: local.error
             )
         } catch {
             return QClientUpdateInfo(
                 available: nil,
-                installed: installed,
+                installed: local.status,
                 checkedAt: Date(),
-                error: error.localizedDescription
+                error: [local.error, error.localizedDescription].compactMap { $0 }.joined(separator: " · ")
             )
         }
     }

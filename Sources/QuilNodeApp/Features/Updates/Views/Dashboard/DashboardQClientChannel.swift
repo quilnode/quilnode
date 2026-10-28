@@ -6,14 +6,13 @@ import SwiftUI
 
 extension DashboardView {
     func managedQClientStrip(_ snapshot: UpdateCenterSnapshot) -> some View {
-        let installed = snapshot.qclient.installed
         let compatible = snapshot.qclientIsCurrent
         return Group {
             if !dashboardLayoutClass.isWide {
                 VStack(alignment: .leading, spacing: 12) {
                     qclientIdentity
                     HStack(alignment: .bottom, spacing: 16) {
-                        UpdateDetailRow(label: "Installed", value: installed?.releaseVersion ?? "Not managed")
+                        UpdateDetailRow(label: "Installed", value: snapshot.qclientInstallationLabel)
                         UpdateDetailRow(label: "Target", value: snapshot.qclientTargetLabel)
                         Spacer(minLength: 4)
                         qclientAction(snapshot: snapshot, compatible: compatible)
@@ -23,10 +22,10 @@ extension DashboardView {
                 HStack(spacing: 14) {
                     qclientIdentity
                     Spacer()
-                    UpdateDetailRow(label: "Installed", value: installed?.releaseVersion ?? "Not managed")
+                    UpdateDetailRow(label: "Installed", value: snapshot.qclientInstallationLabel)
                     UpdateDetailRow(label: "Target", value: snapshot.qclientTargetLabel)
                     Label(
-                        compatible ? "Current" : "Update available",
+                        snapshot.qclientUpdateStatusLabel,
                         systemImage: compatible ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
                     )
                     .font(.caption.weight(.semibold))
@@ -56,14 +55,25 @@ extension DashboardView {
         snapshot: UpdateCenterSnapshot,
         compatible: Bool
     ) -> some View {
-        Button(compatible ? "Current" : (snapshot.qclient.installed == nil ? "Install qclient" : "Update qclient")) {
-            releaseChecker.requestInstallQClient()
-        }
-        .buttonStyle(.bordered)
-        .disabled(
-            compatible || (snapshot.installed.build.kind != .source && snapshot.qclient.available == nil)
-                || releaseChecker.isInstalling
-                || releaseChecker.stagedUpdate != nil
-        )
+        Group {
+            if snapshot.qclient.installed == nil {
+                Button("Recheck") { releaseChecker.requestCheck() }
+                    .disabled(releaseChecker.isWorking)
+                    .help("The local service could not confirm qclient. Recheck before installing anything.")
+            } else {
+                Button(
+                    compatible
+                        ? "Current"
+                        : (snapshot.qclient.installed?.state == .missing ? "Install qclient" : "Update qclient")
+                ) {
+                    releaseChecker.requestInstallQClient()
+                }
+                .disabled(
+                    compatible || (snapshot.installed.build.kind != .source && snapshot.qclient.available == nil)
+                        || releaseChecker.isWorking
+                        || releaseChecker.stagedUpdate != nil
+                )
+            }
+        }.buttonStyle(.bordered)
     }
 }

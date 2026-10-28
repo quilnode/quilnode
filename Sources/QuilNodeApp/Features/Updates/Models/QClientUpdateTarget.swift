@@ -5,6 +5,24 @@ import Foundation
 #endif
 
 extension UpdateCenterSnapshot {
+    var qclientInstallationLabel: String {
+        guard let client = qclient.installed else { return "Unavailable" }
+        switch client.state {
+        case .missing: return "Not installed"
+        case .invalid: return "Needs repair"
+        case .verified: return client.releaseVersion ?? client.reportedVersion ?? "Installed"
+        }
+    }
+
+    var qclientUpdateStatusLabel: String {
+        guard let client = qclient.installed else { return "Check unavailable" }
+        switch client.state {
+        case .missing: return "Not installed"
+        case .invalid: return "Needs repair"
+        case .verified: return qclientIsCurrent ? "Current" : "Update available"
+        }
+    }
+
     /// Only the installed protocol's version branch is eligible for a
     /// client-only update. Never silently cross protocols or arbitrary branches.
     var qclientSourceHead: GitBranchHead? {
