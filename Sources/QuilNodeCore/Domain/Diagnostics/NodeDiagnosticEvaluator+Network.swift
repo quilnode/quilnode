@@ -27,11 +27,16 @@ extension NodeDiagnosticEvaluator {
     }
 
     static func listenerCheck(_ context: NodeDiagnosticContext) -> NodeDiagnosticCheck {
-        guard context.networkInspection.inspectionSucceeded else {
+        guard context.snapshot.isRunning,
+            context.networkInspection.inspectionSucceeded,
+            context.networkInspection.processID == context.snapshot.processID
+        else {
             return check(
                 id: "listeners", category: .network, state: .checking,
                 title: "Required listeners", summary: "Inspecting the node's local listeners.",
-                evidence: "The latest socket inspection is incomplete.", repair: .refreshEvidence
+                evidence: context.networkInspection.listenerInspectionError
+                    ?? "The latest socket inspection is incomplete for the current node process.",
+                repair: .refreshEvidence
             )
         }
         if context.networkAssessment.state == .localConfigurationIssue {

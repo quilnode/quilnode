@@ -5,7 +5,7 @@ import Foundation
 /// module prevents the two processes from silently drifting apart.
 public enum PrivilegedServiceProtocol {
     public static let version = 1
-    public static let currentServiceBuild = 124
+    public static let currentServiceBuild = 125
     public static let minimumSupportedServiceBuild = 124
     public static let maximumRequestBytes = 64_000
     public static let maximumResponseBytes = 1_000_000
@@ -33,6 +33,7 @@ public enum PrivilegedServiceAction: String, CaseIterable, Codable, Sendable {
     case status
     case nodeInfo
     case metrics
+    case nodeSockets
     case balance
     case proverTelemetry
     case start
@@ -102,6 +103,7 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
     public var nodeInfoOutput: String?
     public var peerInfoOutput: String?
     public var metricsOutput: String?
+    public var nodeSockets: ProcessSocketInspection?
     public var balanceOutput: String?
     public var balanceExitCode: Int32?
     public var balanceTimedOut: Bool?
@@ -144,7 +146,8 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         serviceBuild: Int? = nil,
         authorizationRequired: Bool? = nil,
         nodeUpdatePolicy: AutomaticNodeUpdatePolicy? = nil,
-        nodeStartAtBoot: Bool? = nil
+        nodeStartAtBoot: Bool? = nil,
+        nodeSockets: ProcessSocketInspection? = nil
     ) {
         self.success = success
         self.message = message
@@ -169,5 +172,6 @@ public struct PrivilegedServiceResponse: Codable, Sendable {
         self.authorizationRequired = authorizationRequired
         self.nodeUpdatePolicy = nodeUpdatePolicy
         self.nodeStartAtBoot = nodeStartAtBoot
+        self.nodeSockets = nodeSockets
     }
 }

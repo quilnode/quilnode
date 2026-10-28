@@ -97,25 +97,26 @@ struct NetworkWorkspacePresentation {
         firewall: ManagedFirewallStatus,
         portPlan: NetworkPortPlan
     ) -> NetworkWorkspacePresentation {
-        let listenersHealthy =
-            inspection.inspectionSucceeded
-            && portPlan.required.allSatisfy { inspection.isListening(for: $0) }
+        let listenersInspected = inspection.inspectionSucceeded && inspection.processID == snapshot.processID
+        let listenersHealthy = listenersInspected && portPlan.required.allSatisfy { inspection.isListening(for: $0) }
         let inboundEvents = snapshot.inboundConnectionsEstablished ?? 0
-        let hasInbound = inboundEvents > 0 || inspection.inboundPeerSockets > 0
-        let inspectionDate = inspection.inspectionSucceeded ? inspection.observedAt : nil
+        let hasInbound = inboundEvents > 0 || (listenersInspected && inspection.inboundPeerSockets > 0)
+        let inspectionDate = listenersInspected ? inspection.observedAt : nil
         let metricDate = snapshot.metricsUpdatedAt ?? snapshot.collectedAt
         let ports = portPlan.required.map(\.portLabel).joined(separator: " + ")
 
         let stages = [
             NetworkStagePresentation(
                 kind: .listeners,
-                state: listenersHealthy ? .verified : (inspection.inspectionSucceeded ? .blocked : .waiting),
-                status: listenersHealthy ? "Verified" : (inspection.inspectionSucceeded ? "Missing" : "Checking"),
-                value: listenersHealthy ? ports : listenerFallback(assessment),
+                state: listenersHealthy ? .verified : (listenersInspected ? .blocked : .waiting),
+                status: listenersHealthy ? "Verified" : (listenersInspected ? "Missing" : "Unverified"),
+                value: listenersHealthy ? ports : (listenersInspected ? listenerFallback(assessment) : "Unavailable"),
                 detail: listenersHealthy
                     ? "Required transports are listening on this process."
-                    : "The inbound path cannot start until every required listener is active.",
-                evidenceSource: "macOS socket table",
+                    : (listenersInspected
+                        ? "The inbound path cannot start until every required listener is active."
+                        : "Individual listeners are unavailable. This does not mean the ports are closed; inbound node metrics remain separate evidence."),
+                evidenceSource: "Managed process sockets",
                 observedAt: inspectionDate,
                 privacyField: .networkPort
             ),

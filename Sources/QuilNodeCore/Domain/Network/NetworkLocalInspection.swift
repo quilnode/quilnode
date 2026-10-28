@@ -8,6 +8,8 @@ public enum NetworkFirewallState: String, Codable, Equatable, Sendable {
 }
 
 public struct NetworkLocalInspection: Codable, Equatable, Sendable {
+    public var processID: Int32?
+    public var listenerInspectionError: String?
     public var observedAt: Date
     public var localIPv4: String?
     public var gatewayIPv4: String?
@@ -21,6 +23,8 @@ public struct NetworkLocalInspection: Codable, Equatable, Sendable {
 
     public init(
         observedAt: Date = Date(),
+        processID: Int32? = nil,
+        listenerInspectionError: String? = nil,
         localIPv4: String? = nil,
         gatewayIPv4: String? = nil,
         interfaceName: String? = nil,
@@ -31,6 +35,8 @@ public struct NetworkLocalInspection: Codable, Equatable, Sendable {
         inboundPeerSockets: Int = 0,
         inspectionSucceeded: Bool = false
     ) {
+        self.processID = processID
+        self.listenerInspectionError = listenerInspectionError
         self.observedAt = observedAt
         self.localIPv4 = localIPv4
         self.gatewayIPv4 = gatewayIPv4

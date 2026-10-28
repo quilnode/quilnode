@@ -74,6 +74,7 @@ final class NetworkReadinessCoordinator: ObservableObject {
             .map(\.0)
             .sink { [weak self] snapshot in
                 guard let self else { return }
+                if latestNode.processID != snapshot.processID { inspection = .empty }
                 latestNode = snapshot
                 assessment = NetworkReadinessEvaluator.evaluate(
                     node: snapshot,
@@ -94,6 +95,7 @@ final class NetworkReadinessCoordinator: ObservableObject {
     func refresh(forceRouterProbe: Bool = false) async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        defer { isRefreshing = false }
         let pid = latestNode.processID
         let expectedPlan = portPlan
         async let localInspection = Task.detached(priority: .utility) { [inspector] in
@@ -108,6 +110,7 @@ final class NetworkReadinessCoordinator: ObservableObject {
             routerAccess = .checking(route: route)
         }
         let access = await routerDiscoverer.discover(route: route, force: forceRouterProbe)
+        guard pid == latestNode.processID else { return }
         inspection = result
         gatewayRoute = route
         routerAccess = access
@@ -125,7 +128,6 @@ final class NetworkReadinessCoordinator: ObservableObject {
         } else {
             firewallError = firewallResult.error
         }
-        isRefreshing = false
     }
 
     func validation(for profile: NetworkPortProfile) -> NetworkPortProfileValidation {

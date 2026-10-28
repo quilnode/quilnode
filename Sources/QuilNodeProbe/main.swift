@@ -40,6 +40,12 @@ struct QuilNodeProbe {
         encoder.dateEncodingStrategy = .iso8601
 
         do {
+            if CommandLine.arguments.contains("--network-status") {
+                let inspection = NetworkLocalInspector().inspect(processID: result.snapshot.processID)
+                let data = try encoder.encode(inspection)
+                print(String(decoding: data, as: UTF8.self))
+                return
+            }
             let data = try encoder.encode(result.snapshot)
             print(String(decoding: data, as: UTF8.self))
         } catch {

@@ -1,4 +1,5 @@
 import Foundation
+import QuilNodeShared
 
 public struct NetworkLocalInspector: Sendable {
     public init() {}
@@ -17,23 +18,26 @@ public struct NetworkLocalInspector: Sendable {
             return result.exitCode == 0 ? result.output.trimmingCharacters(in: .whitespacesAndNewlines) : nil
         }
 
-        let tcp = run("/usr/sbin/netstat", ["-anv", "-p", "tcp"], timeout: 3)
-        let udp = run("/usr/sbin/netstat", ["-anv", "-p", "udp"], timeout: 3)
+        // macOS can silently redact the system-wide netstat table. Inspect
+        // only this process, through its existing authenticated service when
+        // the node runs under the isolated account.
+        let sockets =
+            ProcessSocketInspector.inspect(processID: processID)
+            ?? PrivilegedServiceClient.readNodeSockets()
+        let current = sockets.flatMap { $0.processID == processID ? $0 : nil }
         let firewall = readFirewallState()
         return NetworkLocalInspection(
+            processID: processID,
+            listenerInspectionError: current == nil
+                ? "macOS did not expose this node's listeners. Inbound node metrics are checked separately." : nil,
             localIPv4: localIP,
             gatewayIPv4: gateway,
             interfaceName: interface,
             interfaceDisplayName: interfaceDisplayName,
             firewallState: firewall,
-            tcpListeners: listenerPorts(in: tcp.output, processID: processID, transport: .tcp),
-            udpListeners: listenerPorts(in: udp.output, processID: processID, transport: .udp),
-            inboundPeerSockets: inboundPeerSocketCount(
-                in: tcp.output,
-                processID: processID,
-                listeningPorts: Set(portPlan.required.filter { $0.transport == .tcp }.map(\.startPort))
-            ),
-            inspectionSucceeded: tcp.exitCode == 0 && udp.exitCode == 0
+            tcpListeners: current?.tcpListeners ?? [],
+            udpListeners: current?.udpBindings ?? [],
+            inspectionSucceeded: current != nil
         )
     }
 
@@ -60,52 +64,6 @@ public struct NetworkLocalInspector: Sendable {
         let blockAll = run(tool, ["--getblockall"], timeout: 2)
         if blockAll.output.localizedCaseInsensitiveContains("enabled") { return .blockingAll }
         return .enabled
-    }
-
-    private func listenerPorts(
-        in output: String,
-        processID: Int32,
-        transport: NetworkTransport
-    ) -> Set<UInt16> {
-        let processMarker = ":\(processID)"
-        var ports = Set<UInt16>()
-        for line in output.split(separator: "\n").map(String.init) {
-            guard line.contains(processMarker) else { continue }
-            if transport == .tcp && !line.contains(" LISTEN ") { continue }
-            let fields = line.split(whereSeparator: \.isWhitespace)
-            guard fields.count > 3, let port = port(from: String(fields[3])) else { continue }
-            ports.insert(port)
-        }
-        return ports
-    }
-
-    private func port(from address: String) -> UInt16? {
-        guard let component = address.split(separator: ".").last else { return nil }
-        return UInt16(component)
-    }
-
-    /// An established socket whose local endpoint is a required listener and
-    /// whose remote endpoint is not one of Quilibrium's well-known master
-    /// ports is strong evidence that a remote peer initiated the connection.
-    private func inboundPeerSocketCount(
-        in output: String,
-        processID: Int32,
-        listeningPorts: Set<UInt16>
-    ) -> Int {
-        let processMarker = ":\(processID)"
-        guard !listeningPorts.isEmpty else { return 0 }
-        return output.split(separator: "\n").reduce(into: 0) { count, raw in
-            let line = String(raw)
-            guard line.contains(processMarker), line.contains(" ESTABLISHED ") else { return }
-            let fields = line.split(whereSeparator: \.isWhitespace)
-            guard fields.count > 4,
-                let localPort = port(from: String(fields[3])),
-                let remotePort = port(from: String(fields[4])),
-                listeningPorts.contains(localPort),
-                !listeningPorts.contains(remotePort)
-            else { return }
-            count += 1
-        }
     }
 
     private func lineValue(_ key: String, in output: String) -> String? {

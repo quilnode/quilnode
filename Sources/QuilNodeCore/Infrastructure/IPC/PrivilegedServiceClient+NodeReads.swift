@@ -5,6 +5,16 @@ import Foundation
 #endif
 
 extension PrivilegedServiceClient {
+    public static func readNodeSockets(timeout: TimeInterval = 5) -> ProcessSocketInspection? {
+        let result = response(.nodeSockets, timeout: timeout)
+        guard result.exitCode == 0, let response = result.response,
+            let sockets = response.nodeSockets, sockets.processID == response.nodePID,
+            sockets.observedAt.timeIntervalSinceNow >= -15,
+            sockets.observedAt.timeIntervalSinceNow <= 5
+        else { return nil }
+        return sockets
+    }
+
     public static func readNodeInfo(timeout: TimeInterval = 75) -> NodeInfo? {
         let result = response(.nodeInfo, timeout: timeout)
         guard result.exitCode == 0, let response = result.response else { return nil }

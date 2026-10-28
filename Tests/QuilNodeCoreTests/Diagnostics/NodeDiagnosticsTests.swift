@@ -41,6 +41,7 @@ final class NodeDiagnosticsTests: XCTestCase {
         )
         let diagnosticInspection = NetworkLocalInspection(
             observedAt: diagnosticNow,
+            processID: 42,
             tcpListeners: [8_336, 8_340],
             inboundPeerSockets: 1,
             inspectionSucceeded: true

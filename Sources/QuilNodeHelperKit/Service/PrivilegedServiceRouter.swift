@@ -38,6 +38,17 @@ extension QuilNodeHelper {
             try requireIdleOperation("node inspection is paused while an update is activating")
             try validateLaunchDaemonPlist()
             return try readNodeIdentity()
+        case .nodeSockets:
+            try requireIdleOperation("listener inspection is paused while an update is activating")
+            try validateLaunchDaemonPlist()
+            guard let pid = currentNodePID(),
+                let sockets = ProcessSocketInspector.inspect(processID: pid),
+                currentNodePID() == pid
+            else { throw HelperFailure.service("The managed node's listeners are temporarily unavailable.") }
+            return PrivilegedServiceResponse(
+                success: true, message: "Managed node listeners inspected.",
+                nodePID: pid, nodeSockets: sockets
+            )
         case .metrics:
             try requireIdleOperation("metrics are paused while an update is activating")
             try validateLaunchDaemonPlist()

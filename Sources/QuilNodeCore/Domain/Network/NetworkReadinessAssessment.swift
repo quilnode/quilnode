@@ -43,11 +43,21 @@ public enum NetworkReadinessEvaluator {
                 detail: "Start the node before checking inbound connectivity."
             )
         }
-        guard inspection.inspectionSucceeded else {
+        guard inspection.inspectionSucceeded, inspection.processID == node.processID else {
+            if (node.inboundConnectionsEstablished ?? 0) > 0 {
+                return .init(
+                    state: .inboundVerified,
+                    title: "Inbound peer traffic verified",
+                    detail:
+                        "This node reports inbound peer connections. Individual local listeners could not be inspected."
+                )
+            }
             return .init(
                 state: .inspecting,
-                title: "Inspecting this Mac",
-                detail: "QuilNode is checking local listeners, the active network, and macOS Firewall."
+                title: inspection.listenerInspectionError == nil
+                    ? "Inspecting this Mac" : "Listener inspection unavailable",
+                detail: inspection.listenerInspectionError
+                    ?? "QuilNode is checking local listeners, the active network, and macOS Firewall."
             )
         }
 

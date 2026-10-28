@@ -118,20 +118,35 @@ final class NetworkReadinessPresentationTests: XCTestCase {
         XCTAssertEqual(InboundSetupPresentation.recommendedEntryStep(from: presentation), .inboundProof)
     }
 
+    func testUnavailableListenersDoNotContradictObservedInboundTraffic() {
+        let presentation = makePresentation(
+            snapshot: NodeSnapshot(isRunning: true, peers: 248, inboundConnectionsEstablished: 9),
+            assessment: .init(state: .inboundVerified, title: "Verified", detail: "Node metrics"),
+            inspectionOverride: .init(listenerInspectionError: "Unavailable")
+        )
+        XCTAssertEqual(presentation.stage(.listeners).state, .waiting)
+        XCTAssertEqual(presentation.stage(.listeners).status, "Unverified")
+        XCTAssertTrue(presentation.stage(.listeners).detail.contains("does not mean the ports are closed"))
+        XCTAssertEqual(presentation.stage(.internetBoundary).state, .verified)
+    }
+
     private func makePresentation(
         snapshot: NodeSnapshot,
         assessment: NetworkReadinessAssessment,
-        firewall: ManagedFirewallStatus? = nil
+        firewall: ManagedFirewallStatus? = nil,
+        inspectionOverride: NetworkLocalInspection? = nil
     ) -> NetworkWorkspacePresentation {
-        let inspection = NetworkLocalInspection(
-            localIPv4: "192.0.2.49",
-            gatewayIPv4: "192.0.2.1",
-            interfaceName: "en0",
-            interfaceDisplayName: "Wi-Fi",
-            firewallState: .enabled,
-            tcpListeners: [8_336, 8_340],
-            inspectionSucceeded: true
-        )
+        let inspection =
+            inspectionOverride
+            ?? NetworkLocalInspection(
+                localIPv4: "192.0.2.49",
+                gatewayIPv4: "192.0.2.1",
+                interfaceName: "en0",
+                interfaceDisplayName: "Wi-Fi",
+                firewallState: .enabled,
+                tcpListeners: [8_336, 8_340],
+                inspectionSucceeded: true
+            )
         let gateway = GatewayRouteClassifier.assess(inspection)
         let access = RouterAccessDiscovery(
             routeSignature: gateway.signature,
