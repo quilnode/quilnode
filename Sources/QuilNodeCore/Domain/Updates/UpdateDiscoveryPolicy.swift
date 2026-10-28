@@ -9,6 +9,15 @@ public enum UpdateDiscoveryPolicy {
     public static let fullReconciliationInterval: TimeInterval = 6 * 60 * 60
     public static let maximumSignalBackoff: TimeInterval = 60 * 60
 
+    /// Relaunching the app must preserve the remaining fallback interval,
+    /// rather than postpone reconciliation by another six hours each time.
+    public static func nextReconciliationDelay(lastAttemptAt: Date?, now: Date = Date()) -> TimeInterval {
+        guard let lastAttemptAt else { return fullReconciliationInterval }
+        return min(
+            max(lastAttemptAt.addingTimeInterval(fullReconciliationInterval).timeIntervalSince(now), 5),
+            fullReconciliationInterval)
+    }
+
     public static func shouldRefresh(
         lastCheckedAt: Date?,
         now: Date = Date(),

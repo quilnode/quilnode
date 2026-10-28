@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(QuilNodeCore)
+    import QuilNodeCore
+#endif
+
 @MainActor
 extension ReleaseChecker {
     func rollback() async {
@@ -50,13 +54,22 @@ extension ReleaseChecker {
         }
 
         automationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, !Task.isCancelled else { return }
             if runImmediately { self.requestScheduledAutomaticCheck() }
+            var delay =
+                runImmediately
+                ? self.checkInterval
+                : UpdateDiscoveryPolicy.nextReconciliationDelay(
+                    lastAttemptAt: self.defaults.object(forKey: self.automaticAttemptKey) as? Date
+                )
             while !Task.isCancelled {
-                let next = Date().addingTimeInterval(self.checkInterval)
+                let next = Date().addingTimeInterval(delay)
                 self.nextAutomaticCheck = next
-                do { try await Task.sleep(for: .seconds(self.checkInterval)) } catch { return }
+                do { try await Task.sleep(for: .seconds(delay)) } catch { return }
                 self.requestScheduledAutomaticCheck()
+                // A busy operation coalesces the due check. Do not repeatedly
+                // fire an overdue timer while that deferred check is pending.
+                delay = self.checkInterval
             }
         }
         scheduleNextSignalProbe()

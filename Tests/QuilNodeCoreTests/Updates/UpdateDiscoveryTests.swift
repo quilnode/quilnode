@@ -5,6 +5,20 @@ import XCTest
 @testable import QuilNodeShared
 
 final class UpdateDiscoveryTests: XCTestCase {
+    func testRelaunchPreservesRemainingFallbackInterval() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(
+            UpdateDiscoveryPolicy.nextReconciliationDelay(lastAttemptAt: now.addingTimeInterval(-4 * 3_600), now: now),
+            2 * 3_600)
+        XCTAssertEqual(
+            UpdateDiscoveryPolicy.nextReconciliationDelay(lastAttemptAt: now.addingTimeInterval(-7 * 3_600), now: now),
+            5)
+        XCTAssertEqual(
+            UpdateDiscoveryPolicy.nextReconciliationDelay(lastAttemptAt: now.addingTimeInterval(3_600), now: now),
+            6 * 3_600)
+        XCTAssertEqual(UpdateDiscoveryPolicy.nextReconciliationDelay(lastAttemptAt: nil, now: now), 6 * 3_600)
+    }
+
     func testReleaseDiscoveryAndUpdateModels() {
         let releaseManifest = """
             node-2.1.0.24-darwin-arm64

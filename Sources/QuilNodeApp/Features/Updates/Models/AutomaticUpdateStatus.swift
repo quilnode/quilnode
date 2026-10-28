@@ -26,7 +26,7 @@ extension ReleaseChecker {
         if [nextSignalCheck, nextAutomaticCheck].compactMap({ $0 }).contains(where: {
             now.timeIntervalSince($0) > 60
         }) {
-            return "Update check is overdue · run Check & update now to retry"
+            return "Update check is overdue · use Run selected channel now to retry"
         }
         guard !schedule.isEmpty else { return "Preparing the automatic schedule" }
         return "Automatic install ready · next \(schedule)"
